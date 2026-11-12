@@ -1,0 +1,94 @@
+# Produkcja: po opublikowaniu Release (np. v0.1.0). Environment "production" wymaga Twojego zatwierdzenia.
+#  - migracje i Edge Functions -> projekt Supabase "production"
+#  - frontend -> GitHub Pages tego repo, domena competitions.steel-valley.pl (ustawiona w Settings -> Pages)
+name: Deploy production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Co jest w repo?
+        id: has
+        run: |
+          [ -f supabase/config.toml ] && echo "db=true" >> "$GITHUB_OUTPUT" || echo "db=false" >> "$GITHUB_OUTPUT"
+      - if: steps.has.outputs.db == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Migracje, sekrety i funkcje (produkcja)
+        if: steps.has.outputs.db == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref "$PROJECT_REF"
+          # Kopia schematu i danych przed migracją (artefakt workflowu, 7 dni)
+          supabase db dump --linked -f backup-schema.sql
+          supabase db dump --linked --data-only -f backup-data.sql
+          supabase db push
+          supabase secrets set --project-ref "$PROJECT_REF" \
+            TPAY_CLIENT_ID="${{ secrets.TPAY_CLIENT_ID }}" \
+            TPAY_CLIENT_SECRET="${{ secrets.TPAY_CLIENT_SECRET }}" \
+            TPAY_API_URL="${{ vars.TPAY_API_URL }}" \
+            APP_URL="${{ vars.APP_URL }}"
+          if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions)" ]; then
+            supabase functions deploy --project-ref "$PROJECT_REF"
+          fi
+      - name: Zachowaj kopię bazy
+        if: steps.has.outputs.db == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup-*.sql
+          retention-days: 7
+
+  frontend:
+    needs: backend
+    runs-on: ubuntu-latest
+    # Środowisko Pages; w Settings -> Environments -> github-pages dodaj regułę dla tagów "v*".
+    environment:
+      name: github-pages
+      url: https://competitions.steel-valley.pl
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build
+        working-directory: web
+        env:
+          PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          PUBLIC_APP_ENV: production
+          PUBLIC_SITE_URL: ${{ vars.APP_URL }}
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

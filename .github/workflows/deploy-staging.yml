@@ -1,0 +1,80 @@
+# Staging: każdy merge do main.
+#  - migracje i Edge Functions -> projekt Supabase "staging"
+#  - frontend -> repo rkazmier/sv-competitions-staging (GitHub Pages), domena competitions-staging.steel-valley.pl
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Co jest w repo?
+        id: has
+        run: |
+          [ -f web/package.json ] && echo "web=true" >> "$GITHUB_OUTPUT" || echo "web=false" >> "$GITHUB_OUTPUT"
+          [ -f supabase/config.toml ] && echo "db=true" >> "$GITHUB_OUTPUT" || echo "db=false" >> "$GITHUB_OUTPUT"
+
+      # --- Supabase ---
+      - if: steps.has.outputs.db == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Migracje, sekrety i funkcje (staging)
+        if: steps.has.outputs.db == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push
+          supabase secrets set --project-ref "$PROJECT_REF" \
+            TPAY_CLIENT_ID="${{ secrets.TPAY_CLIENT_ID }}" \
+            TPAY_CLIENT_SECRET="${{ secrets.TPAY_CLIENT_SECRET }}" \
+            TPAY_API_URL="${{ vars.TPAY_API_URL }}" \
+            APP_URL="${{ vars.APP_URL }}"
+          if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions)" ]; then
+            supabase functions deploy --project-ref "$PROJECT_REF"
+          fi
+
+      # --- Frontend ---
+      - if: steps.has.outputs.web == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build
+        if: steps.has.outputs.web == 'true'
+        working-directory: web
+        env:
+          PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          PUBLIC_APP_ENV: staging
+          PUBLIC_SITE_URL: ${{ vars.APP_URL }}
+        run: |
+          npm ci
+          npm run build
+      - name: Publikacja na stagingu
+        if: steps.has.outputs.web == 'true'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.AGENT_GH_TOKEN }}
+          external_repository: ${{ github.repository_owner }}/sv-competitions-staging
+          publish_branch: gh-pages
+          publish_dir: web/dist
+          cname: competitions-staging.steel-valley.pl

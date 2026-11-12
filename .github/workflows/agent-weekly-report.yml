@@ -1,0 +1,34 @@
+# Raport tygodniowy w nowym issue (poniedziałek rano). Dostaniesz powiadomienie na telefon.
+name: "Agent: raport tygodniowy"
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"   # poniedziałek 05:17 UTC (6:17 / 7:17 w Polsce)
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            Przygotuj po polsku raport z ostatnich 7 dni i opublikuj go jako nowe issue
+            z etykietą `report` i tytułem „Raport tygodniowy <data>”, z wzmianką @rkazmier.
+            Sekcje: 1) Zrobione (zmergowane PR-y), 2) Czeka na Ciebie (pytania `question`, PR-y do merge),
+            3) W toku i kolejka `backlog` (ile zadań), 4) Ryzyka i blokady. Krótko, punktami.
+            Zamknij poprzednie otwarte issue z etykietą `report`.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 20
+            --allowedTools "Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue close:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(date:*)"

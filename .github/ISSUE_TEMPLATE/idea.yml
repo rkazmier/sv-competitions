@@ -1,0 +1,22 @@
+name: "💡 Pomysł / nowa funkcja"
+description: Opisz, czego potrzebujesz. Analityk przygotuje specyfikację.
+title: "Pomysł: "
+labels: ["idea"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Co ma działać?
+      description: 2–3 zdania wystarczą. Analityk dopyta o szczegóły.
+      placeholder: "Zawodnik zapisuje się na zawody, wybiera dywizję i płaci BLIK-iem."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Po co? (opcjonalnie)
+      placeholder: "Teraz zapisy idą mailem i liczymy wpłaty ręcznie."
+  - type: textarea
+    id: notes
+    attributes:
+      label: Uwagi, linki, przykłady (opcjonalnie)

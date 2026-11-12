@@ -1,0 +1,40 @@
+# Kolejka zadań: po merge specyfikacji lub implementacji przenosi najstarsze zadanie
+# z `backlog` do `ready-for-dev` (co uruchamia Implementatora). Zawsze tylko jedno naraz.
+# Można też uruchomić ręcznie z zakładki Actions.
+name: "Kolejka: następne zadanie"
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  promote:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+        (contains(github.event.pull_request.labels.*.name, 'spec') ||
+         contains(github.event.pull_request.labels.*.name, 'implementation')))
+    runs-on: ubuntu-latest
+    env:
+      # PAT, żeby nadanie etykiety uruchomiło workflow Implementatora.
+      GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Promuj następne zadanie
+        run: |
+          set -euo pipefail
+          busy=$(gh issue list -R "$REPO" --state open --label ready-for-dev --json number -q 'length')
+          busy2=$(gh issue list -R "$REPO" --state open --label in-progress --json number -q 'length')
+          if [ "$busy" != "0" ] || [ "$busy2" != "0" ]; then
+            echo "Trwa realizacja innego zadania — nic nie robię."
+            exit 0
+          fi
+          next=$(gh issue list -R "$REPO" --state open --label backlog \
+                   --search "sort:created-asc" --limit 1 --json number -q '.[0].number // empty')
+          if [ -z "$next" ]; then
+            echo "Kolejka backlog jest pusta."
+            exit 0
+          fi
+          gh issue edit "$next" -R "$REPO" --remove-label backlog --add-label ready-for-dev
+          echo "Następne zadanie: #$next"

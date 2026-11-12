@@ -1,0 +1,26 @@
+name: "🐞 Błąd"
+description: Coś nie działa. Błąd trafia od razu do kolejki Implementatora.
+title: "Błąd: "
+labels: ["bug", "backlog"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Co się stało?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Czego oczekiwałeś?
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Gdzie? (link do strony)
+  - type: dropdown
+    id: env
+    attributes:
+      label: Środowisko
+      options: ["produkcja", "staging"]

@@ -1,0 +1,70 @@
+# CI: uruchamia tylko to, co już istnieje w repo (projekt rośnie etapami).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Co jest w repo?
+        id: has
+        run: |
+          [ -f web/package.json ] && echo "web=true" >> "$GITHUB_OUTPUT" || echo "web=false" >> "$GITHUB_OUTPUT"
+          [ -f supabase/config.toml ] && echo "db=true" >> "$GITHUB_OUTPUT" || echo "db=false" >> "$GITHUB_OUTPUT"
+          [ -f playwright.config.ts ] && echo "e2e=true" >> "$GITHUB_OUTPUT" || echo "e2e=false" >> "$GITHUB_OUTPUT"
+
+      # --- Baza: migracje muszą się nałożyć na czystą bazę ---
+      - if: steps.has.outputs.db == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Migracje na czystej bazie
+        if: steps.has.outputs.db == 'true'
+        run: supabase db start
+      - name: Testy bazy (pgTAP, jeśli są)
+        if: steps.has.outputs.db == 'true' && hashFiles('supabase/tests/**') != ''
+        run: supabase test db
+
+      # --- Frontend ---
+      - if: steps.has.outputs.web == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Lint, typy, testy, build
+        if: steps.has.outputs.web == 'true'
+        working-directory: web
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm run typecheck --if-present
+          npm test --if-present
+          npm run build
+
+      # --- E2E (Playwright), gdy Implementator doda konfigurację ---
+      - name: Testy E2E
+        if: steps.has.outputs.e2e == 'true'
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Raport E2E
+        if: failure() && steps.has.outputs.e2e == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/

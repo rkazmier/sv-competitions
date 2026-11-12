@@ -1,0 +1,46 @@
+# Recenzent: każdy PR z kodem (gałęzie specyfikacji zawierają "-spec-" i są pomijane).
+name: "Agent: Recenzent"
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: agent-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false && !contains(github.head_ref, '-spec-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Commity wypchnięte przez agenta w trybie @claude mają autora-bota; pozwól mu uruchomić recenzję.
+          allowed_bots: "claude[bot]"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR: #${{ github.event.pull_request.number }}
+
+            Jesteś Recenzentem. Przeczytaj i stosuj CLAUDE.md oraz .claude/agents/reviewer.md.
+            Zobacz zmiany: `gh pr diff ${{ github.event.pull_request.number }}`,
+            opis i historię: `gh pr view ${{ github.event.pull_request.number }} --comments`,
+            powiązane issue i specyfikację w docs/specs/.
+            Uwagi do linii publikuj jako komentarze inline, podsumowanie przez `gh pr comment`.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr checks:*),Bash(gh issue view:*)"
