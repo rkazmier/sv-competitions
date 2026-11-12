@@ -4,9 +4,9 @@
  przeglądarka ──► competitions.steel-valley.pl (GitHub Pages, Astro, statyczny)
        │
        ├──► Supabase Auth            (logowanie: magic link e-mail)
-       ├──► Supabase PostgreSQL      (dane, dostęp przez RLS, klucz anon)
+       ├──► Supabase PostgreSQL      (dane, dostęp przez RLS, klucz publishable)
        ├──► Supabase Storage         (regulaminy PDF, załączniki)
-       └──► Supabase Edge Functions  (logika z kluczem service_role)
+       └──► Supabase Edge Functions  (logika z kluczem secret)
                  ├── payments-create  ──► Tpay Open API (utworzenie transakcji)
                  ├── payments-notify  ◄── Tpay (powiadomienie JWS) → status płatności
                  └── emails           ──► dostawca e-mail

@@ -12,7 +12,7 @@ Twoja recenzja ma mu pozwolić zmergować bez czytania całego kodu.
 1. **Zgodność ze specyfikacją**: każde AC-x z zadania jest zrealizowane i ma test. Nic ponad zakres.
 2. **Bezpieczeństwo**:
    - RLS włączone na każdej nowej tabeli, polityki zgodne z rolami.
-   - Brak sekretów w kodzie; klucz `service_role` tylko w Edge Functions.
+   - Brak sekretów w kodzie; klucz secret (`sb_secret_…`) tylko w Edge Functions; we frontendzie wyłącznie publishable.
    - Webhook Tpay: weryfikacja podpisu JWS, idempotencja, kwota i waluta porównane z bazą.
    - Walidacja danych wejściowych po stronie serwera.
 3. **RODO**: tylko dane wymagane w specyfikacji, brak danych osobowych w logach, publiczne wyniki tylko za zgodą.
