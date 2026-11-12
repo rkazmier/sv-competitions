@@ -40,15 +40,15 @@ otwierają PR-y i nadają etykiety osobnym tokenem.
 ### 4. Supabase
 1. Załóż dwa projekty: `sv-competitions-staging` (plan darmowy) i `sv-competitions` (plan płatny), region UE (Frankfurt).
 2. Account → Access Tokens → nowy token.
-3. Dla środowisk **staging** i **production** (Settings → Environments) ustaw:
+3. Token z kroku 2 zapisz raz jako **sekret repozytorium** `SUPABASE_ACCESS_TOKEN`.
+4. Dla środowisk **staging** i **production** (Settings → Environments) ustaw:
 
 | Typ | Nazwa | Wartość |
 | --- | --- | --- |
-| Secret | `SUPABASE_ACCESS_TOKEN` | token z kroku 2 |
 | Secret | `SUPABASE_DB_PASSWORD` | hasło bazy danego projektu |
 | Variable | `SUPABASE_PROJECT_REF` | ID projektu (z URL panelu) |
 | Variable | `SUPABASE_URL` | `https://<ref>.supabase.co` |
-| Variable | `SUPABASE_ANON_KEY` | klucz `anon` (publiczny) |
+| Variable | `SUPABASE_ANON_KEY` | klucz publiczny `sb_publishable_…` (Settings → API Keys) |
 | Variable | `APP_URL` | `https://competitions-staging.steel-valley.pl` / `https://competitions.steel-valley.pl` |
 
 ### 5. Tpay
