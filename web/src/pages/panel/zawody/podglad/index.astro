@@ -1,0 +1,39 @@
+---
+/** Panel: podgląd zawodów `?id=<uuid>` tak, jak będą wyglądać publicznie, z paskiem podglądu (SPEC-001 AC-24). */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import CompetitionDetails from '../../../../components/CompetitionDetails.astro';
+import { t } from '../../../../i18n';
+---
+<PanelLayout title={t('competitionPage.previewTitle')}>
+  <div class="preview">
+    <p><a data-preview-back href="/panel/">{t('competitionPage.backToEdit')}</a></p>
+    <p class="preview-bar" role="note" data-preview-bar hidden>{t('competitionPage.previewBar')}</p>
+    <p class="message-error" role="alert" data-preview-not-found hidden>{t('competition.notFound')}</p>
+    <CompetitionDetails />
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountCompetitionPreview } from '../../../../lib/competition-view-ui';
+
+  void mountCompetitionPreview();
+</script>
+
+<style>
+  .preview {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .preview > p {
+    margin: 0;
+  }
+
+  .preview-bar {
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-dark);
+    color: var(--color-on-dark);
+    font-weight: var(--font-weight-strong);
+    border-radius: var(--radius-md);
+  }
+</style>

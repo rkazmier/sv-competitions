@@ -36,6 +36,7 @@ import { PDF_MIME, STORAGE_BUCKET, uploadDay, validateFile, type FileError } fro
 const COLUMNS = 'id, name, discipline_id, starts_on, ends_on, description, rulebook_id, matchbook_path, status';
 const ITEM_COLUMNS = 'id, day, time, description, position';
 const EDIT_URL = '/panel/zawody/edytuj/';
+const PREVIEW_URL = '/panel/zawody/podglad/';
 
 interface Competition {
   id: string;
@@ -147,6 +148,9 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
     field('starts_on').value = c.starts_on;
     field('ends_on').value = c.ends_on ?? '';
     field('description').value = c.description ?? '';
+    const preview = query<HTMLAnchorElement>(form, '[data-preview]');
+    preview.href = `${PREVIEW_URL}?id=${encodeURIComponent(c.id)}`;
+    preview.hidden = false;
     statusTag.hidden = false;
     statusTag.textContent = c.status === 'published' ? t('entries.statusPublished') : t('entries.statusDraft');
     for (const section of root.querySelectorAll<HTMLElement>('[data-matchbook], [data-schedule], [data-danger]')) {

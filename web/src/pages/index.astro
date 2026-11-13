@@ -1,13 +1,62 @@
 ---
-/** Strona główna: kalendarz strzelnicy (tymczasowo tekst; kalendarz powstanie w #10). */
+/**
+ * Strona główna: kalendarz strzelnicy — nadchodzące opublikowane zawody i wydarzenia po miesiącach (SPEC-001 AC-35…37, AC-42…44).
+ * Generowana przy budowaniu; „dziś” liczone w Europe/Warsaw w chwili budowania (nocna przebudowa usuwa minione wpisy).
+ */
 import BaseLayout from '../layouts/BaseLayout.astro';
+import CalendarCard from '../components/CalendarCard.astro';
 import { t } from '../i18n';
+import { todayInWarsaw, upcomingByMonth } from '../lib/calendar';
+import { competitionEntry, eventEntry } from '../lib/competition-page';
+import { loadPublicData } from '../lib/public-data';
+
+const data = await loadPublicData();
+const months = upcomingByMonth([...data.competitions.map(competitionEntry), ...data.events.map(eventEntry)], todayInWarsaw());
 ---
 <BaseLayout>
   <section class="section">
-    <div class="container">
+    <div class="container calendar">
       <h1>{t('home.title')}</h1>
-      <p class="lead">{t('home.comingSoon')}</p>
+      {months.length === 0 && <p class="lead" data-calendar-empty>{t('home.empty')}</p>}
+      {months.map((month) => (
+        <section class="calendar-month" aria-labelledby={`miesiac-${month.key}`} data-month={month.key}>
+          <h2 id={`miesiac-${month.key}`}>{month.heading}</h2>
+          <ul class="calendar-entries">
+            {month.entries.map((entry) => <li><CalendarCard entry={entry} /></li>)}
+          </ul>
+        </section>
+      ))}
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .calendar {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .calendar > *,
+  .calendar-month > * {
+    margin: 0;
+  }
+
+  .calendar-month {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .calendar-entries {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (min-width: 48rem) {
+    .calendar-entries {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

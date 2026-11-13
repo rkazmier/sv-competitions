@@ -2,6 +2,9 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(7);
 
+-- Izolacja od supabase/seed.sql: test liczy wiersze; usunięcie cofa `rollback` na końcu.
+delete from public.calendar_events;
+
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'org@example.test');
 update public.profiles set role = 'organizer' where id = '00000000-0000-0000-0000-0000000000a1';
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
