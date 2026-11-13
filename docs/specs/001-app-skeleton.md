@@ -2,7 +2,7 @@
 
 - Status: szkic (merge = zatwierdzenie)
 - Issue z pomysłem: #4
-- Zadania: uzupełnione w opisie PR ze specyfikacją
+- Zadania: #5, #6, #7, #8, #9, #10, #11 (w tej kolejności); dla właściciela: #12, #13 (`owner-task`)
 
 ## 1. Cel
 
