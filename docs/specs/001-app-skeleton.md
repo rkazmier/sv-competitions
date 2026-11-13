@@ -2,16 +2,16 @@
 
 - Status: szkic (merge = zatwierdzenie)
 - Issue z pomysłem: #4
-- Zadania: #5, #6, #7, #8, #9, #10, #11 + nowe „Panel: wydarzenia” (podział w sekcji 11); dla właściciela: #12, #13 (`owner-task`)
+- Zadania: #5, #6, #7, #8, #9, #10, #11, #15 (podział w sekcji 11); dla właściciela: #12, #13 (`owner-task`)
 - Zmiana zakresu 2026-11-13: aplikacja jest **kalendarzem strzelnicy** — wpisami są wydarzenia i zawody.
-  Miejsca oznaczone **[P1]…[P6]** zależą od otwartych pytań z sekcji 10; opisano w nich wariant rekomendowany.
+  Decyzje dotyczące kalendarza (P1–P6) w sekcji 10.
 
 ## 1. Cel
 
 Postawić fundament aplikacji: projekt Astro w `web/`, Supabase w `supabase/`, logowanie organizatora
 przez Google i panel, w którym organizator prowadzi **kalendarz strzelnicy**. Wpis w kalendarzu to:
 
-- **wydarzenie** **[P2]** — coś, co odbywa się na strzelnicy: nazwa, termin, krótki opis, kategoria i link zewnętrzny,
+- **wydarzenie** — coś, co odbywa się na strzelnicy: nazwa, termin, krótki opis, kategoria i link zewnętrzny,
   pod którym organizator wydarzenia podaje wszystkie szczegóły;
 - **zawody** — organizowane przez Steel Valley, z regulaminem, matchbookiem i harmonogramem
   (w kolejnych specyfikacjach także z zapisami, płatnościami i wynikami).
@@ -26,7 +26,7 @@ Goście widzą kalendarz nadchodzących wpisów: wydarzenie jako kartę z opisem
 - Projekt Supabase: migracje, RLS, Storage, jedna Edge Function (`site-rebuild`).
 - Logowanie przez Google (Supabase Auth), rola organizatora nadawana ręcznie w bazie.
 - Panel organizatora: dyscypliny, kategorie wydarzeń, biblioteka regulaminów, zawody (szkic → opublikowane),
-  harmonogram, matchbook, wydarzenia (szkic → opublikowane **[P5]**).
+  harmonogram, matchbook, wydarzenia (szkic → opublikowane).
 - Strona publiczna: kalendarz nadchodzących wpisów (zawody i wydarzenia) i strona zawodów; strony generowane
   przy budowaniu i automatycznie przebudowywane po zmianach (ADR-0003).
 
@@ -34,7 +34,7 @@ Goście widzą kalendarz nadchodzących wpisów: wydarzenie jako kartę z opisem
 - Rejestracja zawodników, limity miejsc, opłaty, płatności, wyniki, ranking.
 - Sekcja „Minione zawody” / archiwum (dojdzie z wynikami). Minione wpisy znikają z kalendarza, strona zawodów działa dalej.
 - Wydarzenia: zapisy, płatności, pliki, harmonogram, powtarzanie (np. „co wtorek”) — każde wydarzenie dodaje się osobno.
-- Własna strona wydarzenia **[P4]**, filtrowanie kalendarza po kategorii **[P6]**, widok siatki miesiąca,
+- Własna strona wydarzenia, filtrowanie kalendarza po kategorii, widok siatki miesiąca,
   import/eksport kalendarza (iCal, Google Calendar).
 - Logowanie zawodników (sposób ustali specyfikacja rejestracji), rola administratora i zarządzanie organizatorami.
 - Wersja angielska (teksty w plikach i18n są gotowe pod nią, tłumaczenia — później).
@@ -112,14 +112,14 @@ Numeracja AC jest stała (zadania się do niej odwołują); nowe kryteria kalend
 - **AC-35**: Given opublikowane zawody i wydarzenia, których data końca (lub początku, gdy brak końca) jest dziś lub później (Europe/Warsaw, w chwili budowania)
   When otwieram `/` Then widzę kalendarz: wpisy pogrupowane po miesiącach (nagłówek np. „Czerwiec 2027”), w miesiącu od najbliższych;
   wpis wielodniowy jest w miesiącu swojej daty początku (lub bieżącym, jeśli zaczął się wcześniej i trwa). Kolejność w tym samym dniu: najpierw zawody,
-  potem wydarzenia wg godziny (bez godziny na początku), na końcu wg nazwy.
+  potem wydarzenia, w obu grupach wg nazwy.
 - **AC-36**: Given brak nadchodzących wpisów When otwieram `/` Then widzę „Brak zaplanowanych wydarzeń. Zajrzyj wkrótce.”
 - **AC-37**: Given szkic zawodów lub wydarzenia When otwieram `/` lub zgaduję adres zawodów Then nic o nim nie widać (strona nie jest generowana, RLS nie zwraca szkiców gościom).
 - **AC-42**: Given nadchodzące zawody When oglądam kalendarz Then karta zawodów ma etykietę „Zawody Steel Valley”, termin (np. „14 czerwca 2027” lub „14–15 czerwca 2027”), nazwę, dyscyplinę
   i link „Szczegóły zawodów” do `/zawody/<slug>/`.
-- **AC-43**: Given nadchodzące wydarzenie When oglądam kalendarz Then karta wydarzenia ma etykietę z nazwą kategorii, termin (z godziną, jeśli podana **[P3]**, np. „14 czerwca 2027, 18:00”),
+- **AC-43**: Given nadchodzące wydarzenie When oglądam kalendarz Then karta wydarzenia ma etykietę z nazwą kategorii, termin (np. „14 czerwca 2027” lub „14–15 czerwca 2027”, bez godziny),
   nazwę, opis (akapity, bez HTML) i przycisk „Szczegóły u organizatora” otwierający link zewnętrzny w nowej karcie (`target="_blank" rel="noopener noreferrer"`)
-  z ikoną/tekstem dla czytników ekranu „(otwiera się w nowej karcie)”. Wydarzenie nie ma własnej strony **[P4]**.
+  z ikoną/tekstem dla czytników ekranu „(otwiera się w nowej karcie)”. Wydarzenie nie ma własnej strony.
 - **AC-44**: Given karty w kalendarzu When patrzę na nie Then rodzaj wpisu jest rozpoznawalny nie tylko kolorem (etykieta tekstowa), a zawody są wizualnie wyróżnione (np. akcent `--color-highlight`).
 
 ### US-9: Jako gość chcę zobaczyć stronę zawodów z regulaminem i matchbookiem
@@ -128,18 +128,18 @@ Numeracja AC jest stała (zadania się do niej odwołują); nowe kryteria kalend
 - **AC-40**: Given minione opublikowane zawody When otwieram ich adres Then strona nadal działa (nie ma ich tylko w kalendarzu nadchodzących).
 - **AC-41**: Given link do strony zawodów (lub do kalendarza `/`) wklejony na Facebooku/Messengerze When serwis pobiera podgląd Then strona ma `<title>`, `meta description` (zawody: początek opisu, maks. 160 znaków; kalendarz: stały tekst z i18n), znaczniki Open Graph (`og:title`, `og:description`, `og:url`, `og:type=website`, `og:image` — domyślny obraz serwisu) i `link rel=canonical` na adres produkcyjny.
 
-### US-10: Jako organizator chcę prowadzić listę kategorii wydarzeń **[P1]**
+### US-10: Jako organizator chcę prowadzić listę kategorii wydarzeń
 - **AC-45**: Given jestem na `/panel/kategorie/` When dodaję kategorię o nazwie, której nie ma na liście Then pojawia się ona jako aktywna. Lista startowa jest pusta (nazwy wpisuje organizator).
 - **AC-46**: Given istnieje kategoria „Szkolenie” When dodaję „szkolenie ” Then widzę „Taka kategoria już istnieje.” i nic nie jest zapisywane.
 - **AC-47**: Given kategoria When zmieniam jej nazwę lub klikam „Ukryj” / „Przywróć” Then działa to jak dla dyscyplin (AC-10, AC-11): ukrytej nie da się wybrać przy nowych wydarzeniach, istniejące ją zachowują; kategorii nie da się usunąć.
 
 ### US-11: Jako organizator chcę dodać do kalendarza wydarzenie odbywające się na strzelnicy
-- **AC-48**: Given jestem na `/panel/wydarzenia/nowe/` When podaję nazwę, kategorię (z aktywnych), datę początku i zapisuję Then powstaje wydarzenie w stanie „Szkic”, niewidoczne publicznie **[P5]**.
-  Pola: Nazwa* (1–150 znaków), Kategoria*, Data początku*, Data końca (opcjonalnie), Godzina rozpoczęcia (opcjonalnie) **[P3]**, Opis (maks. 2000 znaków), Link zewnętrzny.
+- **AC-48**: Given jestem na `/panel/wydarzenia/nowe/` When podaję nazwę, kategorię (z aktywnych), datę początku i zapisuję Then powstaje wydarzenie w stanie „Szkic”, niewidoczne publicznie.
+  Pola: Nazwa* (1–150 znaków), Kategoria*, Data początku*, Data końca (opcjonalnie), Opis (maks. 2000 znaków), Link zewnętrzny.
 - **AC-49**: Given formularz wydarzenia When data końca jest wcześniejsza niż data początku Then widzę „Data końca nie może być wcześniejsza niż data początku.” (także `check` w bazie).
 - **AC-50**: Given formularz wydarzenia When link nie zaczyna się od `https://` lub `http://` albo ma > 2000 znaków Then widzę „Podaj pełny adres strony, np. https://…” i nic nie jest zapisywane (także `check` w bazie).
 - **AC-51**: Given szkic wydarzenia z nazwą, kategorią, datą początku i linkiem When klikam „Opublikuj” Then stan zmienia się na „Opublikowane”, zapisuje się `published_at`, widzę komunikat z AC-25 i uruchamia się przebudowa.
-  Given szkic bez linku Then widzę „Aby opublikować wydarzenie, podaj link do szczegółów.” i stan się nie zmienia (`check`: opublikowane ⇒ `external_url` niepuste) **[P5]**.
+  Given szkic bez linku Then widzę „Aby opublikować wydarzenie, podaj link do szczegółów.” i stan się nie zmienia (`check`: opublikowane ⇒ `external_url` niepuste).
 - **AC-52**: Given opublikowane wydarzenie When klikam „Cofnij publikację” Then wraca do szkicu i po przebudowie znika z kalendarza. Given wydarzenie (w dowolnym stanie) When klikam „Usuń wydarzenie” i potwierdzam Then jest usuwane
   („Czy na pewno usunąć wydarzenie „<nazwa>”? Tej operacji nie można cofnąć.”); jeśli było opublikowane, uruchamia się przebudowa.
 - **AC-53**: Given formularz wydarzenia When patrzę na pole linku Then widzę podpowiedź „Strona organizatora wydarzenia ze szczegółami, np. wydarzenie na Facebooku.”; podgląd karty wydarzenia jest widoczny pod formularzem (ten sam komponent co w kalendarzu).
@@ -147,7 +147,7 @@ Numeracja AC jest stała (zadania się do niej odwołują); nowe kryteria kalend
 ## 5. Model danych
 
 Wszystkie tabele w schemacie `public`, RLS włączone jawnie w migracji. Czas zapisu w `timestamptz` (UTC).
-Daty i godziny wpisów to **czas lokalny strzelnicy** (`date` / `time` bez strefy) — tak jak na plakacie, bez przeliczeń.
+Daty wpisów i godziny w harmonogramie zawodów to **czas lokalny strzelnicy** (`date` / `time` bez strefy) — tak jak na plakacie, bez przeliczeń.
 
 Zawody i wydarzenia to **osobne tabele** (zawody dostaną zgłoszenia, płatności i wyniki; wydarzenie pozostaje prostym wpisem).
 Kalendarz to połączenie obu list w kodzie frontendu (`web/src/lib/calendar.ts`, typ `CalendarEntry = { kind: 'competition' | 'event', … }`, test Vitest sortowania i grupowania).
@@ -162,7 +162,7 @@ W kodzie TypeScript używamy nazwy `CalendarEvent` (nie `Event`, które koliduje
 | | `name` | `text` | tak | nie | 1–80 znaków po `trim`; unikalny indeks na `lower(trim(name))` |
 | | `is_active` | `boolean` | tak | nie | domyślnie `true`; `false` = ukryta |
 | | `created_at` | `timestamptz` | tak | nie | |
-| `event_categories` **[P1]** | `id`, `name`, `is_active`, `created_at` | jak `disciplines` | | nie | kategorie wydarzeń; brak danych startowych |
+| `event_categories` | `id`, `name`, `is_active`, `created_at` | jak `disciplines` | | nie | kategorie wydarzeń; brak danych startowych |
 | `rulebooks` | `id` | `uuid` PK | tak | nie | |
 | | `title` | `text` | tak | nie | 1–200 znaków |
 | | `file_path` | `text` | tak | nie | ścieżka w Storage, niezmienna |
@@ -194,9 +194,8 @@ W kodzie TypeScript używamy nazwy `CalendarEvent` (nie `Event`, które koliduje
 | | `category_id` | `uuid` FK → `event_categories.id` on delete restrict | tak | nie | przy nowych wydarzeniach tylko aktywne |
 | | `starts_on` | `date` | tak | nie | |
 | | `ends_on` | `date` | nie | nie | `check (ends_on is null or ends_on >= starts_on)` |
-| | `starts_at` **[P3]** | `time` | nie | nie | godzina rozpoczęcia, np. `18:00` |
 | | `description` | `text` | nie | nie | zwykły tekst, maks. 2000 znaków; renderowany bez HTML |
-| | `external_url` | `text` | nie | nie | `check (external_url ~ '^https?://' and length(external_url) <= 2000)`; wymagany do publikacji **[P5]** |
+| | `external_url` | `text` | nie | nie | `check (external_url ~ '^https?://' and length(external_url) <= 2000)`; wymagany do publikacji |
 | | `status` | `text` check in (`draft`, `published`) | tak | nie | domyślnie `draft`; `check (status = 'draft' or external_url is not null)` |
 | | `published_at` | `timestamptz` | nie | nie | ustawiany przy pierwszej publikacji |
 | | `created_by` | `uuid` FK → `profiles.id` on delete set null | nie | tak | niewidoczne publicznie |
@@ -275,10 +274,10 @@ Formularz zawodów — pola: Nazwa*, Dyscyplina* (lista), Data początku*, Data 
 Opis, Regulamin (lista z biblioteki, „— wybierz —”), Matchbook (PDF, opcjonalnie), Harmonogram (tabela: Dzień, Godzina, Opis, + „Dodaj punkt”).
 Na telefonie harmonogram jako lista kart; dzień domyślnie = data początku.
 
-Formularz wydarzenia — pola: Nazwa*, Kategoria* (lista), Data początku*, Data końca, Godzina rozpoczęcia, Opis, Link do szczegółów (wymagany do publikacji).
+Formularz wydarzenia — pola: Nazwa*, Kategoria* (lista), Data początku*, Data końca, Opis, Link do szczegółów (wymagany do publikacji).
 
-Format dat w UI: `14 czerwca 2027`, zakres w tym samym miesiącu `14–15 czerwca 2027`, różne miesiące `30 czerwca – 1 lipca 2027`;
-z godziną: `14 czerwca 2027, 18:00` (`Intl`, `pl-PL`). Nagłówek miesiąca: `Czerwiec 2027`.
+Format dat w UI: `14 czerwca 2027`, zakres w tym samym miesiącu `14–15 czerwca 2027`, różne miesiące `30 czerwca – 1 lipca 2027` (`Intl`, `pl-PL`).
+Wydarzenia nie mają godziny (decyzja P3-A). Nagłówek miesiąca: `Czerwiec 2027`.
 
 ## 7. Przypadki brzegowe
 
@@ -329,20 +328,16 @@ z godziną: `14 czerwca 2027, 18:00` (`Intl`, `pl-PL`). Nagłówek miesiąca: `C
 | Minione zawody | 7-A: znikają z listy, strona działa; archiwum później | 2026-11-13 |
 | Zakres aplikacji | Kalendarz strzelnicy: wydarzenia (nazwa, data, opis, kategoria, link zewnętrzny) + zawody jako jeden z rodzajów wpisów | 2026-11-13 |
 
-Otwarte (spec opisuje wariant rekomendowany; po odpowiedziach zostanie dostosowana):
+| P1 Kategorie wydarzeń | A: lista prowadzona w panelu (`/panel/kategorie/`) jak dyscypliny, start pusty | 2026-11-13 |
+| P2 Nazwa „event” w interfejsie | A: „Wydarzenie” (w kodzie `calendar_event`) | 2026-11-13 |
+| P3 Termin wydarzenia | A: data początku + opcjonalna data końca, bez godziny | 2026-11-13 |
+| P4 Prezentacja wydarzenia | A: tylko karta w kalendarzu z linkiem zewnętrznym, bez własnej strony | 2026-11-13 |
+| P5 Publikacja wydarzenia | A: szkic → „Opublikuj”, link wymagany do publikacji | 2026-11-13 |
+| P6 Filtr kategorii | A: nie teraz, kategoria tylko jako etykieta na karcie | 2026-11-13 |
 
-| # | Pytanie | Rekomendacja w specyfikacji |
-| --- | --- | --- |
-| P1 | Lista kategorii wydarzeń | A: prowadzona w panelu jak dyscypliny, start pusty |
-| P2 | Nazwa wpisu „event” w interfejsie | A: „Wydarzenie” |
-| P3 | Termin wydarzenia | B: data początku, opcjonalnie data końca i godzina rozpoczęcia |
-| P4 | Prezentacja wydarzenia | A: tylko karta w kalendarzu z linkiem zewnętrznym |
-| P5 | Publikacja wydarzenia | A: szkic → „Opublikuj”, link wymagany do publikacji |
-| P6 | Filtr kategorii w kalendarzu | A: nie teraz, kategoria tylko jako etykieta na karcie |
+Otwarte: brak.
 
 ## 11. Zadania (po zmianie zakresu)
-
-Opisy zadań w GitHub zostaną zaktualizowane po odpowiedziach na P1–P6.
 
 | Zadanie | Zmiana |
 | --- | --- |
@@ -352,5 +347,5 @@ Opisy zadań w GitHub zostaną zaktualizowane po odpowiedziach na P1–P6.
 | #8 Panel: biblioteka regulaminów | bez zmian |
 | #9 Panel: formularz zawodów | bez zmian |
 | #10 Strona publiczna | `/` jako kalendarz: `calendar.ts` (łączenie, sortowanie, grupowanie po miesiącach), karty zawodów i wydarzeń (AC-35…37, AC-42…44); dane wydarzeń z `seed.sql` |
-| #11 Publikacja i przebudowa | wyzwalacze przebudowy także dla wydarzeń i kategorii (AC-29, AC-33) |
-| nowe: Panel: wydarzenia | formularz wydarzenia, publikacja, usuwanie, podgląd karty (AC-48…53); po #11, bo korzysta z `site-rebuild` |
+| #11 Publikacja i przebudowa | wyzwalacze przebudowy także dla kategorii (AC-29); minione wydarzenia znikają przy nocnej przebudowie (AC-33) |
+| #15 Panel: wydarzenia | formularz wydarzenia, publikacja, usuwanie, podgląd karty (AC-48…53); po #11, bo korzysta z `site-rebuild` |

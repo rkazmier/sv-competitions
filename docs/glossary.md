@@ -6,7 +6,7 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | --- | --- | --- |
 | Kalendarz strzelnicy | `calendar` | Publiczna lista nadchodzących wpisów: zawodów i wydarzeń |
 | Wpis w kalendarzu | `calendar_entry` | Zawody albo wydarzenie (`kind`: `competition` / `event`) |
-| Wydarzenie | `calendar_event` | Wpis o czymś, co odbywa się na strzelnicy: nazwa, termin, opis, kategoria, link zewnętrzny ze szczegółami (nazwa UI do potwierdzenia — P2) |
+| Wydarzenie | `calendar_event` | Wpis o czymś, co odbywa się na strzelnicy: nazwa, termin, opis, kategoria, link zewnętrzny ze szczegółami |
 | Kategoria wydarzenia | `event_category` | Rodzaj wydarzenia z listy prowadzonej w panelu |
 | Link do szczegółów | `external_url` | Adres strony organizatora wydarzenia (spoza aplikacji) |
 | Zawody | `competition` | Wpis w kalendarzu organizowany przez Steel Valley: termin (data początku, opcjonalnie końca), dyscyplina, regulamin, matchbook, harmonogram; później także zapisy, opłata i wyniki |
