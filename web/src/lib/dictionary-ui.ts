@@ -1,6 +1,7 @@
 /**
  * Wyspa listy słownikowej (DictionaryList.astro) — dyscypliny i kategorie wydarzeń.
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` (bez HTML).
+ * Zmiana nazwy i ukrycie/przywrócenie uruchamiają przebudowę strony publicznej (AC-29).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
@@ -14,6 +15,7 @@ import {
   type NameError,
 } from './dictionary';
 import { requireOrganizer, showLoadError } from './panel';
+import { rebuildAndDescribe } from './site-rebuild';
 
 type Kind = 'disciplines' | 'categories';
 const COLUMNS = 'id, name, is_active';
@@ -70,10 +72,10 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
     }
   }
 
-  function upsertLocal(saved: DictionaryItem): void {
+  async function upsertLocal(saved: DictionaryItem, rebuild = false): Promise<void> {
     items = [...items.filter((item) => item.id !== saved.id), saved];
     render();
-    announce(t('panel.saved'));
+    announce(rebuild ? await rebuildAndDescribe(supabase, t('panel.saved')) : t('panel.saved'));
   }
 
   function renderItem(item: DictionaryItem): HTMLLIElement {
@@ -119,7 +121,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
         supabase.from(table).update({ name: editInput.value.trim() }).eq('id', item.id).select(COLUMNS).single(),
       );
       if (typeof result === 'string') return setError(editInput, editError, errorText(kind, result));
-      upsertLocal(result);
+      await upsertLocal(result, true);
     });
     toggle.addEventListener('click', async () => {
       toggle.disabled = true;
@@ -128,7 +130,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
       );
       toggle.disabled = false;
       if (typeof result === 'string') return announce(t('panel.saveError'));
-      upsertLocal(result);
+      await upsertLocal(result, true);
     });
     return li;
   }
@@ -147,7 +149,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
     const result = await save(supabase.from(table).insert({ name: addInput.value.trim() }).select(COLUMNS).single());
     if (typeof result === 'string') return setError(addInput, addError, errorText(kind, result));
     addInput.value = '';
-    upsertLocal(result);
+    await upsertLocal(result);
   });
 
   const { data, error } = await supabase.from(table).select(COLUMNS).order('name');

@@ -72,6 +72,11 @@ export const pl = {
     kindEvent: 'Wydarzenie',
     statusDraft: 'Szkic',
     statusPublished: 'Opublikowane',
+    refreshSite: 'Odśwież stronę publiczną',
+  },
+  rebuild: {
+    started: 'Strona publiczna odświeży się w ciągu kilku minut.',
+    failed: 'Nie udało się uruchomić odświeżenia strony. Spróbuj „Odśwież stronę publiczną” za chwilę.',
   },
   dictionary: {
     nameLabel: 'Nazwa',
@@ -171,6 +176,12 @@ export const pl = {
     publishedNoDelete: 'Opublikowanych zawodów nie można usunąć — najpierw cofnij publikację.',
     confirmDelete: 'Czy na pewno usunąć zawody „{name}”? Tej operacji nie można cofnąć.',
     deleteError: 'Nie udało się usunąć. Spróbuj ponownie.',
+    publish: 'Opublikuj',
+    unpublish: 'Cofnij publikację',
+    published: 'Opublikowano.',
+    unpublished: 'Cofnięto publikację.',
+    rulebookRequired: 'Aby opublikować zawody, wybierz regulamin.',
+    confirmUnpublish: 'Czy na pewno cofnąć publikację zawodów „{name}”? Po odświeżeniu strony publicznej ich strona przestanie istnieć.',
   },
   matchbook: {
     heading: 'Matchbook',

@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { sortEntries, type CalendarEntry, type EntryStatus } from './calendar';
 import { formatDateRange } from './dates';
 import { requireOrganizer, showLoadError } from './panel';
+import { rebuildAndDescribe } from './site-rebuild';
 
 interface Row {
   id: string;
@@ -35,6 +36,15 @@ export async function mountEntries(): Promise<void> {
   const template = query<HTMLTemplateElement>(document, '[data-entry-template]');
 
   const supabase = await requireOrganizer();
+  // AC-34: ręczne odświeżenie strony publicznej (np. po nieudanej automatycznej przebudowie, §7).
+  const refresh = query<HTMLButtonElement>(document, '[data-refresh-site]');
+  const refreshStatus = query<HTMLElement>(document, '[data-refresh-status]');
+  refresh.addEventListener('click', async () => {
+    refresh.disabled = true;
+    refreshStatus.textContent = '';
+    refreshStatus.textContent = await rebuildAndDescribe(supabase);
+    refresh.disabled = false;
+  });
   // Kolumny wymienione jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
   const [competitions, events] = await Promise.all([
     supabase.from('competitions').select(`${BASE}, discipline:disciplines(name)`),

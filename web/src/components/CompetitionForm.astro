@@ -54,13 +54,16 @@ const { mode } = Astro.props;
     <p class="message-error field-error" id="c-description-error" data-error-for="description" hidden></p>
 
     <label class="field-label" for="c-rulebook">{t('competition.rulebookLabel')}</label>
-    <select class="input" id="c-rulebook" name="rulebook_id" aria-describedby="c-rulebook-hint">
+    <select class="input" id="c-rulebook" name="rulebook_id" aria-describedby="c-rulebook-hint c-rulebook-error">
       <option value="">{t('competition.choose')}</option>
     </select>
     <p class="hint" id="c-rulebook-hint">{t('competition.rulebookHint')}</p>
+    <p class="message-error field-error" id="c-rulebook-error" data-rulebook-error hidden></p>
 
     <div class="button-row">
       <button type="submit" class="button button-primary" data-save>{t('competition.save')}</button>
+      <button type="button" class="button button-primary" data-publish hidden>{t('competition.publish')}</button>
+      <button type="button" class="button" data-unpublish hidden>{t('competition.unpublish')}</button>
       <a class="button" data-preview hidden>{t('competition.preview')}</a>
     </div>
   </form>

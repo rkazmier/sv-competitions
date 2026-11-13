@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   disciplineOptions,
   formatTime,
+  isRulebookRequiredError,
   isScheduleRangeError,
   itemsOutOfRange,
   matchbookPath,
+  needsRulebook,
   rulebookOptions,
   sortSchedule,
   toRow,
@@ -151,5 +153,20 @@ describe('zawody — harmonogram', () => {
 describe('zawody — matchbook', () => {
   it('AC-20: ścieżka matchbooks/<competition_id>/<uuid>.pdf', () => {
     expect(matchbookPath('c1', 'f1')).toBe('matchbooks/c1/f1.pdf');
+  });
+});
+
+describe('publikacja (AC-26)', () => {
+  it('AC-26: publikacja wymaga regulaminu, szkic nie', () => {
+    expect(needsRulebook('published', '')).toBe(true);
+    expect(needsRulebook('published', 'r1')).toBe(false);
+    expect(needsRulebook('draft', '')).toBe(false);
+  });
+
+  it('AC-26: rozpoznaje błąd `check` regulaminu z bazy', () => {
+    const message = 'new row for relation "competitions" violates check constraint "competitions_published_needs_rulebook"';
+    expect(isRulebookRequiredError({ code: '23514', message })).toBe(true);
+    expect(isRulebookRequiredError({ code: '23514', message: 'competitions_ends_on_check' })).toBe(false);
+    expect(isRulebookRequiredError(null)).toBe(false);
   });
 });
