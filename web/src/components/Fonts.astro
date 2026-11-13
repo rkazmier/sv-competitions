@@ -1,0 +1,23 @@
+---
+/**
+ * Lokalne fonty Inter / Inter Display (public/fonts/, licencja OFL: public/fonts/OFL.txt),
+ * te same pliki co w landing-page: podzbiór latin + latin-ext (m.in. pl, en), WOFF2.
+ * Żadnych zasobów z zewnętrznych domen (SPEC-001 AC-2).
+ */
+const fonts = [
+  { family: 'Inter', weight: 400, file: '/fonts/inter-400.woff2', preload: true },
+  { family: 'Inter', weight: 600, file: '/fonts/inter-600.woff2', preload: false },
+  { family: 'Inter Display', weight: 600, file: '/fonts/inter-display-600.woff2', preload: true },
+];
+
+const css = fonts
+  .map(
+    (f) =>
+      `@font-face{font-family:"${f.family}";font-style:normal;font-weight:${f.weight};font-display:swap;src:url("${f.file}") format("woff2");}`,
+  )
+  .join('');
+---
+{fonts.filter((f) => f.preload).map((f) => (
+  <link rel="preload" href={f.file} as="font" type="font/woff2" crossorigin />
+))}
+<style is:inline set:html={css}></style>

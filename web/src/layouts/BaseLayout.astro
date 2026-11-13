@@ -1,0 +1,59 @@
+---
+/**
+ * Układ bazowy: <head>, link „Przejdź do treści”, nagłówek, <main>, stopka (SPEC-001 §6.1).
+ * Domyślna nawigacja: strony publiczne. Inna nawigacja (np. menu panelu) → slot `nav`.
+ */
+import Fonts from '../components/Fonts.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { t } from '../i18n';
+import '../styles/tokens.css';
+import '../styles/base.css';
+
+interface Props {
+  /** Tytuł strony (bez nazwy aplikacji) */
+  title?: string;
+  description?: string;
+  /** `false` → `<meta name="robots" content="noindex">` (np. panel) */
+  indexable?: boolean;
+  /** Etykieta landmarku nawigacji */
+  navLabel?: string;
+}
+
+const {
+  title,
+  description = t('site.description'),
+  indexable = true,
+  navLabel = t('layout.navLabel'),
+} = Astro.props;
+const fullTitle = title ? `${title} — ${t('site.name')}` : t('site.name');
+const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
+---
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {indexable ? <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} /> : <meta name="robots" content="noindex" />}
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <Fonts />
+  </head>
+  <body>
+    <a class="skip-link" href="#tresc">{t('layout.skipLink')}</a>
+    <SiteHeader navLabel={navLabel}>
+      <slot name="nav">
+        <ul>
+          <li><a href="/" aria-current={isCurrent('/')}>{t('nav.calendar')}</a></li>
+        </ul>
+      </slot>
+    </SiteHeader>
+    <main id="tresc" tabindex="-1">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

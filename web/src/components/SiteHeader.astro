@@ -1,0 +1,85 @@
+---
+/**
+ * Nagłówek: logotyp tekstowy + nawigacja (SPEC-001 §6.1).
+ * Strony publiczne: link „Kalendarz”. Panel podaje własne menu w slocie (PanelLayout).
+ */
+import { t } from '../i18n';
+
+interface Props {
+  /** Etykieta landmarku nawigacji */
+  navLabel: string;
+}
+
+const { navLabel } = Astro.props;
+---
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/" aria-label={t('layout.homeLabel')}>{t('site.name')}</a>
+    <nav class="site-nav" aria-label={navLabel}>
+      <slot />
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--color-header-bg);
+    box-shadow: var(--shadow-header);
+    backdrop-filter: saturate(1.2) blur(8px);
+  }
+
+  .header-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 var(--space-4);
+    min-height: var(--header-height);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    color: var(--color-text);
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-strong);
+    letter-spacing: -0.015em;
+    text-decoration: none;
+  }
+
+  .brand:hover {
+    color: var(--color-accent);
+  }
+
+  .site-nav :global(ul) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-1);
+    margin: 0 calc(-1 * var(--space-3));
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-nav :global(a) {
+    display: flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-strong);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+  }
+
+  .site-nav :global(a:hover),
+  .site-nav :global(a[aria-current='page']) {
+    color: var(--color-accent);
+    background: var(--color-surface-alt);
+  }
+</style>
