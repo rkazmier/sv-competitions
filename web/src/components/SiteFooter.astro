@@ -1,0 +1,50 @@
+---
+/** Stopka: link do strony strzelnicy (SPEC-001 §6.1). */
+import { t } from '../i18n';
+
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <a href="https://steel-valley.pl">{t('footer.rangeLink')}</a>
+    <p>{t('footer.copyright', { year })}</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    padding-block: var(--space-7);
+    background: var(--color-dark);
+    color: var(--color-on-dark);
+    font-size: var(--text-sm);
+  }
+
+  .footer-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-6);
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    color: var(--color-on-dark);
+    font-weight: var(--font-weight-strong);
+  }
+
+  a:hover {
+    color: var(--color-on-dark);
+    text-decoration-thickness: 2px;
+  }
+
+  a:focus-visible {
+    outline-color: var(--color-on-dark);
+  }
+
+  p {
+    margin: 0;
+  }
+</style>

@@ -1,0 +1,11 @@
+{
+  "name": "sv-competitions",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0"
+  }
+}

@@ -1,0 +1,72 @@
+/*
+ * Tokeny wizualne — JEDYNE miejsce z kolorami, fontami, odstępami i promieniami (SPEC-001 §6.1).
+ * Nazwy tokenów jak w landing-page; paleta: jaśniejsza szarość stali zamiast ciepłego beżu.
+ * Komponenty używają wyłącznie tych zmiennych.
+ * Fonty: public/fonts/ (deklaracje @font-face: src/components/Fonts.astro).
+ *
+ * Kontrast (WCAG AA) sprawdzany testem src/styles/tokens.test.ts.
+ */
+
+:root {
+  /* ---- Kolory ---- */
+  --color-bg: #f3f5f7;          /* tło strony: jasna stal */
+  --color-surface: #ffffff;     /* karty, panele */
+  --color-surface-alt: #e8ecf0; /* sekcje naprzemienne */
+  --color-text: #1b2026;        /* tekst główny */
+  --color-text-muted: #4e5864;  /* tekst pomocniczy */
+  --color-border: #cdd4db;      /* linie, obramowania */
+  --color-accent: #3e5568;      /* stal: linki, aktywne elementy, focus */
+  --color-accent-hover: #2c3f4f;
+  --color-highlight: #a57a2c;   /* mosiądz (wspólny akcent marki): tylko akcenty dekoracyjne, nie tekst */
+  --color-dark: #252d34;        /* ciemne tło (stopka) */
+  --color-on-dark: #eef0f1;     /* tekst na ciemnym tle */
+  --color-header-bg: color-mix(in srgb, var(--color-bg) 94%, transparent);
+
+  /* ---- Fonty ---- */
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-heading: "Inter Display", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-strong: 600;
+
+  /* Skala typografii: wartości minimalne dla 320 px, płynnie rosnące do desktopu */
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  --text-h3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --text-h2: clamp(1.625rem, 1.35rem + 1.3vw, 2.375rem);
+  --text-h1: clamp(2.125rem, 1.6rem + 2.6vw, 3.75rem);
+  --leading-tight: 1.15;
+  --leading-normal: 1.6;
+  --tracking-wide: 0.14em;
+
+  /* ---- Odstępy (skala 4 px) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-section: clamp(3.5rem, 2.5rem + 5vw, 7rem);
+
+  /* ---- Promienie ---- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Układ ---- */
+  --container-max: 72rem;
+  --container-narrow: 44rem;
+  --container-pad: clamp(1rem, 0.5rem + 2.5vw, 2.5rem);
+  --header-height: 4rem;
+  --tap-target: 44px;
+
+  /* ---- Pozostałe ---- */
+  --border-width: 1px;
+  --focus-ring: 3px solid var(--color-accent);
+  --focus-offset: 3px;
+  --shadow-header: 0 1px 0 var(--color-border);
+  --transition-fast: 150ms ease;
+}

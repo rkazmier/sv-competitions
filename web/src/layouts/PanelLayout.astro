@@ -1,0 +1,18 @@
+---
+/**
+ * Układ panelu organizatora: ten sam co strony publiczne, z menu panelu zamiast
+ * nawigacji publicznej (slot `menu`, lista <ul> z linkami) i `noindex` (SPEC-001 §6.1, §6.2).
+ */
+import BaseLayout from './BaseLayout.astro';
+import { t } from '../i18n';
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+---
+<BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>
+  <slot name="menu" slot="nav" />
+  <slot />
+</BaseLayout>
