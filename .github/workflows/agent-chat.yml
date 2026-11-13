@@ -12,10 +12,13 @@ on:
 
 jobs:
   chat:
+    # Komentarze botów (np. pytania agentów z instrukcją „@claude A”) nie uruchamiają rozmowy — inaczej agent odpowiadałby sam sobie.
     if: |
+      github.event.sender.type != 'Bot' && (
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

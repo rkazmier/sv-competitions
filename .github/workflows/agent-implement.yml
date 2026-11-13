@@ -48,6 +48,8 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Etykiety ready-for-dev / changes-requested nadają też agenci (claude[bot]).
+          allowed_bots: "claude[bot]"
           prompt: |
             REPO: ${{ github.repository }}
             ISSUE: #${{ github.event.issue.number }} — ${{ github.event.issue.title }}
@@ -100,6 +102,8 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Etykiety ready-for-dev / changes-requested nadają też agenci (claude[bot]).
+          allowed_bots: "claude[bot]"
           prompt: |
             REPO: ${{ github.repository }}
             PR: #${{ github.event.pull_request.number }} (gałąź ${{ github.event.pull_request.head.ref }})
