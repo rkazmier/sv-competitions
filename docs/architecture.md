@@ -48,6 +48,8 @@
   i zwraca klienta tylko organizatorowi (rola z `profiles`, jak w RLS). Skrypty stron panelu pobierają dane dopiero po niej.
 - `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia) i kolejność wpisów.
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie).
+- `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
+  matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
 - `src/lib/dates.ts` — formatowanie dat i zakresów (`pl-PL`, dni liczone w UTC).
 - Fonty lokalnie w `public/fonts/` (te same pliki co landing-page). `PUBLIC_SITE_URL` → `site` w `astro.config.mjs`.

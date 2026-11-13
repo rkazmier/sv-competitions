@@ -1,0 +1,290 @@
+---
+/**
+ * Formularz zawodów + matchbook + harmonogram + usuwanie szkicu (SPEC-001 §6.2, AC-17…23).
+ * Wspólny dla `/panel/zawody/nowe/` i `/panel/zawody/edytuj/?id=`; dane obsługuje lib/competition-form-ui.ts.
+ * Matchbook i harmonogram wymagają `id` zawodów, więc pojawiają się po pierwszym zapisie.
+ */
+import { t } from '../i18n';
+import { COMPETITION_DESCRIPTION_MAX, COMPETITION_NAME_MAX, SCHEDULE_DESCRIPTION_MAX } from '../lib/competitions';
+import { PDF_MIME } from '../lib/rulebooks';
+
+interface Props {
+  mode: 'new' | 'edit';
+}
+
+const { mode } = Astro.props;
+---
+<div class="competition" data-competition={mode}>
+  <p><a href="/panel/">{t('competition.backToCalendar')}</a></p>
+  <h1>
+    {mode === 'new' ? t('competition.titleNew') : t('competition.titleEdit')}
+    <span class="tag" data-status-tag hidden></span>
+  </h1>
+  <p class="message-error" role="alert" data-not-found hidden>{t('competition.notFound')}</p>
+
+  <form class="card stack" data-form novalidate>
+    <p class="hint">{t('competition.requiredHint')}</p>
+    <label class="field-label" for="c-name">{t('competition.nameLabel')}</label>
+    <input class="input" id="c-name" name="name" type="text" required maxlength={COMPETITION_NAME_MAX} autocomplete="off" aria-describedby="c-name-error" />
+    <p class="message-error field-error" id="c-name-error" data-error-for="name" hidden></p>
+
+    <label class="field-label" for="c-discipline">{t('competition.disciplineLabel')}</label>
+    <select class="input" id="c-discipline" name="discipline_id" required aria-describedby="c-discipline-error">
+      <option value="">{t('competition.choose')}</option>
+    </select>
+    <p class="message-error field-error" id="c-discipline-error" data-error-for="discipline_id" hidden></p>
+
+    <div class="dates">
+      <div>
+        <label class="field-label" for="c-starts">{t('competition.startsOnLabel')}</label>
+        <input class="input" id="c-starts" name="starts_on" type="date" required aria-describedby="c-starts-error" />
+        <p class="message-error field-error" id="c-starts-error" data-error-for="starts_on" hidden></p>
+      </div>
+      <div>
+        <label class="field-label" for="c-ends">{t('competition.endsOnLabel')}</label>
+        <input class="input" id="c-ends" name="ends_on" type="date" aria-describedby="c-ends-hint c-ends-error" />
+        <p class="hint" id="c-ends-hint">{t('competition.endsOnHint')}</p>
+        <p class="message-error field-error" id="c-ends-error" data-error-for="ends_on" hidden></p>
+      </div>
+    </div>
+
+    <label class="field-label" for="c-description">{t('competition.descriptionLabel')}</label>
+    <textarea class="input" id="c-description" name="description" rows="6" maxlength={COMPETITION_DESCRIPTION_MAX} aria-describedby="c-description-hint c-description-error"></textarea>
+    <p class="hint" id="c-description-hint">{t('competition.descriptionHint')}</p>
+    <p class="message-error field-error" id="c-description-error" data-error-for="description" hidden></p>
+
+    <label class="field-label" for="c-rulebook">{t('competition.rulebookLabel')}</label>
+    <select class="input" id="c-rulebook" name="rulebook_id" aria-describedby="c-rulebook-hint">
+      <option value="">{t('competition.choose')}</option>
+    </select>
+    <p class="hint" id="c-rulebook-hint">{t('competition.rulebookHint')}</p>
+
+    <div class="button-row">
+      <button type="submit" class="button button-primary" data-save>{t('competition.save')}</button>
+    </div>
+  </form>
+
+  <p class="status" role="status" data-status></p>
+  {mode === 'new' && <p class="hint">{t('competition.afterFirstSave')}</p>}
+
+  <section class="card stack" data-matchbook aria-labelledby="matchbook-heading" hidden>
+    <h2 id="matchbook-heading">{t('matchbook.heading')}</h2>
+    <p data-matchbook-none>{t('matchbook.none')}</p>
+    <div class="button-row" data-matchbook-current hidden>
+      <a class="button" data-matchbook-link target="_blank" rel="noopener">{t('matchbook.download')}</a>
+      <button type="button" class="button button-danger" data-matchbook-remove>{t('matchbook.remove')}</button>
+    </div>
+    <form class="stack" data-matchbook-form novalidate>
+      <p class="hint" id="matchbook-hint">{t('rulebooks.personalDataHint')}</p>
+      <label class="field-label" for="matchbook-file">{t('matchbook.fileLabel')}</label>
+      <input class="input file-input" id="matchbook-file" name="file" type="file" accept={`${PDF_MIME},.pdf`} aria-describedby="matchbook-hint matchbook-error" />
+      <p class="message-error field-error" id="matchbook-error" data-matchbook-error hidden></p>
+      <div class="button-row">
+        <button type="submit" class="button" data-matchbook-submit>{t('matchbook.upload')}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card stack" data-schedule aria-labelledby="schedule-heading" hidden>
+    <h2 id="schedule-heading">{t('schedule.heading')}</h2>
+    <p data-schedule-empty>{t('schedule.empty')}</p>
+    <table class="schedule" data-schedule-table hidden>
+      <thead>
+        <tr>
+          <th scope="col">{t('schedule.day')}</th>
+          <th scope="col">{t('schedule.time')}</th>
+          <th scope="col">{t('schedule.description')}</th>
+          <th scope="col"><span class="visually-hidden">{t('schedule.actions')}</span></th>
+        </tr>
+      </thead>
+      <tbody data-schedule-body></tbody>
+    </table>
+
+    <form class="stack item-form" data-item-form novalidate>
+      <h3 data-item-heading>{t('schedule.addHeading')}</h3>
+      <div class="dates">
+        <div>
+          <label class="field-label" for="s-day">{t('schedule.day')}</label>
+          <input class="input" id="s-day" name="day" type="date" required aria-describedby="s-error" />
+        </div>
+        <div>
+          <label class="field-label" for="s-time">{t('schedule.timeOptional')}</label>
+          <input class="input" id="s-time" name="time" type="time" />
+        </div>
+      </div>
+      <label class="field-label" for="s-description">{t('schedule.description')}</label>
+      <input class="input" id="s-description" name="description" type="text" required maxlength={SCHEDULE_DESCRIPTION_MAX} autocomplete="off" aria-describedby="s-error" />
+      <p class="message-error field-error" id="s-error" data-item-error hidden></p>
+      <div class="button-row">
+        <button type="submit" class="button button-primary" data-item-submit>{t('schedule.add')}</button>
+        <button type="button" class="button" data-item-cancel hidden>{t('schedule.cancel')}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card stack" data-danger aria-labelledby="danger-heading" hidden>
+    <h2 id="danger-heading">{t('competition.deleteHeading')}</h2>
+    <p class="hint" data-delete-hint>{t('competition.deleteHint')}</p>
+    <p class="hint" data-published-hint hidden>{t('competition.publishedNoDelete')}</p>
+    <div class="button-row">
+      <button type="button" class="button button-danger" data-delete>{t('competition.delete')}</button>
+    </div>
+  </section>
+
+  <template data-schedule-row>
+    <tr data-row>
+      <td data-label={t('schedule.day')} data-day></td>
+      <td data-label={t('schedule.time')} data-time></td>
+      <td data-label={t('schedule.description')}>
+        <span data-description></span>
+        <span class="message-error row-error" data-row-error hidden>{t('schedule.dayOutOfRange')}</span>
+      </td>
+      <td>
+        <div class="button-row">
+          <button type="button" class="button" data-edit>{t('schedule.edit')}<span class="visually-hidden" data-sr></span></button>
+          <button type="button" class="button button-danger" data-remove>{t('schedule.delete')}<span class="visually-hidden" data-sr></span></button>
+        </div>
+      </td>
+    </tr>
+  </template>
+</div>
+
+<script>
+  import { mountCompetitionForm } from '../lib/competition-form-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-competition]');
+  if (root) void mountCompetitionForm(root);
+</script>
+
+<style>
+  .competition {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .competition > * {
+    margin: 0;
+  }
+
+  h1 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  h2,
+  h3 {
+    margin: 0;
+    font-size: var(--text-h3);
+  }
+
+  .stack > * {
+    margin-top: 0;
+    margin-bottom: var(--space-2);
+  }
+
+  .dates {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  @media (min-width: 40rem) {
+    .dates {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+  }
+
+  textarea.input {
+    resize: vertical;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .field-error,
+  .row-error {
+    display: block;
+    margin: 0 0 var(--space-2);
+  }
+
+  .status:empty {
+    display: none;
+  }
+
+  .file-input {
+    padding-block: var(--space-2);
+  }
+
+  .button-danger {
+    color: var(--color-danger);
+  }
+
+  .item-form {
+    padding-top: var(--space-4);
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .schedule {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .schedule th {
+    text-align: left;
+    font-size: var(--text-sm);
+  }
+
+  .schedule th,
+  .schedule td {
+    padding: var(--space-2);
+    vertical-align: top;
+    border-bottom: var(--border-width) solid var(--color-border);
+    overflow-wrap: anywhere;
+  }
+
+  /* Telefon: harmonogram jako lista kart (SPEC-001 §6.2). */
+  @media (max-width: 47.99rem) {
+    .schedule thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .schedule,
+    .schedule tbody,
+    .schedule tr,
+    .schedule td {
+      display: block;
+    }
+
+    .schedule tr {
+      margin-bottom: var(--space-3);
+      padding: var(--space-3);
+      background: var(--color-surface-alt);
+      border-radius: var(--radius-md);
+    }
+
+    .schedule td {
+      padding: var(--space-1) 0;
+      border: 0;
+    }
+
+    .schedule td:empty {
+      display: none;
+    }
+
+    .schedule td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-strong);
+    }
+  }
+</style>

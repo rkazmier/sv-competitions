@@ -66,7 +66,15 @@ export async function mountEntries(): Promise<void> {
         entry.kind === 'competition' ? t('entries.kindCompetition') : t('entries.kindEvent');
       query<HTMLElement>(li, '[data-status]').textContent =
         entry.status === 'published' ? t('entries.statusPublished') : t('entries.statusDraft');
-      query<HTMLElement>(li, '[data-name]').textContent = entry.name;
+      const name = query<HTMLElement>(li, '[data-name]');
+      if (entry.kind === 'competition') {
+        const link = document.createElement('a');
+        link.href = `/panel/zawody/edytuj/?id=${encodeURIComponent(entry.id)}`;
+        link.textContent = entry.name;
+        name.replaceChildren(link);
+      } else {
+        name.textContent = entry.name;
+      }
       query<HTMLElement>(li, '[data-date]').textContent = formatDateRange(entry.startsOn, entry.endsOn);
       query<HTMLElement>(li, '[data-label]').textContent = entry.label;
       return li;

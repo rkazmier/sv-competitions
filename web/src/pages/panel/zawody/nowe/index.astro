@@ -1,0 +1,9 @@
+---
+/** Panel: nowe zawody (SPEC-001 §6.2, AC-17…19). Po pierwszym zapisie — przejście do edycji. */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import CompetitionForm from '../../../../components/CompetitionForm.astro';
+import { t } from '../../../../i18n';
+---
+<PanelLayout title={t('competition.titleNew')}>
+  <CompetitionForm mode="new" />
+</PanelLayout>

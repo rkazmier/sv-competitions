@@ -139,7 +139,10 @@ test.describe('organizator', () => {
     test(`${acDuplicate}: ${dict.path} — duplikat „${dict.typed}” jest odrzucany`, async ({ page }) => {
       const db = admin();
       await db.from(dict.table).insert({ name: dict.existing }); // może już istnieć (23505) — to w porządku
-      const before = await db.from(dict.table).select('id', { count: 'exact', head: true });
+      // Tylko wiersze o tej nazwie — inne testy równolegle dodają dyscypliny.
+      const sameName = () =>
+        db.from(dict.table).select('id', { count: 'exact', head: true }).ilike('name', `%${dict.existing}%`);
+      const before = await sameName();
 
       await page.goto(dict.path);
       await expect(itemFor(page, dict.existing)).toBeVisible();
@@ -148,7 +151,7 @@ test.describe('organizator', () => {
       await expect(page.getByText(dict.duplicate)).toBeVisible();
       await expect(page.getByLabel('Nazwa', { exact: true })).toHaveAttribute('aria-invalid', 'true');
 
-      const after = await db.from(dict.table).select('id', { count: 'exact', head: true });
+      const after = await sameName();
       expect(after.count).toBe(before.count);
     });
 

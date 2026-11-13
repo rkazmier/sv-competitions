@@ -1,0 +1,9 @@
+---
+/** Panel: edycja zawodów `?id=<uuid>` — formularz, matchbook, harmonogram, usuwanie szkicu (SPEC-001 AC-17…23). */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import CompetitionForm from '../../../../components/CompetitionForm.astro';
+import { t } from '../../../../i18n';
+---
+<PanelLayout title={t('competition.titleEdit')}>
+  <CompetitionForm mode="edit" />
+</PanelLayout>
