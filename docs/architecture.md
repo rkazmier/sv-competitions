@@ -46,6 +46,20 @@
 - Fonty lokalnie w `public/fonts/` (te same pliki co landing-page). `PUBLIC_SITE_URL` → `site` w `astro.config.mjs`.
 - Testy: Vitest (`web/src/**/*.test.ts`), Playwright w katalogu głównym (`playwright.config.ts`, `tests/e2e/`).
 
+## Baza (`supabase/`)
+
+- Migracje w `supabase/migrations/`, testy pgTAP w `supabase/tests/` (`supabase test db`, uruchamiane w CI).
+- `created_by` w `rulebooks`, `competitions`, `calendar_events` nie ma uprawnienia `select` dla `anon` ani `authenticated`
+  (uprawnienia kolumnowe). Zapytania z frontendu **wymieniają kolumny jawnie** — `select('*')` na tych tabelach kończy się błędem 42501.
+  `created_by` ustawia wyzwalacz (`auth.uid()`), klient go nie podaje.
+- Wyzwalacze: `published_at` przy pierwszej publikacji (zawody, wydarzenia), `updated_at`, `slug` zawodów
+  (`<starts_on>-<nazwa-ascii>`, sufiks `-2`… przy kolizji, zamrożony od pierwszej publikacji), zakres dnia punktu harmonogramu,
+  niezmienność pliku regulaminu.
+- Błędy z wyzwalaczy mają kod `23514` i stały komunikat do mapowania w UI na tekst i18n:
+  `schedule_item_day_out_of_range` (AC-22), `rulebook_file_immutable` (AC-16).
+- Custom Access Token Hook `public.custom_access_token_hook` — lokalnie włączony w `config.toml`,
+  w projektach Supabase włączany ręcznie w panelu (Authentication → Hooks).
+
 ## Model danych
 
 Szczegóły kolumn i polityk RLS — w specyfikacjach (źródło: SPEC-001).
