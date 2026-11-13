@@ -1,0 +1,154 @@
+---
+/**
+ * Panel: biblioteka regulaminów PDF (SPEC-001 US-4, AC-12…16).
+ * Formularz wczytania + lista: tytuł, data wczytania, „Pobierz PDF”, liczba zawodów;
+ * „Zmień tytuł”, „Archiwizuj” / „Przywróć”, „Usuń” (tylko nieużywane). Pliku nie można podmienić (AC-16).
+ * Dane pobiera skrypt (lib/rulebooks-ui.ts) po potwierdzeniu roli organizatora.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+import { PDF_MIME, RULEBOOK_TITLE_MAX } from '../../../lib/rulebooks';
+---
+<PanelLayout title={t('rulebooks.title')}>
+  <div class="rulebooks" data-rulebooks>
+    <h1>{t('rulebooks.title')}</h1>
+    <p class="lead">{t('rulebooks.intro')}</p>
+
+    <form class="card add-form" data-add-form novalidate>
+      <h2 class="form-heading">{t('rulebooks.addHeading')}</h2>
+      <p class="hint" id="rulebook-hint">{t('rulebooks.personalDataHint')}</p>
+
+      <label class="field-label" for="rulebook-title">{t('rulebooks.titleLabel')}</label>
+      <input
+        class="input"
+        id="rulebook-title"
+        name="title"
+        type="text"
+        required
+        maxlength={RULEBOOK_TITLE_MAX}
+        autocomplete="off"
+        aria-describedby="rulebook-title-error"
+      />
+      <p class="message-error field-error" id="rulebook-title-error" data-title-error hidden></p>
+
+      <label class="field-label" for="rulebook-file">{t('rulebooks.fileLabel')}</label>
+      <input
+        class="input file-input"
+        id="rulebook-file"
+        name="file"
+        type="file"
+        required
+        accept={`${PDF_MIME},.pdf`}
+        aria-describedby="rulebook-hint rulebook-file-error"
+      />
+      <p class="message-error field-error" id="rulebook-file-error" data-file-error hidden></p>
+
+      <button type="submit" class="button button-primary" data-submit>{t('rulebooks.upload')}</button>
+    </form>
+
+    <p class="status" role="status" data-status></p>
+
+    <h2 class="list-heading">{t('rulebooks.listHeading')}</h2>
+    <p data-empty hidden>{t('rulebooks.empty')}</p>
+    <ul class="card-list" data-list></ul>
+
+    <template data-row-template>
+      <li class="card item" data-item>
+        <div data-view>
+          <p class="item-title">
+            <span data-title></span>
+            <span class="tag" data-archived hidden>{t('rulebooks.archivedTag')}</span>
+          </p>
+          <p class="item-meta"><span data-uploaded></span> · <span data-usage></span></p>
+          <div class="button-row">
+            <a class="button" data-download target="_blank" rel="noopener">
+              {t('rulebooks.download')}<span class="visually-hidden" data-sr-title></span>
+            </a>
+            <button type="button" class="button" data-rename>
+              {t('rulebooks.rename')}<span class="visually-hidden" data-sr-title></span>
+            </button>
+            <button type="button" class="button" data-toggle>
+              <span data-toggle-text></span><span class="visually-hidden" data-sr-title></span>
+            </button>
+            <button type="button" class="button button-danger" data-delete hidden>
+              {t('rulebooks.delete')}<span class="visually-hidden" data-sr-title></span>
+            </button>
+          </div>
+        </div>
+        <form class="item-edit" data-edit-form novalidate hidden>
+          <label class="field-label" data-edit-label>{t('rulebooks.newTitleLabel')}</label>
+          <input class="input" name="title" type="text" required maxlength={RULEBOOK_TITLE_MAX} autocomplete="off" />
+          <p class="message-error field-error" data-error hidden></p>
+          <div class="button-row">
+            <button type="submit" class="button button-primary">{t('rulebooks.save')}</button>
+            <button type="button" class="button" data-cancel>{t('rulebooks.cancel')}</button>
+          </div>
+        </form>
+      </li>
+    </template>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountRulebooks } from '../../../lib/rulebooks-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-rulebooks]');
+  if (root) void mountRulebooks(root);
+</script>
+
+<style>
+  .lead {
+    font-size: var(--text-base);
+  }
+
+  .form-heading,
+  .list-heading {
+    font-size: var(--text-h3);
+  }
+
+  .add-form {
+    margin-bottom: var(--space-4);
+  }
+
+  .add-form .input,
+  .item-edit .input {
+    margin-bottom: var(--space-2);
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .file-input {
+    padding-block: var(--space-2);
+  }
+
+  .field-error {
+    margin: 0 0 var(--space-2);
+  }
+
+  .status:empty {
+    display: none;
+  }
+
+  .item-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+    font-weight: var(--font-weight-strong);
+    overflow-wrap: anywhere;
+  }
+
+  .item-meta {
+    margin-bottom: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .button-danger {
+    color: var(--color-danger);
+  }
+</style>
