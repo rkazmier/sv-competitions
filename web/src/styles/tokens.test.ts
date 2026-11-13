@@ -61,6 +61,10 @@ describe('tokeny (SPEC-001 §6.1)', () => {
     ['color-accent', 'color-surface-alt'],
     ['color-accent-hover', 'color-surface-alt'],
     ['color-on-dark', 'color-dark'],
+    ['color-on-accent', 'color-accent'],
+    ['color-on-accent', 'color-accent-hover'],
+    ['color-danger', 'color-bg'],
+    ['color-danger', 'color-surface'],
   ])('AC-2: kontrast %s na %s ≥ 4.5 (WCAG AA)', (fg, bg) => {
     expect(contrast(token(fg), token(bg))).toBeGreaterThanOrEqual(4.5);
   });

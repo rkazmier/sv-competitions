@@ -1,0 +1,62 @@
+---
+/**
+ * Panel: lista wszystkich wpisów kalendarza — zawodów i wydarzeń, szkiców i opublikowanych (SPEC-001 AC-6).
+ * Formularze zawodów i wydarzeń powstaną w #9 i #15.
+ */
+import PanelLayout from '../../layouts/PanelLayout.astro';
+import { t } from '../../i18n';
+---
+<PanelLayout title={t('entries.title')}>
+  <h1>{t('entries.title')}</h1>
+  <div class="button-row actions">
+    <a class="button button-primary" href="/panel/zawody/nowe/">{t('entries.newCompetition')}</a>
+    <a class="button button-primary" href="/panel/wydarzenia/nowe/">{t('entries.newEvent')}</a>
+  </div>
+  <p data-entries-empty hidden>{t('entries.empty')}</p>
+  <ul class="card-list" data-entries></ul>
+
+  <template data-entry-template>
+    <li class="card entry" data-entry>
+      <p class="entry-tags">
+        <span class="tag" data-kind></span>
+        <span class="tag" data-status></span>
+      </p>
+      <p class="entry-name" data-name></p>
+      <p class="entry-meta"><span data-date></span> · <span data-label></span></p>
+    </li>
+  </template>
+</PanelLayout>
+
+<script>
+  import { mountEntries } from '../../lib/entries-ui';
+
+  void mountEntries();
+</script>
+
+<style>
+  .actions {
+    margin-bottom: var(--space-5);
+  }
+
+  .entry[data-kind='competition'] {
+    border-left: 4px solid var(--color-highlight);
+  }
+
+  .entry-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .entry-name {
+    margin-bottom: var(--space-1);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .entry-meta {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

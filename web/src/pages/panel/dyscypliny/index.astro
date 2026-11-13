@@ -1,0 +1,9 @@
+---
+/** Panel: dyscypliny (SPEC-001 US-3, AC-8…11). */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import DictionaryList from '../../../components/DictionaryList.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('dictionary.disciplines.title')}>
+  <DictionaryList kind="disciplines" />
+</PanelLayout>

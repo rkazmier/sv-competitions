@@ -1,7 +1,10 @@
 ---
 /**
  * Układ panelu organizatora: ten sam co strony publiczne, z menu panelu zamiast
- * nawigacji publicznej (slot `menu`, lista <ul> z linkami) i `noindex` (SPEC-001 §6.1, §6.2).
+ * nawigacji publicznej i `noindex` (SPEC-001 §6.1, §6.2).
+ * Bramka logowania (lib/panel.ts): treść strony (slot) i menu widać tylko organizatorowi;
+ * niezalogowany widzi logowanie Google (AC-4), konto bez roli — brak uprawnień (AC-5).
+ * Skrypt strony pobiera dane po `await requireOrganizer()`.
  */
 import BaseLayout from './BaseLayout.astro';
 import { t } from '../i18n';
@@ -11,8 +14,47 @@ interface Props {
 }
 
 const { title } = Astro.props;
+const menu = [
+  { href: '/panel/', label: t('panel.menu.calendar') },
+  { href: '/panel/regulaminy/', label: t('panel.menu.rulebooks') },
+  { href: '/panel/dyscypliny/', label: t('panel.menu.disciplines') },
+  { href: '/panel/kategorie/', label: t('panel.menu.categories') },
+];
+const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
 ---
 <BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>
-  <slot name="menu" slot="nav" />
-  <slot />
+  <ul slot="nav" data-panel-menu hidden>
+    {menu.map((item) => <li><a href={item.href} aria-current={isCurrent(item.href)}>{item.label}</a></li>)}
+    <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
+  </ul>
+  <section class="section panel">
+    <div class="container">
+      <div data-panel-state="loading">
+        <p role="status">{t('panel.loading')}</p>
+      </div>
+      <div data-panel-state="signedOut" hidden>
+        <h1>{t('panel.title')}</h1>
+        <p>{t('panel.signInIntro')}</p>
+        <button type="button" class="button button-primary" data-sign-in>{t('panel.signIn')}</button>
+      </div>
+      <div data-panel-state="forbidden" hidden>
+        <h1>{t('panel.title')}</h1>
+        <p>{t('panel.forbidden')}</p>
+        <button type="button" class="button" data-sign-out>{t('panel.signOut')}</button>
+      </div>
+      <div data-panel-state="error" hidden>
+        <h1>{t('panel.title')}</h1>
+        <p class="message-error" role="alert">{t('panel.loadError')}</p>
+      </div>
+      <div data-panel-state="organizer" hidden>
+        <slot />
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<script>
+  import { requireOrganizer } from '../lib/panel';
+
+  void requireOrganizer();
+</script>

@@ -41,10 +41,20 @@
 
 - `src/styles/tokens.css` — jedyne miejsce z kolorami, fontami, odstępami i promieniami (SPEC-001 §6.1); `base.css` — style bazowe.
 - `src/i18n/pl.ts` + `t('sekcja.klucz')` z `src/i18n/index.ts` — wszystkie teksty UI (test AC-3 wykrywa teksty wpisane w szablony `.astro`).
-- `src/layouts/BaseLayout.astro` (strony publiczne), `PanelLayout.astro` (menu panelu w slocie `menu`, `noindex`).
+- `src/layouts/BaseLayout.astro` (strony publiczne), `PanelLayout.astro` (menu panelu, `noindex`, bramka logowania).
+- `src/lib/supabase.ts` — klient Supabase w przeglądarce (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, PKCE,
+  sesja w localStorage pod kluczem `sv-auth`); tworzony leniwie, więc build bez tych zmiennych działa.
+- `src/lib/panel.ts` — bramka panelu: `requireOrganizer()` pokazuje logowanie Google / brak uprawnień / treść
+  i zwraca klienta tylko organizatorowi (rola z `profiles`, jak w RLS). Skrypty stron panelu pobierają dane dopiero po niej.
+- `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia) i kolejność wpisów.
+- `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie).
+- Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
 - `src/lib/dates.ts` — formatowanie dat i zakresów (`pl-PL`, dni liczone w UTC).
 - Fonty lokalnie w `public/fonts/` (te same pliki co landing-page). `PUBLIC_SITE_URL` → `site` w `astro.config.mjs`.
 - Testy: Vitest (`web/src/**/*.test.ts`), Playwright w katalogu głównym (`playwright.config.ts`, `tests/e2e/`).
+  Testy panelu wymagają `supabase start`: `playwright.config.ts` bierze URL i klucze z `supabase status`
+  (tylko lokalna instancja), użytkownicy testowi z hasłem powstają przez API administratora lokalnego Supabase,
+  sesja jest wstrzykiwana do localStorage (bez Google). W CI `supabase start` uruchamia Auth i REST.
 
 ## Baza (`supabase/`)
 
