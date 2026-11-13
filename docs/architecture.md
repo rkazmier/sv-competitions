@@ -32,7 +32,8 @@
 - Role trzymane w tabeli `profiles`. RLS sprawdza rolę funkcją `public.is_organizer()` (odczyt z `profiles`),
   claim `app_role` w JWT (Custom Access Token Hook) służy tylko interfejsowi (SPEC-001).
 - Strony publiczne generowane przy budowaniu, panel pobiera dane w przeglądarce; przebudowa po zmianach (ADR-0003).
-- Daty zawodów i harmonogram w czasie lokalnym strzelnicy (`date`/`time`), znaczniki zapisu w `timestamptz`.
+- Kalendarz strzelnicy = zawody (`competitions`) + wydarzenia (`calendar_events`) w osobnych tabelach, łączone we frontendzie (`CalendarEntry`).
+- Daty wpisów (zawody, wydarzenia) i harmonogram w czasie lokalnym strzelnicy (`date`/`time`), znaczniki zapisu w `timestamptz`.
 - Kwoty w groszach (`integer`), czas w UTC (`timestamptz`), prezentacja w strefie Europe/Warsaw.
 - Status płatności zmienia wyłącznie `payments-notify` po weryfikacji podpisu JWS, sprawdzeniu kwoty i idempotencji.
 
@@ -44,6 +45,7 @@ Szczegóły kolumn i polityk RLS — w specyfikacjach (źródło: SPEC-001).
 auth.users 1──1 profiles (role: competitor | organizer)
 disciplines 1──* competitions *──0..1 rulebooks
 competitions 1──* schedule_items
+event_categories 1──* calendar_events
 Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uuid>.pdf
 ```
 
@@ -51,6 +53,8 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | --- | --- | --- | --- |
 | `profiles` | rola konta | tak (powiązanie z kontem) | nie (tylko własny wiersz) |
 | `disciplines` | lista dyscyplin | nie | tak |
+| `event_categories` | kategorie wydarzeń | nie | tak |
 | `rulebooks` | biblioteka regulaminów PDF | `created_by` | tylko używane w opublikowanych zawodach, bez `created_by` |
 | `competitions` | zawody (`draft` / `published`) | `created_by` | tylko opublikowane, bez `created_by` |
 | `schedule_items` | punkty harmonogramu | nie | tylko opublikowanych zawodów |
+| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`) | `created_by` | tylko opublikowane, bez `created_by` |

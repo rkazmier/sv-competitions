@@ -9,12 +9,12 @@ więc podgląd linku (Open Graph) i indeksowanie wymagają gotowego HTML, a nie 
 Wdrożenie produkcji z Release wymaga zatwierdzenia i uruchamia migracje — nie nadaje się do odświeżania treści.
 
 ## Decyzja
-- Strony publiczne (`/`, `/zawody/<slug>/`) są generowane przy budowaniu z danych Supabase (klucz publishable, RLS).
+- Strony publiczne (`/` — kalendarz strzelnicy, `/zawody/<slug>/`) są generowane przy budowaniu z danych Supabase (klucz publishable, RLS).
 - Panel organizatora (`/panel/**`) to statyczne strony z wyspami, które pobierają dane w przeglądarce.
 - Osobny workflow `rebuild-site.yml` buduje i publikuje wyłącznie frontend:
   - produkcja — z najnowszego opublikowanego Release (kod zatwierdzony przez właściciela), bez migracji i Edge Functions,
   - staging — z `main`,
-  - wyzwalacze: `workflow_dispatch` z Edge Function `site-rebuild` oraz codziennie w nocy (minione zawody znikają z listy),
+  - wyzwalacze: `workflow_dispatch` z Edge Function `site-rebuild` oraz codziennie w nocy (minione wpisy znikają z kalendarza),
   - `concurrency` z `cancel-in-progress: true` — wdraża się ostatnia przebudowa.
 - Edge Function `site-rebuild` sprawdza rolę organizatora i wywołuje GitHub API tokenem fine-grained
   (tylko to repo, *Actions: Read and write*) z sekretu Supabase `GITHUB_DISPATCH_TOKEN`; środowisko z sekretu `SITE_ENV`.

@@ -1,14 +1,22 @@
-# SPEC-001: Szkielet aplikacji — zawody, regulaminy, strona publiczna
+# SPEC-001: Szkielet aplikacji — kalendarz strzelnicy, zawody, regulaminy, strona publiczna
 
 - Status: szkic (merge = zatwierdzenie)
 - Issue z pomysłem: #4
-- Zadania: #5, #6, #7, #8, #9, #10, #11 (w tej kolejności); dla właściciela: #12, #13 (`owner-task`)
+- Zadania: #5, #6, #7, #8, #9, #10, #11 + nowe „Panel: wydarzenia” (podział w sekcji 11); dla właściciela: #12, #13 (`owner-task`)
+- Zmiana zakresu 2026-11-13: aplikacja jest **kalendarzem strzelnicy** — wpisami są wydarzenia i zawody.
+  Miejsca oznaczone **[P1]…[P6]** zależą od otwartych pytań z sekcji 10; opisano w nich wariant rekomendowany.
 
 ## 1. Cel
 
 Postawić fundament aplikacji: projekt Astro w `web/`, Supabase w `supabase/`, logowanie organizatora
-przez Google i panel, w którym organizator przygotowuje i publikuje zawody. Goście widzą listę
-nadchodzących zawodów i stronę pojedynczych zawodów z regulaminem, matchbookiem i harmonogramem.
+przez Google i panel, w którym organizator prowadzi **kalendarz strzelnicy**. Wpis w kalendarzu to:
+
+- **wydarzenie** **[P2]** — coś, co odbywa się na strzelnicy: nazwa, termin, krótki opis, kategoria i link zewnętrzny,
+  pod którym organizator wydarzenia podaje wszystkie szczegóły;
+- **zawody** — organizowane przez Steel Valley, z regulaminem, matchbookiem i harmonogramem
+  (w kolejnych specyfikacjach także z zapisami, płatnościami i wynikami).
+
+Goście widzą kalendarz nadchodzących wpisów: wydarzenie jako kartę z opisem i linkiem, zawody z pełną stroną.
 
 ## 2. Zakres
 
@@ -17,29 +25,35 @@ nadchodzących zawodów i stronę pojedynczych zawodów z regulaminem, matchbook
   [landing-page](https://rkazmier.github.io/landing-page/) w jaśniejszej, stalowej szarości.
 - Projekt Supabase: migracje, RLS, Storage, jedna Edge Function (`site-rebuild`).
 - Logowanie przez Google (Supabase Auth), rola organizatora nadawana ręcznie w bazie.
-- Panel organizatora: dyscypliny, biblioteka regulaminów, zawody (szkic → opublikowane), harmonogram, matchbook.
-- Strona publiczna: lista nadchodzących zawodów, strona zawodów; strony generowane przy budowaniu
-  i automatycznie przebudowywane po zmianach (ADR-0003).
+- Panel organizatora: dyscypliny, kategorie wydarzeń, biblioteka regulaminów, zawody (szkic → opublikowane),
+  harmonogram, matchbook, wydarzenia (szkic → opublikowane **[P5]**).
+- Strona publiczna: kalendarz nadchodzących wpisów (zawody i wydarzenia) i strona zawodów; strony generowane
+  przy budowaniu i automatycznie przebudowywane po zmianach (ADR-0003).
 
 **Poza zakresem:**
 - Rejestracja zawodników, limity miejsc, opłaty, płatności, wyniki, ranking.
-- Sekcja „Minione zawody” / archiwum (dojdzie z wynikami). Minione zawody znikają z listy, ich strona działa dalej.
+- Sekcja „Minione zawody” / archiwum (dojdzie z wynikami). Minione wpisy znikają z kalendarza, strona zawodów działa dalej.
+- Wydarzenia: zapisy, płatności, pliki, harmonogram, powtarzanie (np. „co wtorek”) — każde wydarzenie dodaje się osobno.
+- Własna strona wydarzenia **[P4]**, filtrowanie kalendarza po kategorii **[P6]**, widok siatki miesiąca,
+  import/eksport kalendarza (iCal, Google Calendar).
 - Logowanie zawodników (sposób ustali specyfikacja rejestracji), rola administratora i zarządzanie organizatorami.
 - Wersja angielska (teksty w plikach i18n są gotowe pod nią, tłumaczenia — później).
-- Miejsce zawodów (zawsze strzelnica Steel Valley), komunikaty dla zawodników, galeria.
+- Miejsce wpisu (zawsze strzelnica Steel Valley), komunikaty dla zawodników, galeria.
 
 ## 3. Role i uprawnienia
 
 | Rola | Widzi | Może zmienić |
 | --- | --- | --- |
-| Gość (niezalogowany) | Opublikowane zawody, ich harmonogram, regulamin i matchbook; aktywne dyscypliny | Nic |
+| Gość (niezalogowany) | Opublikowane zawody (z harmonogramem, regulaminem, matchbookiem) i opublikowane wydarzenia; dyscypliny i kategorie | Nic |
 | Zalogowany bez roli organizatora (`competitor`) | To samo co gość + własny profil; w panelu komunikat o braku uprawnień | Nic |
-| Organizator (`organizer`) | Wszystkie zawody (także szkice), wszystkie regulaminy i dyscypliny | Dyscypliny, regulaminy, zawody, harmonogram, matchbook; publikacja; przebudowa strony |
+| Organizator (`organizer`) | Wszystkie zawody i wydarzenia (także szkice), wszystkie regulaminy, dyscypliny i kategorie | Dyscypliny, kategorie, regulaminy, zawody, harmonogram, matchbook, wydarzenia; publikacja; przebudowa strony |
 
 Rolę `organizer` nadaje właściciel ręcznie poleceniem SQL w panelu Supabase (kroki w zadaniu `owner-task`).
 W kodzie nie ma żadnych adresów e-mail.
 
 ## 4. Historyjki i kryteria akceptacji
+
+Numeracja AC jest stała (zadania się do niej odwołują); nowe kryteria kalendarza mają numery od AC-42.
 
 ### US-1: Jako gość chcę zobaczyć stronę w stylu Steel Valley, aby wiedzieć, że to oficjalna aplikacja strzelnicy
 - **AC-1**: Given dowolna strona publiczna When otwieram ją na ekranie 320–1920 px Then układ (nagłówek, `main`, stopka),
@@ -48,10 +62,12 @@ W kodzie nie ma żadnych adresów e-mail.
   fonty są hostowane lokalnie (brak zasobów z zewnętrznych domen poza Supabase).
 - **AC-3**: Given kod frontendu When szukam tekstów widocznych dla użytkownika Then wszystkie pochodzą z pliku i18n `pl`.
 
-### US-2: Jako organizator chcę zalogować się przez Google, aby zarządzać zawodami
+### US-2: Jako organizator chcę zalogować się przez Google, aby prowadzić kalendarz
 - **AC-4**: Given jestem niezalogowany When otwieram `/panel/` Then widzę przycisk „Zaloguj się przez Google”, a po zalogowaniu wracam do `/panel/`.
 - **AC-5**: Given jestem zalogowany bez roli `organizer` When otwieram `/panel/` Then widzę „Nie masz uprawnień organizatora. Skontaktuj się z administratorem strzelnicy.” i przycisk „Wyloguj się”; żadne dane szkiców nie są pobierane (RLS zwraca pustą listę).
-- **AC-6**: Given jestem organizatorem When otwieram `/panel/` Then widzę listę wszystkich zawodów (szkice i opublikowane, od najbliższych), z nazwą, datą, dyscypliną i stanem („Szkic” / „Opublikowane”), oraz menu: Zawody, Regulaminy, Dyscypliny, Wyloguj się.
+- **AC-6**: Given jestem organizatorem When otwieram `/panel/` Then widzę listę wszystkich wpisów kalendarza — zawodów i wydarzeń, szkiców i opublikowanych, od najbliższych —
+  z rodzajem („Zawody” / „Wydarzenie”), nazwą, datą, dyscypliną (zawody) lub kategorią (wydarzenie) i stanem („Szkic” / „Opublikowane”),
+  przyciski „Nowe zawody” i „Nowe wydarzenie” oraz menu: Kalendarz, Regulaminy, Dyscypliny, Kategorie, Wyloguj się.
 - **AC-7**: Given pierwsze logowanie nowego konta When konto powstaje w `auth.users` Then automatycznie powstaje wiersz w `profiles` z rolą `competitor`.
 
 ### US-3: Jako organizator chcę prowadzić listę dyscyplin, aby zawody i przyszły ranking używały tych samych nazw
@@ -84,28 +100,58 @@ W kodzie nie ma żadnych adresów e-mail.
 - **AC-28**: Given opublikowane zawody When zmieniam dane i zapisuję Then zmiany są zapisane i uruchamia się przebudowa strony (US-7). Adres strony zawodów (`slug`) po pierwszej publikacji się nie zmienia.
 
 ### US-7: Jako organizator chcę, żeby strona publiczna sama się odświeżała po zmianach
-- **AC-29**: Given organizator When publikuje, cofa publikację, zapisuje opublikowane zawody, zmienia nazwę lub ukrywa dyscyplinę, zmienia tytuł regulaminu Then panel wywołuje Edge Function `site-rebuild`, która uruchamia workflow przebudowy strony dla swojego środowiska (staging / produkcja).
+- **AC-29**: Given organizator When publikuje lub cofa publikację zawodów albo wydarzenia, zapisuje opublikowane zawody lub wydarzenie, usuwa opublikowane wydarzenie,
+  zmienia nazwę lub ukrywa dyscyplinę albo kategorię, zmienia tytuł regulaminu Then panel wywołuje Edge Function `site-rebuild`, która uruchamia workflow przebudowy strony dla swojego środowiska (staging / produkcja).
 - **AC-30**: Given wywołanie `site-rebuild` When wywołujący nie jest zalogowanym organizatorem Then funkcja zwraca 403 i nic nie uruchamia.
 - **AC-31**: Given kilka zmian w krótkim czasie When uruchamia się kilka przebudów Then wdraża się ostatnia (wcześniejsze są anulowane — `concurrency` z `cancel-in-progress`).
 - **AC-32**: Given przebudowa produkcji When się wykonuje Then buduje kod z najnowszego opublikowanego Release (nie z `main`) i nie uruchamia migracji ani wdrożenia funkcji; staging buduje `main`.
-- **AC-33**: Given codziennie o 00:30 czasu polskiego When uruchamia się przebudowa z harmonogramu Then minione zawody znikają z listy nadchodzących.
+- **AC-33**: Given codziennie o 00:30 czasu polskiego When uruchamia się przebudowa z harmonogramu Then minione wpisy (zawody i wydarzenia) znikają z kalendarza.
 - **AC-34**: Given panel When klikam „Odśwież stronę publiczną” Then uruchamia się przebudowa (ręczny wyzwalacz na wypadek błędu); w panelu widać komunikat z AC-25.
 
-### US-8: Jako gość chcę zobaczyć listę nadchodzących zawodów
-- **AC-35**: Given opublikowane zawody, których data końca (lub początku, gdy brak końca) jest dziś lub później (Europe/Warsaw, w chwili budowania) When otwieram `/` Then widzę je posortowane od najbliższych: data (np. „14 czerwca 2027” lub „14–15 czerwca 2027”), nazwa, dyscyplina, link do strony zawodów.
-- **AC-36**: Given brak nadchodzących zawodów When otwieram `/` Then widzę „Brak zaplanowanych zawodów. Zajrzyj wkrótce.”
-- **AC-37**: Given szkic When otwieram `/` lub zgaduję jego adres Then nic o nim nie widać (strona nie jest generowana, RLS nie zwraca szkiców gościom).
+### US-8: Jako gość chcę zobaczyć kalendarz nadchodzących wpisów na strzelnicy
+- **AC-35**: Given opublikowane zawody i wydarzenia, których data końca (lub początku, gdy brak końca) jest dziś lub później (Europe/Warsaw, w chwili budowania)
+  When otwieram `/` Then widzę kalendarz: wpisy pogrupowane po miesiącach (nagłówek np. „Czerwiec 2027”), w miesiącu od najbliższych;
+  wpis wielodniowy jest w miesiącu swojej daty początku (lub bieżącym, jeśli zaczął się wcześniej i trwa). Kolejność w tym samym dniu: najpierw zawody,
+  potem wydarzenia wg godziny (bez godziny na początku), na końcu wg nazwy.
+- **AC-36**: Given brak nadchodzących wpisów When otwieram `/` Then widzę „Brak zaplanowanych wydarzeń. Zajrzyj wkrótce.”
+- **AC-37**: Given szkic zawodów lub wydarzenia When otwieram `/` lub zgaduję adres zawodów Then nic o nim nie widać (strona nie jest generowana, RLS nie zwraca szkiców gościom).
+- **AC-42**: Given nadchodzące zawody When oglądam kalendarz Then karta zawodów ma etykietę „Zawody Steel Valley”, termin (np. „14 czerwca 2027” lub „14–15 czerwca 2027”), nazwę, dyscyplinę
+  i link „Szczegóły zawodów” do `/zawody/<slug>/`.
+- **AC-43**: Given nadchodzące wydarzenie When oglądam kalendarz Then karta wydarzenia ma etykietę z nazwą kategorii, termin (z godziną, jeśli podana **[P3]**, np. „14 czerwca 2027, 18:00”),
+  nazwę, opis (akapity, bez HTML) i przycisk „Szczegóły u organizatora” otwierający link zewnętrzny w nowej karcie (`target="_blank" rel="noopener noreferrer"`)
+  z ikoną/tekstem dla czytników ekranu „(otwiera się w nowej karcie)”. Wydarzenie nie ma własnej strony **[P4]**.
+- **AC-44**: Given karty w kalendarzu When patrzę na nie Then rodzaj wpisu jest rozpoznawalny nie tylko kolorem (etykieta tekstowa), a zawody są wizualnie wyróżnione (np. akcent `--color-highlight`).
 
 ### US-9: Jako gość chcę zobaczyć stronę zawodów z regulaminem i matchbookiem
 - **AC-38**: Given opublikowane zawody When otwieram `/zawody/<slug>/` Then widzę nazwę, termin, dyscyplinę, opis (akapity), harmonogram (tabela pogrupowana po dniach: godzina, opis) oraz przyciski „Regulamin (PDF)” i „Matchbook (PDF)”.
 - **AC-39**: Given zawody bez matchbooka When otwieram ich stronę Then w miejscu przycisku widzę „Matchbook wkrótce”. Given brak punktów harmonogramu Then widzę „Harmonogram wkrótce”.
-- **AC-40**: Given minione opublikowane zawody When otwieram ich adres Then strona nadal działa (nie ma ich tylko na liście nadchodzących).
-- **AC-41**: Given link do strony zawodów wklejony na Facebooku/Messengerze When serwis pobiera podgląd Then strona ma `<title>`, `meta description` (początek opisu, maks. 160 znaków), znaczniki Open Graph (`og:title`, `og:description`, `og:url`, `og:type=website`, `og:image` — domyślny obraz serwisu) i `link rel=canonical` na adres produkcyjny.
+- **AC-40**: Given minione opublikowane zawody When otwieram ich adres Then strona nadal działa (nie ma ich tylko w kalendarzu nadchodzących).
+- **AC-41**: Given link do strony zawodów (lub do kalendarza `/`) wklejony na Facebooku/Messengerze When serwis pobiera podgląd Then strona ma `<title>`, `meta description` (zawody: początek opisu, maks. 160 znaków; kalendarz: stały tekst z i18n), znaczniki Open Graph (`og:title`, `og:description`, `og:url`, `og:type=website`, `og:image` — domyślny obraz serwisu) i `link rel=canonical` na adres produkcyjny.
+
+### US-10: Jako organizator chcę prowadzić listę kategorii wydarzeń **[P1]**
+- **AC-45**: Given jestem na `/panel/kategorie/` When dodaję kategorię o nazwie, której nie ma na liście Then pojawia się ona jako aktywna. Lista startowa jest pusta (nazwy wpisuje organizator).
+- **AC-46**: Given istnieje kategoria „Szkolenie” When dodaję „szkolenie ” Then widzę „Taka kategoria już istnieje.” i nic nie jest zapisywane.
+- **AC-47**: Given kategoria When zmieniam jej nazwę lub klikam „Ukryj” / „Przywróć” Then działa to jak dla dyscyplin (AC-10, AC-11): ukrytej nie da się wybrać przy nowych wydarzeniach, istniejące ją zachowują; kategorii nie da się usunąć.
+
+### US-11: Jako organizator chcę dodać do kalendarza wydarzenie odbywające się na strzelnicy
+- **AC-48**: Given jestem na `/panel/wydarzenia/nowe/` When podaję nazwę, kategorię (z aktywnych), datę początku i zapisuję Then powstaje wydarzenie w stanie „Szkic”, niewidoczne publicznie **[P5]**.
+  Pola: Nazwa* (1–150 znaków), Kategoria*, Data początku*, Data końca (opcjonalnie), Godzina rozpoczęcia (opcjonalnie) **[P3]**, Opis (maks. 2000 znaków), Link zewnętrzny.
+- **AC-49**: Given formularz wydarzenia When data końca jest wcześniejsza niż data początku Then widzę „Data końca nie może być wcześniejsza niż data początku.” (także `check` w bazie).
+- **AC-50**: Given formularz wydarzenia When link nie zaczyna się od `https://` lub `http://` albo ma > 2000 znaków Then widzę „Podaj pełny adres strony, np. https://…” i nic nie jest zapisywane (także `check` w bazie).
+- **AC-51**: Given szkic wydarzenia z nazwą, kategorią, datą początku i linkiem When klikam „Opublikuj” Then stan zmienia się na „Opublikowane”, zapisuje się `published_at`, widzę komunikat z AC-25 i uruchamia się przebudowa.
+  Given szkic bez linku Then widzę „Aby opublikować wydarzenie, podaj link do szczegółów.” i stan się nie zmienia (`check`: opublikowane ⇒ `external_url` niepuste) **[P5]**.
+- **AC-52**: Given opublikowane wydarzenie When klikam „Cofnij publikację” Then wraca do szkicu i po przebudowie znika z kalendarza. Given wydarzenie (w dowolnym stanie) When klikam „Usuń wydarzenie” i potwierdzam Then jest usuwane
+  („Czy na pewno usunąć wydarzenie „<nazwa>”? Tej operacji nie można cofnąć.”); jeśli było opublikowane, uruchamia się przebudowa.
+- **AC-53**: Given formularz wydarzenia When patrzę na pole linku Then widzę podpowiedź „Strona organizatora wydarzenia ze szczegółami, np. wydarzenie na Facebooku.”; podgląd karty wydarzenia jest widoczny pod formularzem (ten sam komponent co w kalendarzu).
 
 ## 5. Model danych
 
 Wszystkie tabele w schemacie `public`, RLS włączone jawnie w migracji. Czas zapisu w `timestamptz` (UTC).
-Daty zawodów i harmonogram to **czas lokalny strzelnicy** (`date` / `time` bez strefy) — tak jak na plakacie, bez przeliczeń.
+Daty i godziny wpisów to **czas lokalny strzelnicy** (`date` / `time` bez strefy) — tak jak na plakacie, bez przeliczeń.
+
+Zawody i wydarzenia to **osobne tabele** (zawody dostaną zgłoszenia, płatności i wyniki; wydarzenie pozostaje prostym wpisem).
+Kalendarz to połączenie obu list w kodzie frontendu (`web/src/lib/calendar.ts`, typ `CalendarEntry = { kind: 'competition' | 'event', … }`, test Vitest sortowania i grupowania).
+W kodzie TypeScript używamy nazwy `CalendarEvent` (nie `Event`, które koliduje z typem DOM).
 
 | Tabela | Kolumna | Typ | Wymagane | Dane osobowe | Uwagi |
 | --- | --- | --- | --- | --- | --- |
@@ -116,6 +162,7 @@ Daty zawodów i harmonogram to **czas lokalny strzelnicy** (`date` / `time` bez 
 | | `name` | `text` | tak | nie | 1–80 znaków po `trim`; unikalny indeks na `lower(trim(name))` |
 | | `is_active` | `boolean` | tak | nie | domyślnie `true`; `false` = ukryta |
 | | `created_at` | `timestamptz` | tak | nie | |
+| `event_categories` **[P1]** | `id`, `name`, `is_active`, `created_at` | jak `disciplines` | | nie | kategorie wydarzeń; brak danych startowych |
 | `rulebooks` | `id` | `uuid` PK | tak | nie | |
 | | `title` | `text` | tak | nie | 1–200 znaków |
 | | `file_path` | `text` | tak | nie | ścieżka w Storage, niezmienna |
@@ -142,9 +189,22 @@ Daty zawodów i harmonogram to **czas lokalny strzelnicy** (`date` / `time` bez 
 | | `time` | `time` | nie | nie | np. `08:00` |
 | | `description` | `text` | tak | nie | 1–300 znaków, np. „Rejestracja zawodników” |
 | | `position` | `integer` | tak | nie | kolejność dodania, do sortowania remisów |
+| `calendar_events` | `id` | `uuid` PK | tak | nie | wydarzenie w kalendarzu |
+| | `name` | `text` | tak | nie | 1–150 znaków |
+| | `category_id` | `uuid` FK → `event_categories.id` on delete restrict | tak | nie | przy nowych wydarzeniach tylko aktywne |
+| | `starts_on` | `date` | tak | nie | |
+| | `ends_on` | `date` | nie | nie | `check (ends_on is null or ends_on >= starts_on)` |
+| | `starts_at` **[P3]** | `time` | nie | nie | godzina rozpoczęcia, np. `18:00` |
+| | `description` | `text` | nie | nie | zwykły tekst, maks. 2000 znaków; renderowany bez HTML |
+| | `external_url` | `text` | nie | nie | `check (external_url ~ '^https?://' and length(external_url) <= 2000)`; wymagany do publikacji **[P5]** |
+| | `status` | `text` check in (`draft`, `published`) | tak | nie | domyślnie `draft`; `check (status = 'draft' or external_url is not null)` |
+| | `published_at` | `timestamptz` | nie | nie | ustawiany przy pierwszej publikacji |
+| | `created_by` | `uuid` FK → `profiles.id` on delete set null | nie | tak | niewidoczne publicznie |
+| | `created_at`, `updated_at` | `timestamptz` | tak | nie | `updated_at` wyzwalaczem |
 
 Stany zawodów: `draft → published` (warunek: regulamin), `published → draft` („Cofnij publikację”).
-Usuwanie: tylko `draft`. `slug` zamrożony, gdy `published_at` niepuste.
+Usuwanie zawodów: tylko `draft`. `slug` zamrożony, gdy `published_at` niepuste.
+Stany wydarzenia: `draft → published` (warunek: link), `published → draft`. Usuwanie wydarzenia: w każdym stanie (nie ma powiązanych danych).
 
 ### Funkcje i polityki RLS
 
@@ -152,12 +212,14 @@ Usuwanie: tylko `draft`. `slug` zamrożony, gdy `published_at` niepuste.
   Polityki używają tej funkcji (a nie claimu z JWT), więc odebranie roli działa od razu.
 - Custom Access Token Hook dodaje do JWT claim `app_role` (z `profiles.role`) — tylko na potrzeby UI.
 - `profiles`: `select` własnego wiersza; brak `insert/update/delete` dla klientów (rolę zmienia właściciel SQL-em).
-- `disciplines`: `select` dla wszystkich (`anon`, `authenticated`); `insert/update` — organizator; brak `delete`.
+- `disciplines`, `event_categories`: `select` dla wszystkich (`anon`, `authenticated`); `insert/update` — organizator; brak `delete`.
 - `rulebooks`: `select` dla wszystkich tylko tych, które są używane przez opublikowane zawody; organizator — wszystkie;
   `insert/update/delete` — organizator; kolumna `created_by` nie jest udostępniana publicznie (widok publiczny lub `select` kolumn w zapytaniach — Implementator wybiera; test sprawdza, że `anon` jej nie dostaje).
 - `competitions`: `select` dla wszystkich, gdy `status = 'published'`; organizator — wszystkie;
   `insert/update` — organizator; `delete` — organizator i tylko `status = 'draft'`. To samo zastrzeżenie dla `created_by`.
 - `schedule_items`: `select`, gdy zawody nadrzędne są opublikowane, lub organizator; zapis — organizator.
+- `calendar_events`: `select` dla wszystkich, gdy `status = 'published'`; organizator — wszystkie; `insert/update/delete` — organizator.
+  To samo zastrzeżenie dla `created_by`.
 
 ### Storage
 
@@ -165,6 +227,7 @@ Bucket `documents`, publiczny do odczytu (pliki PDF to dokumenty publiczne, bez 
 Ścieżki: `rulebooks/<uuid>.pdf`, `matchbooks/<competition_id>/<uuid>.pdf` (losowe UUID — nazwy oryginalnych plików nie są zapisywane).
 Zapis i usuwanie — tylko organizator (polityki na `storage.objects` z `is_organizer()`).
 Matchbook szkicu jest technicznie dostępny pod nieodgadywalnym adresem — akceptowalne (dokument i tak ma zostać opublikowany).
+Wydarzenia nie mają plików.
 
 ## 6. Interfejs użytkownika
 
@@ -185,22 +248,24 @@ Różnica — paleta jaśniejszej stali zamiast ciepłego beżu. Propozycja star
 | `--color-accent` | `#23465d` | `#3e5568` |
 | `--color-accent-hover` | `#16303f` | `#2c3f4f` |
 | `--color-dark` | `#1b2329` | `#252d34` |
-| `--color-highlight` | `#a57a2c` | `#a57a2c` (wspólny akcent marki) |
+| `--color-highlight` | `#a57a2c` | `#a57a2c` (wspólny akcent marki; wyróżnienie kart zawodów) |
 
-Nagłówek: logotyp tekstowy „Steel Valley Competitions”, link „Zawody” (`/`). Stopka: link do https://steel-valley.pl.
+Nagłówek: logotyp tekstowy „Steel Valley Competitions”, link „Kalendarz” (`/`). Stopka: link do https://steel-valley.pl.
 Panel ma ten sam układ, z menu panelu zamiast nawigacji publicznej.
 
 ### 6.2 Ekrany
 
 | Adres | Generowanie | Zawartość |
 | --- | --- | --- |
-| `/` | statycznie przy budowaniu | Nagłówek „Nadchodzące zawody”, karty (AC-35/36) |
+| `/` | statycznie przy budowaniu | Nagłówek „Kalendarz strzelnicy”, wpisy po miesiącach, karty zawodów i wydarzeń (AC-35…37, AC-42…44) |
 | `/zawody/<slug>/` | statycznie, `getStaticPaths` z opublikowanych | AC-38…41 |
-| `/panel/` | statyczna strona + wyspa (dane w przeglądarce) | logowanie / brak uprawnień / lista zawodów, przycisk „Nowe zawody”, „Odśwież stronę publiczną” |
+| `/panel/` | statyczna strona + wyspa (dane w przeglądarce) | logowanie / brak uprawnień / lista wpisów kalendarza (AC-6), „Nowe zawody”, „Nowe wydarzenie”, „Odśwież stronę publiczną” |
 | `/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=<uuid>` | wyspa | formularz zawodów + harmonogram + matchbook; przyciski „Zapisz”, „Opublikuj” / „Cofnij publikację”, „Podgląd”, „Usuń zawody” (tylko szkic) |
 | `/panel/zawody/podglad/?id=<uuid>` | wyspa | ten sam komponent co strona zawodów + pasek podglądu (AC-24) |
+| `/panel/wydarzenia/nowe/`, `/panel/wydarzenia/edytuj/?id=<uuid>` | wyspa | formularz wydarzenia + podgląd karty (AC-48…53); „Zapisz”, „Opublikuj” / „Cofnij publikację”, „Usuń wydarzenie” |
 | `/panel/regulaminy/` | wyspa | formularz wczytania + lista (AC-12…16) |
 | `/panel/dyscypliny/` | wyspa | formularz dodania + lista z edycją nazwy i „Ukryj”/„Przywróć” |
+| `/panel/kategorie/` | wyspa | jak dyscypliny (AC-45…47); wspólny komponent „lista słownikowa” |
 
 Strony `/panel/**` mają `<meta name="robots" content="noindex">`. Po zapisie formularza: komunikat „Zapisano.”;
 błąd sieci/serwera: „Nie udało się zapisać. Spróbuj ponownie.”. Usuwanie i cofanie publikacji wymagają potwierdzenia
@@ -210,19 +275,26 @@ Formularz zawodów — pola: Nazwa*, Dyscyplina* (lista), Data początku*, Data 
 Opis, Regulamin (lista z biblioteki, „— wybierz —”), Matchbook (PDF, opcjonalnie), Harmonogram (tabela: Dzień, Godzina, Opis, + „Dodaj punkt”).
 Na telefonie harmonogram jako lista kart; dzień domyślnie = data początku.
 
-Format dat w UI: `14 czerwca 2027`, zakres w tym samym miesiącu `14–15 czerwca 2027`, różne miesiące `30 czerwca – 1 lipca 2027` (`Intl`, `pl-PL`).
+Formularz wydarzenia — pola: Nazwa*, Kategoria* (lista), Data początku*, Data końca, Godzina rozpoczęcia, Opis, Link do szczegółów (wymagany do publikacji).
+
+Format dat w UI: `14 czerwca 2027`, zakres w tym samym miesiącu `14–15 czerwca 2027`, różne miesiące `30 czerwca – 1 lipca 2027`;
+z godziną: `14 czerwca 2027, 18:00` (`Intl`, `pl-PL`). Nagłówek miesiąca: `Czerwiec 2027`.
 
 ## 7. Przypadki brzegowe
 
-- Dwa szkice o tej samej nazwie i dacie → różne `slug` (sufiks `-2`).
+- Dwa szkice zawodów o tej samej nazwie i dacie → różne `slug` (sufiks `-2`).
 - Zmiana nazwy opublikowanych zawodów → `slug` bez zmian (linki w mediach społecznościowych działają).
 - Regulamin używany przez zawody → nie da się go usunąć (FK `restrict` + brak przycisku).
 - Zarchiwizowany regulamin w opublikowanych zawodach → nadal widoczny publicznie.
-- Ukryta dyscyplina w istniejących zawodach → nadal pokazywana; przy edycji takich zawodów lista zawiera aktywne + bieżącą.
+- Ukryta dyscyplina / kategoria w istniejących wpisach → nadal pokazywana; przy edycji lista zawiera aktywne + bieżącą.
+- Wydarzenie wielodniowe, które zaczęło się wczoraj i trwa → widoczne w kalendarzu (w bieżącym miesiącu) do dnia końca.
+- Zawody i wydarzenie tego samego dnia → oba w kalendarzu, zawody pierwsze (AC-35).
+- Link zewnętrzny przestał działać → odpowiedzialność organizatora; aplikacja nie sprawdza linków.
+- Link `javascript:` lub inny schemat → odrzucony (AC-50, `check` w bazie); w HTML zawsze jako atrybut `href` po escapowaniu.
 - Przebudowa nie powiodła się (błąd workflowu / brak tokenu) → dane w bazie są poprawne, panel pokazuje „Nie udało się uruchomić odświeżenia strony. Spróbuj „Odśwież stronę publiczną” za chwilę.”; przebudowa nocna i tak to naprawi.
-- Budowanie przy niedostępnym Supabase → build kończy się błędem (nie publikujemy pustej listy zawodów zamiast prawdziwej).
-- Zawody „dziś” → widoczne na liście przez cały dzień (porównanie dat w Europe/Warsaw).
-- Usunięcie konta organizatora → `created_by` = `null`, zawody zostają.
+- Budowanie przy niedostępnym Supabase → build kończy się błędem (nie publikujemy pustego kalendarza zamiast prawdziwego).
+- Wpis „dziś” → widoczny w kalendarzu przez cały dzień (porównanie dat w Europe/Warsaw).
+- Usunięcie konta organizatora → `created_by` = `null`, wpisy zostają.
 
 ## 8. Integracje
 
@@ -233,12 +305,14 @@ Format dat w UI: `14 czerwca 2027`, zakres w tym samym miesiącu `14–15 czerwc
   Sekrety Supabase: `GITHUB_DISPATCH_TOKEN` (fine-grained PAT, tylko to repo, uprawnienie *Actions: Read and write*), `SITE_ENV`. Token nigdy nie trafia do logów ani odpowiedzi.
 - **Workflow `rebuild-site.yml`**: wyzwalacze `workflow_dispatch` (input `target`) i `schedule` (codziennie 22:30 UTC i 23:30 UTC — jeden z nich wypada o 00:30 czasu polskiego niezależnie od czasu letniego; drugi jest nieszkodliwy). Bez migracji i funkcji, tylko build + publikacja frontendu. `concurrency: rebuild-site-<target>`, `cancel-in-progress: true`.
 - **Build Astro**: pobiera dane kluczem publishable (RLS gwarantuje, że widzi tylko opublikowane).
+- **Linki zewnętrzne wydarzeń**: tylko zwykłe odnośniki; aplikacja nie pobiera z nich danych ani podglądów.
 
 ## 9. RODO
 
-- Dane osobowe: adres e-mail i identyfikator konta Google w `auth.users` (zarządza Supabase Auth), powiązanie `profiles.id`, `created_by` w zawodach i regulaminach.
+- Dane osobowe: adres e-mail i identyfikator konta Google w `auth.users` (zarządza Supabase Auth), powiązanie `profiles.id`, `created_by` w zawodach, wydarzeniach i regulaminach.
 - Cel: uwierzytelnienie organizatora i rozliczalność zmian. Dostęp: właściciel konta (własny profil), właściciel projektu (panel Supabase).
 - Publicznie nie jest widoczna żadna dana osobowa (`created_by` wyłączone z odczytu publicznego; nazwy plików PDF losowe).
+- Opis wydarzenia to tekst publiczny — podpowiedź w formularzu: „Nie wpisuj danych kontaktowych osób prywatnych; szczegóły podaje strona organizatora.”
 - Konta osób, które zalogowały się bez roli organizatora, nie mają w szkielecie żadnej funkcji; przechowywane do czasu usunięcia na prośbę (procedura usuwania kont — w specyfikacji rejestracji).
 - Pliki PDF nie zawierają danych osobowych (odpowiedzialność organizatora przy wczytywaniu — tekst pomocniczy w formularzu: „Nie wczytuj plików z danymi osobowymi zawodników.”).
 
@@ -253,3 +327,30 @@ Format dat w UI: `14 czerwca 2027`, zakres w tym samym miesiącu `14–15 czerwc
 | Publikacja | 5-A: szkic → „Opublikuj” | 2026-11-13 |
 | Generowanie stron | 6-B: strony statyczne + automatyczna przebudowa (ADR-0003) | 2026-11-13 |
 | Minione zawody | 7-A: znikają z listy, strona działa; archiwum później | 2026-11-13 |
+| Zakres aplikacji | Kalendarz strzelnicy: wydarzenia (nazwa, data, opis, kategoria, link zewnętrzny) + zawody jako jeden z rodzajów wpisów | 2026-11-13 |
+
+Otwarte (spec opisuje wariant rekomendowany; po odpowiedziach zostanie dostosowana):
+
+| # | Pytanie | Rekomendacja w specyfikacji |
+| --- | --- | --- |
+| P1 | Lista kategorii wydarzeń | A: prowadzona w panelu jak dyscypliny, start pusty |
+| P2 | Nazwa wpisu „event” w interfejsie | A: „Wydarzenie” |
+| P3 | Termin wydarzenia | B: data początku, opcjonalnie data końca i godzina rozpoczęcia |
+| P4 | Prezentacja wydarzenia | A: tylko karta w kalendarzu z linkiem zewnętrznym |
+| P5 | Publikacja wydarzenia | A: szkic → „Opublikuj”, link wymagany do publikacji |
+| P6 | Filtr kategorii w kalendarzu | A: nie teraz, kategoria tylko jako etykieta na karcie |
+
+## 11. Zadania (po zmianie zakresu)
+
+Opisy zadań w GitHub zostaną zaktualizowane po odpowiedziach na P1–P6.
+
+| Zadanie | Zmiana |
+| --- | --- |
+| #5 Szkielet Astro | link „Kalendarz” w nagłówku zamiast „Zawody” |
+| #6 Supabase: schemat, RLS, Storage | + `event_categories`, `calendar_events` z `check` i RLS, testy RLS dla `anon` |
+| #7 Panel: logowanie Google i dyscypliny | + kategorie (wspólny komponent listy słownikowej, AC-45…47); lista w `/panel/` obejmuje wydarzenia (AC-6) |
+| #8 Panel: biblioteka regulaminów | bez zmian |
+| #9 Panel: formularz zawodów | bez zmian |
+| #10 Strona publiczna | `/` jako kalendarz: `calendar.ts` (łączenie, sortowanie, grupowanie po miesiącach), karty zawodów i wydarzeń (AC-35…37, AC-42…44); dane wydarzeń z `seed.sql` |
+| #11 Publikacja i przebudowa | wyzwalacze przebudowy także dla wydarzeń i kategorii (AC-29, AC-33) |
+| nowe: Panel: wydarzenia | formularz wydarzenia, publikacja, usuwanie, podgląd karty (AC-48…53); po #11, bo korzysta z `site-rebuild` |
