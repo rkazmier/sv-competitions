@@ -3,6 +3,12 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(28);
 
+-- Izolacja od supabase/seed.sql: test liczy wiersze; usunięcie cofa `rollback` na końcu.
+delete from public.schedule_items;
+delete from public.competitions;
+delete from public.calendar_events;
+delete from public.rulebooks;
+
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'org@example.test'),
   ('00000000-0000-0000-0000-0000000000c1', 'comp@example.test');

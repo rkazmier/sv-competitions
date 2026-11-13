@@ -7,6 +7,7 @@ import Fonts from '../components/Fonts.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import { t } from '../i18n';
+import { DEFAULT_OG_IMAGE, productionUrl } from '../lib/site';
 import '../styles/tokens.css';
 import '../styles/base.css';
 
@@ -27,6 +28,22 @@ const {
   navLabel = t('layout.navLabel'),
 } = Astro.props;
 const fullTitle = title ? `${title} — ${t('site.name')}` : t('site.name');
+// AC-41: canonical i og:url na adres produkcyjny (lib/site.ts)
+const canonical = productionUrl(Astro.url.pathname);
+// Podgląd linku w Facebooku/Messengerze (AC-41); tylko strony publiczne (indeksowane).
+const openGraph: [string, string][] = indexable
+  ? [
+      ['og:type', 'website'],
+      ['og:site_name', t('site.name')],
+      ['og:locale', 'pl_PL'],
+      ['og:title', title ?? t('site.name')],
+      ['og:description', description],
+      ['og:url', canonical],
+      ['og:image', productionUrl(DEFAULT_OG_IMAGE)],
+      ['og:image:width', '1200'],
+      ['og:image:height', '630'],
+    ]
+  : [];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
 ---
 <!DOCTYPE html>
@@ -36,7 +53,8 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    {indexable ? <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} /> : <meta name="robots" content="noindex" />}
+    {indexable ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
+    {openGraph.map(([property, content]) => <meta property={property} content={content} />)}
     <meta name="color-scheme" content="light" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

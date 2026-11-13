@@ -46,7 +46,17 @@
   sesja w localStorage pod kluczem `sv-auth`); tworzony leniwie, więc build bez tych zmiennych działa.
 - `src/lib/panel.ts` — bramka panelu: `requireOrganizer()` pokazuje logowanie Google / brak uprawnień / treść
   i zwraca klienta tylko organizatorowi (rola z `profiles`, jak w RLS). Skrypty stron panelu pobierają dane dopiero po niej.
-- `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia) i kolejność wpisów.
+- `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia), kolejność wpisów, „dziś” w Europe/Warsaw
+  i grupowanie nadchodzących po miesiącach (`upcomingByMonth`).
+- Strony publiczne (`/`, `/zawody/<slug>/`) pobierają dane **przy budowaniu** w `src/lib/public-data.ts` (klucz publishable,
+  tylko opublikowane, jedno pobranie na build). Błąd Supabase = błąd buildu. Brak zmiennych Supabase jest dozwolony tylko
+  bez `PUBLIC_APP_ENV` (lint/test/build w CI) — wtedy strony są puste; wdrożenia (staging, produkcja) ustawiają `PUBLIC_APP_ENV`
+  i bez zmiennych build się nie uda.
+- `src/lib/competition-page.ts` — widok strony zawodów i wiersze → `CalendarEntry`; `src/components/CalendarCard.astro` (karta wpisu),
+  `CompetitionDetails.astro` (strona zawodów; bez `view` — pusty wzór wypełniany w podglądzie panelu przez
+  `src/lib/competition-view-ui.ts`, `/panel/zawody/podglad/?id=`). Opisy: `src/lib/text.ts` (akapity, `meta description`).
+- `src/lib/site.ts` — adres produkcyjny: `link rel=canonical`, `og:url` i `og:image` (`public/og-default.png`) zawsze na produkcję.
+- Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie).
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
@@ -61,6 +71,9 @@
 ## Baza (`supabase/`)
 
 - Migracje w `supabase/migrations/`, testy pgTAP w `supabase/tests/` (`supabase test db`, uruchamiane w CI).
+- `supabase/seed.sql` — fikcyjne dane tylko lokalnie i w CI (`supabase start` / `db reset`; `db push` ich nie wczytuje):
+  zawody i wydarzenia z datami liczonymi od dziś, dla strony publicznej i testów E2E. Testy pgTAP, które liczą wiersze,
+  usuwają dane seed w swojej transakcji.
 - `created_by` w `rulebooks`, `competitions`, `calendar_events` nie ma uprawnienia `select` dla `anon` ani `authenticated`
   (uprawnienia kolumnowe). Zapytania z frontendu **wymieniają kolumny jawnie** — `select('*')` na tych tabelach kończy się błędem 42501.
   `created_by` ustawia wyzwalacz (`auth.uid()`), klient go nie podaje.

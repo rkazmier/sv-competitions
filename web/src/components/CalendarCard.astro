@@ -1,0 +1,93 @@
+---
+/**
+ * Karta wpisu kalendarza (SPEC-001 AC-42…44): zawody (wyróżnione akcentem, link do strony zawodów)
+ * albo wydarzenie (kategoria, opis, link zewnętrzny w nowej karcie). Rodzaj wpisu zawsze jako tekst, nie tylko kolor.
+ * Teksty z bazy przez `{…}` — Astro je escapuje (opis bez HTML).
+ */
+import { t } from '../i18n';
+import type { CalendarEntry } from '../lib/calendar';
+import { competitionPath } from '../lib/competition-page';
+import { formatDateRange } from '../lib/dates';
+import { toParagraphs } from '../lib/text';
+
+interface Props {
+  entry: CalendarEntry;
+  /** Poziom nagłówka nazwy (w kalendarzu pod nagłówkiem miesiąca — h3) */
+  headingLevel?: 2 | 3;
+}
+
+const { entry, headingLevel = 3 } = Astro.props;
+const Heading = `h${headingLevel}` as 'h2' | 'h3';
+const isCompetition = entry.kind === 'competition';
+const kind = isCompetition ? t('calendarCard.competitionKind') : entry.label;
+---
+<article class:list={['entry-card', `entry-card--${entry.kind}`]} data-entry-kind={entry.kind}>
+  <p class="entry-kind">{kind}</p>
+  <Heading class="entry-name">{entry.name}</Heading>
+  <p class="entry-date"><time datetime={entry.startsOn}>{formatDateRange(entry.startsOn, entry.endsOn)}</time></p>
+  {isCompetition && entry.label && <p class="entry-label">{entry.label}</p>}
+  {!isCompetition && toParagraphs(entry.description).map((paragraph) => <p class="entry-description">{paragraph}</p>)}
+  {isCompetition && entry.slug && (
+    <a class="button button-primary" href={competitionPath(entry.slug)}>
+      {t('calendarCard.competitionLink')}<span class="visually-hidden">: {entry.name}</span>
+    </a>
+  )}
+  {!isCompetition && entry.externalUrl && (
+    <a class="button" href={entry.externalUrl} target="_blank" rel="noopener noreferrer">
+      {t('calendarCard.eventLink')}<span class="visually-hidden">: {entry.name} {t('calendarCard.newTab')}</span>
+      <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 2h5v5M14 2 7 9M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"></path>
+      </svg>
+    </a>
+  )}
+</article>
+
+<style>
+  .entry-card {
+    display: grid;
+    gap: var(--space-2);
+    justify-items: start;
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow-wrap: anywhere;
+  }
+
+  .entry-card > * {
+    margin: 0;
+  }
+
+  /* AC-44: zawody wyróżnione akcentem marki (dodatkowo etykieta tekstowa) */
+  .entry-card--competition {
+    border-left: 6px solid var(--color-highlight);
+  }
+
+  .entry-kind {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-strong);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .entry-name {
+    font-size: var(--text-h3);
+  }
+
+  .entry-date {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .entry-label {
+    color: var(--color-text-muted);
+  }
+
+  .entry-description {
+    white-space: pre-line;
+  }
+
+  .entry-card .button {
+    margin-top: var(--space-2);
+  }
+</style>

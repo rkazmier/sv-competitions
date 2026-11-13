@@ -1,0 +1,41 @@
+---
+/**
+ * Strona zawodów `/zawody/<slug>/` (SPEC-001 AC-38…41): generowana dla wszystkich opublikowanych zawodów,
+ * także minionych (AC-40). Szkice nie mają strony (AC-37).
+ */
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CompetitionDetails from '../../components/CompetitionDetails.astro';
+import { t } from '../../i18n';
+import { toCompetitionView, type CompetitionView } from '../../lib/competition-page';
+import { loadPublicData } from '../../lib/public-data';
+
+export const getStaticPaths = (async () => {
+  const { competitions, publicUrl } = await loadPublicData();
+  return competitions.map((row) => {
+    const view = toCompetitionView(row, publicUrl);
+    return { params: { slug: view.slug }, props: { view } };
+  });
+}) satisfies GetStaticPaths;
+
+interface Props {
+  view: CompetitionView;
+}
+
+const { view } = Astro.props;
+const description = view.summary || t('competitionPage.metaFallback', { name: view.name, date: view.dateRange });
+---
+<BaseLayout title={view.name} description={description}>
+  <section class="section">
+    <div class="container">
+      <p class="back"><a href="/">{t('competition.backToCalendar')}</a></p>
+      <CompetitionDetails view={view} />
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .back {
+    margin: 0 0 var(--space-5);
+  }
+</style>
