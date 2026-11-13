@@ -1,0 +1,137 @@
+---
+/**
+ * Lista słownikowa (SPEC-001 §6.2): dyscypliny (AC-8…11) i kategorie wydarzeń (AC-45…47).
+ * Formularz dodania + lista z edycją nazwy i „Ukryj” / „Przywróć”. Bez usuwania.
+ * Dane pobiera skrypt (lib/dictionary-ui.ts) po potwierdzeniu roli organizatora.
+ */
+import { t } from '../i18n';
+import { DICTIONARY_NAME_MAX, type DictionaryTable } from '../lib/dictionary';
+
+interface Props {
+  kind: 'disciplines' | 'categories';
+}
+
+const { kind } = Astro.props;
+const table: DictionaryTable = kind === 'disciplines' ? 'disciplines' : 'event_categories';
+const id = `dict-${kind}`;
+---
+<div class="dictionary" data-dictionary={table} data-kind={kind}>
+  <h1>{t(`dictionary.${kind}.title`)}</h1>
+  <p class="lead">{t(`dictionary.${kind}.intro`)}</p>
+
+  <form class="card add-form" data-add-form novalidate>
+    <h2 class="form-heading">{t(`dictionary.${kind}.addHeading`)}</h2>
+    <label class="field-label" for={`${id}-name`}>{t('dictionary.nameLabel')}</label>
+    <div class="field-row">
+      <input
+        class="input"
+        id={`${id}-name`}
+        name="name"
+        type="text"
+        required
+        maxlength={DICTIONARY_NAME_MAX}
+        autocomplete="off"
+        aria-describedby={`${id}-error`}
+      />
+      <button type="submit" class="button button-primary">{t('dictionary.add')}</button>
+    </div>
+    <p class="message-error field-error" id={`${id}-error`} data-error hidden></p>
+  </form>
+
+  <p class="status" role="status" data-status></p>
+
+  <h2 class="list-heading">{t(`dictionary.${kind}.listHeading`)}</h2>
+  <p data-empty hidden>{t(`dictionary.${kind}.empty`)}</p>
+  <ul class="card-list" data-list></ul>
+
+  <template data-row-template>
+    <li class="card item" data-item>
+      <div class="item-view" data-view>
+        <p class="item-name">
+          <span data-name></span>
+          <span class="tag" data-state></span>
+        </p>
+        <div class="button-row">
+          <button type="button" class="button" data-rename>
+            {t('dictionary.rename')}<span class="visually-hidden" data-sr-name></span>
+          </button>
+          <button type="button" class="button" data-toggle>
+            <span data-toggle-text></span><span class="visually-hidden" data-sr-name></span>
+          </button>
+        </div>
+      </div>
+      <form class="item-edit" data-edit-form novalidate hidden>
+        <label class="field-label" data-edit-label>{t('dictionary.newNameLabel')}</label>
+        <div class="field-row">
+          <input class="input" name="name" type="text" required maxlength={DICTIONARY_NAME_MAX} autocomplete="off" />
+        </div>
+        <p class="message-error field-error" data-error hidden></p>
+        <div class="button-row">
+          <button type="submit" class="button button-primary">{t('dictionary.save')}</button>
+          <button type="button" class="button" data-cancel>{t('dictionary.cancel')}</button>
+        </div>
+      </form>
+    </li>
+  </template>
+</div>
+
+<script>
+  import { mountDictionary } from '../lib/dictionary-ui';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-dictionary]')) void mountDictionary(root);
+</script>
+
+<style>
+  .lead {
+    font-size: var(--text-base);
+  }
+
+  .form-heading,
+  .list-heading {
+    font-size: var(--text-h3);
+  }
+
+  .add-form {
+    margin-bottom: var(--space-4);
+  }
+
+  .field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .field-row .input {
+    flex: 1 1 12rem;
+  }
+
+  .field-error {
+    margin: 0 0 var(--space-2);
+  }
+
+  .status:empty {
+    display: none;
+  }
+
+  .item-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .item-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-weight: var(--font-weight-strong);
+  }
+
+  .item:has([data-state='hidden']) .item-name > span:first-child {
+    color: var(--color-text-muted);
+  }
+</style>

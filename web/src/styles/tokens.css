@@ -20,6 +20,8 @@
   --color-highlight: #a57a2c;   /* mosiądz (wspólny akcent marki): tylko akcenty dekoracyjne, nie tekst */
   --color-dark: #252d34;        /* ciemne tło (stopka) */
   --color-on-dark: #eef0f1;     /* tekst na ciemnym tle */
+  --color-on-accent: #ffffff;   /* tekst na przycisku głównym (tło --color-accent) */
+  --color-danger: #a3281f;      /* komunikaty błędów, pola z błędem */
   --color-header-bg: color-mix(in srgb, var(--color-bg) 94%, transparent);
 
   /* ---- Fonty ---- */

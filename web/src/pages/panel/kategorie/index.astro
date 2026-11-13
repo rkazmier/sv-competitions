@@ -1,0 +1,9 @@
+---
+/** Panel: kategorie wydarzeń (SPEC-001 US-10, AC-45…47). */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import DictionaryList from '../../../components/DictionaryList.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('dictionary.categories.title')}>
+  <DictionaryList kind="categories" />
+</PanelLayout>
