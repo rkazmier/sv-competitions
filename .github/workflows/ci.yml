@@ -33,7 +33,7 @@ jobs:
           version: latest
       - name: Migracje na czystej bazie
         if: steps.has.outputs.db == 'true'
-        run: supabase db start
+        run: supabase start -x realtime,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor,postgres-meta
       - name: Testy bazy (pgTAP, jeśli są)
         if: steps.has.outputs.db == 'true' && hashFiles('supabase/tests/**') != ''
         run: supabase test db
