@@ -39,16 +39,22 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          TPAY_CLIENT_ID: ${{ secrets.TPAY_CLIENT_ID }}
+          TPAY_CLIENT_SECRET: ${{ secrets.TPAY_CLIENT_SECRET }}
+          TPAY_API_URL: ${{ vars.TPAY_API_URL }}
+          APP_URL: ${{ vars.APP_URL }}
         run: |
           supabase link --project-ref "$PROJECT_REF"
-          supabase db push --remote
-          supabase secrets set --project-ref "$PROJECT_REF" \
-            TPAY_CLIENT_ID="${{ secrets.TPAY_CLIENT_ID }}" \
-            TPAY_CLIENT_SECRET="${{ secrets.TPAY_CLIENT_SECRET }}" \
-            TPAY_API_URL="${{ vars.TPAY_API_URL }}" \
-            APP_URL="${{ vars.APP_URL }}"
+          # --yes: CLI 3.x bez terminala nie zastosuje zmian na hostowanym projekcie bez potwierdzenia
+          supabase db push --remote --yes
+          # Puste wartości pomijamy, żeby nie nadpisać sekretów już zapisanych w Supabase
+          secrets=()
+          for name in TPAY_CLIENT_ID TPAY_CLIENT_SECRET TPAY_API_URL APP_URL; do
+            if [ -n "${!name}" ]; then secrets+=("$name=${!name}"); else echo "::warning::$name jest pusty — nie ustawiam go w Supabase"; fi
+          done
+          if [ ${#secrets[@]} -gt 0 ]; then supabase secrets set --yes "${secrets[@]}"; fi
           if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions)" ]; then
-            supabase functions deploy --project-ref "$PROJECT_REF"
+            supabase functions deploy --yes
           fi
 
       # --- Frontend ---
