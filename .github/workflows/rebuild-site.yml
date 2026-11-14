@@ -25,6 +25,7 @@ jobs:
   staging:
     if: github.event_name == 'schedule' || inputs.target == 'staging'
     # AC-31: kilka zmian w krótkim czasie — wdraża się ostatnia przebudowa.
+    # Grupa celowo inna niż `deploy-staging` (patrz komentarz przy jobie production).
     concurrency:
       group: rebuild-site-staging
       cancel-in-progress: true
@@ -61,6 +62,9 @@ jobs:
 
   production:
     if: github.event_name == 'schedule' || inputs.target == 'production'
+    # Grupa celowo inna niż `deploy-production`: wspólna grupa z `cancel-in-progress: true` pozwoliłaby
+    # przebudowie anulować wdrożenie w trakcie migracji. Równoległe wdrożenie i przebudowa publikują
+    # ten sam Release, więc wygrywa ostatni zapis o tej samej treści.
     concurrency:
       group: rebuild-site-production
       cancel-in-progress: true
@@ -81,10 +85,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Bez Release (produkcja jeszcze nie wdrożona) — pomijamy, żeby nocny harmonogram nie zgłaszał błędów.
-          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
-          if [ -z "$tag" ]; then
-            echo "::notice::Brak opublikowanego Release — przebudowa produkcji pominięta."
+          # Bez Release (produkcja jeszcze nie wdrożona, API zwraca 404) — pomijamy, żeby nocny harmonogram
+          # nie zgłaszał błędów. Każdy inny błąd (sieć, uprawnienia, 5xx) przerywa job, żeby nie było cichego
+          # „braku przebudowy”.
+          tag=""
+          if ! tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>gh-error.txt); then
+            if grep -q "HTTP 404" gh-error.txt; then
+              tag=""
+              echo "::notice::Brak opublikowanego Release — przebudowa produkcji pominięta."
+            else
+              echo "::error::Nie udało się odczytać najnowszego Release: $(cat gh-error.txt)"
+              exit 1
+            fi
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - if: steps.release.outputs.tag != ''
