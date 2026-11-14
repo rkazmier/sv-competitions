@@ -61,6 +61,9 @@
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
+- `src/lib/site-rebuild.ts` — wywołanie Edge Function `site-rebuild` z panelu i komunikat (AC-25 / §7). Wywołują je:
+  publikacja i cofnięcie publikacji zawodów, każdy zapis opublikowanych zawodów (formularz, matchbook, harmonogram),
+  zmiana nazwy i ukrycie/przywrócenie dyscypliny lub kategorii, zmiana tytułu regulaminu, przycisk „Odśwież stronę publiczną” w `/panel/`.
 - `src/lib/dates.ts` — formatowanie dat i zakresów (`pl-PL`, dni liczone w UTC).
 - Fonty lokalnie w `public/fonts/` (te same pliki co landing-page). `PUBLIC_SITE_URL` → `site` w `astro.config.mjs`.
 - Testy: Vitest (`web/src/**/*.test.ts`), Playwright w katalogu głównym (`playwright.config.ts`, `tests/e2e/`).
@@ -84,6 +87,16 @@
   `schedule_item_day_out_of_range` (AC-22), `rulebook_file_immutable` (AC-16).
 - Custom Access Token Hook `public.custom_access_token_hook` — lokalnie włączony w `config.toml`,
   w projektach Supabase włączany ręcznie w panelu (Authentication → Hooks).
+
+## Edge Functions (`supabase/functions/`)
+
+- Logika w `handler.ts` (zależności — `fetch`, konfiguracja — wstrzykiwane), `index.ts` tylko czyta `Deno.env` i uruchamia `Deno.serve`.
+  Testy Deno obok (`*_test.ts`, `deno test supabase/functions/`), z zamockowanym `fetch`.
+- `site-rebuild` (ADR-0003): rola sprawdzana przez `rpc/is_organizer` z JWT wywołującego (to samo źródło co RLS), potem
+  `workflow_dispatch` workflowu `rebuild-site.yml` (`ref: main`, `inputs.target` = `SITE_ENV`). Odpowiedzi: 202 — uruchomiono,
+  403 — nie organizator, 500 — brak `GITHUB_DISPATCH_TOKEN` / `SITE_ENV`, 502 — błąd GitHub API. Token nie trafia do logów ani odpowiedzi.
+- Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);
+  osobne `concurrency` z `cancel-in-progress` dla każdego środowiska; nocny harmonogram przebudowuje oba.
 
 ## Model danych
 

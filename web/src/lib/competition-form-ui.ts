@@ -4,6 +4,8 @@
  *
  * Matchbook: nowy plik do Storage (`matchbooks/<id>/<uuid>.pdf`) → `matchbook_path` → usunięcie starego pliku.
  * Usuwanie zawodów: najpierw wiersz (RLS: tylko szkic; harmonogram kaskadowo), potem pliki z `matchbooks/<id>/`.
+ * Publikacja (AC-25…28): „Opublikuj” zapisuje formularz ze stanem `published`; każda zmiana opublikowanych
+ * zawodów (także matchbook i harmonogram) uruchamia przebudowę strony publicznej (AC-29, lib/site-rebuild.ts).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
@@ -13,9 +15,11 @@ import {
   SCHEDULE_DESCRIPTION_MAX,
   disciplineOptions,
   formatTime,
+  isRulebookRequiredError,
   isScheduleRangeError,
   itemsOutOfRange,
   matchbookPath,
+  needsRulebook,
   rulebookOptions,
   sortSchedule,
   toRow,
@@ -31,6 +35,7 @@ import {
 import { formatDate } from './dates';
 import { requireOrganizer, showLoadError } from './panel';
 import { PDF_MIME, STORAGE_BUCKET, uploadDay, validateFile, type FileError } from './rulebooks';
+import { rebuildAndDescribe } from './site-rebuild';
 
 // Kolumny jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
 const COLUMNS = 'id, name, discipline_id, starts_on, ends_on, description, rulebook_id, matchbook_path, status';
@@ -101,6 +106,9 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
   const announce = (message: string) => {
     status.textContent = message;
   };
+  const rulebookError = query<HTMLElement>(form, '[data-rulebook-error]');
+  const publishButton = query<HTMLButtonElement>(form, '[data-publish]');
+  const unpublishButton = query<HTMLButtonElement>(form, '[data-unpublish]');
 
   const supabase: SupabaseClient = await requireOrganizer();
   const storage = supabase.storage.from(STORAGE_BUCKET);
@@ -157,6 +165,8 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
       section.hidden = false;
     }
     const published = c.status === 'published';
+    publishButton.hidden = published;
+    unpublishButton.hidden = !published;
     query<HTMLElement>(root, '[data-delete]').hidden = published;
     query<HTMLElement>(root, '[data-delete-hint]').hidden = published;
     query<HTMLElement>(root, '[data-published-hint]').hidden = !published;
@@ -185,30 +195,46 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
     }
   }
 
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
+  function showRulebookError(show: boolean): void {
+    setError(rulebookError, show ? t('competition.rulebookRequired') : null, field('rulebook_id'));
+  }
+
+  /** Po zmianie opublikowanych zawodów: przebudowa strony i komunikat AC-25 / §7 (AC-28, AC-29). */
+  async function announceChange(message: string, rebuild = competition?.status === 'published'): Promise<void> {
+    announce(rebuild ? await rebuildAndDescribe(supabase, message) : message);
+  }
+
+  /** Zapis formularza; `publish` = „Opublikuj” (AC-25, AC-26), inaczej „Zapisz” (AC-17, AC-28). */
+  async function save(publish: boolean, button: HTMLButtonElement): Promise<void> {
     announce('');
     const input = readInput();
-    const errors = validateCompetition(input);
-    showFieldErrors(errors);
+    showFieldErrors(validateCompetition(input));
+    const nextStatus = publish ? 'published' : (competition?.status ?? 'draft');
+    const missingRulebook = needsRulebook(nextStatus, field('rulebook_id').value);
+    showRulebookError(missingRulebook);
     const firstInvalid = form.querySelector<HTMLElement>('[aria-invalid="true"]');
     if (firstInvalid) {
-      announce(t('competition.fixErrors'));
+      const onlyRulebook = missingRulebook && firstInvalid === field('rulebook_id');
+      announce(onlyRulebook ? t('competition.rulebookRequired') : t('competition.fixErrors'));
       return firstInvalid.focus();
     }
     const outside = itemsOutOfRange(items, input.starts_on, input.ends_on || null);
     renderSchedule(outside);
     if (outside.length) return announce(t('schedule.dayOutOfRange'));
 
-    const save = query<HTMLButtonElement>(form, '[data-save]');
-    save.disabled = true;
-    const row = toRow(input, field('rulebook_id').value);
+    button.disabled = true;
+    const wasPublished = competition?.status === 'published';
+    const row = { ...toRow(input, field('rulebook_id').value), ...(publish ? { status: nextStatus } : {}) };
     try {
       const { data, error } = competition
         ? await supabase.from('competitions').update(row).eq('id', competition.id).select(COLUMNS).single()
         : await supabase.from('competitions').insert(row).select(COLUMNS).single();
       if (error || !data) {
         if (isScheduleRangeError(error)) return announce(t('schedule.dayOutOfRange'));
+        if (isRulebookRequiredError(error)) {
+          showRulebookError(true);
+          return announce(t('competition.rulebookRequired'));
+        }
         if (error?.code === '23514') return showFieldErrors({ ends_on: 'endBeforeStart' });
         return announce(t('panel.saveError'));
       }
@@ -218,11 +244,41 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
       }
       competition = data as Competition;
       fillForm();
-      announce(t('panel.saved'));
+      await announceChange(publish ? t('competition.published') : t('panel.saved'), publish || wasPublished);
     } catch {
       announce(t('panel.saveError'));
     } finally {
-      save.disabled = false;
+      button.disabled = false;
+    }
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void save(false, query<HTMLButtonElement>(form, '[data-save]'));
+  });
+  publishButton.addEventListener('click', () => void save(true, publishButton));
+
+  // AC-27: cofnięcie publikacji z potwierdzeniem; strona publiczna znika po przebudowie.
+  unpublishButton.addEventListener('click', async () => {
+    if (!competition || competition.status !== 'published') return;
+    if (!window.confirm(t('competition.confirmUnpublish', { name: competition.name }))) return;
+    announce('');
+    unpublishButton.disabled = true;
+    try {
+      const { data, error } = await supabase
+        .from('competitions')
+        .update({ status: 'draft' })
+        .eq('id', competition.id)
+        .select(COLUMNS)
+        .single();
+      if (error || !data) return announce(t('panel.saveError'));
+      competition = data as Competition;
+      fillForm();
+      await announceChange(t('competition.unpublished'), true);
+    } catch {
+      announce(t('panel.saveError'));
+    } finally {
+      unpublishButton.disabled = false;
     }
   });
 
@@ -281,13 +337,14 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
       return announce(t('panel.saveError'));
     }
     matchbookForm.reset();
-    announce(t('panel.saved'));
+    await announceChange(t('panel.saved'));
   });
 
   query<HTMLButtonElement>(root, '[data-matchbook-remove]').addEventListener('click', async () => {
     if (!window.confirm(t('matchbook.confirmRemove'))) return;
     const ok = await setMatchbook(null).catch(() => false);
-    announce(ok ? t('matchbook.removed') : t('panel.saveError'));
+    if (!ok) return announce(t('panel.saveError'));
+    await announceChange(t('matchbook.removed'));
   });
 
   // ===== Harmonogram (AC-21, AC-22) =====
@@ -353,7 +410,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
     items = items.filter((other) => other.id !== item.id);
     if (editingId === item.id) resetItemForm();
     renderSchedule();
-    announce(t('schedule.deleted'));
+    await announceChange(t('schedule.deleted'));
   }
 
   itemCancel.addEventListener('click', resetItemForm);
@@ -386,7 +443,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
       items = [...items.filter((other) => other.id !== saved.id), saved];
       resetItemForm();
       renderSchedule();
-      announce(t('panel.saved'));
+      await announceChange(t('panel.saved'));
     } catch {
       setError(itemError, t('panel.saveError'));
     } finally {

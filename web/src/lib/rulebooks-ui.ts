@@ -5,11 +5,13 @@
  * Wczytanie: walidacja pliku (typ, sygnatura `%PDF-`, ≤ 20 MB) → plik do Storage pod losową ścieżką
  * `rulebooks/<uuid>.pdf` → wiersz w `rulebooks`. Gdy zapis wiersza się nie uda, plik jest usuwany.
  * Usunięcie: najpierw wiersz (FK `restrict` chroni regulaminy używane przez zawody), potem plik.
+ * Zmiana tytułu uruchamia przebudowę strony publicznej (AC-29).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { formatDate } from './dates';
 import { requireOrganizer, showLoadError } from './panel';
+import { rebuildAndDescribe } from './site-rebuild';
 import {
   PDF_MIME,
   RULEBOOK_TITLE_MAX,
@@ -160,6 +162,7 @@ export async function mountRulebooks(root: HTMLElement): Promise<void> {
       const saved = await update(item.id, { title: editInput.value.trim() });
       if (!saved) return setError(editInput, editError, titleErrorText('save'));
       upsertLocal(saved);
+      announce(await rebuildAndDescribe(supabase, t('panel.saved')));
     });
     toggle.addEventListener('click', async () => {
       toggle.disabled = true;

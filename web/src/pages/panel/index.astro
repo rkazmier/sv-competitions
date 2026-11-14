@@ -2,6 +2,7 @@
 /**
  * Panel: lista wszystkich wpisów kalendarza — zawodów i wydarzeń, szkiców i opublikowanych (SPEC-001 AC-6).
  * Nazwa zawodów prowadzi do edycji (#9); formularz wydarzeń powstanie w #15.
+ * „Odśwież stronę publiczną” — ręczny wyzwalacz przebudowy (AC-34).
  */
 import PanelLayout from '../../layouts/PanelLayout.astro';
 import { t } from '../../i18n';
@@ -11,7 +12,9 @@ import { t } from '../../i18n';
   <div class="button-row actions">
     <a class="button button-primary" href="/panel/zawody/nowe/">{t('entries.newCompetition')}</a>
     <a class="button button-primary" href="/panel/wydarzenia/nowe/">{t('entries.newEvent')}</a>
+    <button type="button" class="button" data-refresh-site>{t('entries.refreshSite')}</button>
   </div>
+  <p class="status" role="status" data-refresh-status></p>
   <p data-entries-empty hidden>{t('entries.empty')}</p>
   <ul class="card-list" data-entries></ul>
 
@@ -36,6 +39,10 @@ import { t } from '../../i18n';
 <style>
   .actions {
     margin-bottom: var(--space-5);
+  }
+
+  .status:empty {
+    display: none;
   }
 
   .entry[data-kind='competition'] {

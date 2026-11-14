@@ -36,6 +36,19 @@ export function validateCompetition(input: CompetitionInput): CompetitionErrors 
   return errors;
 }
 
+/** Nazwa `check` w bazie: opublikowane ⇒ regulamin (AC-26). */
+export const PUBLISHED_NEEDS_RULEBOOK = 'competitions_published_needs_rulebook';
+
+/** AC-26: opublikowane zawody (lub publikowane teraz) muszą mieć regulamin. */
+export function needsRulebook(status: 'draft' | 'published', rulebookId: string): boolean {
+  return status === 'published' && !rulebookId;
+}
+
+/** Błąd `check` regulaminu z bazy (AC-26). */
+export function isRulebookRequiredError(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === '23514' && Boolean(error.message?.includes(PUBLISHED_NEEDS_RULEBOOK));
+}
+
 /** Wiersz do zapisu: puste pola opcjonalne → `null`. */
 export function toRow(input: CompetitionInput, rulebookId: string) {
   const description = input.description.trim();
