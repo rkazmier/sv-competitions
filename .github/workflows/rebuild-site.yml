@@ -1,0 +1,131 @@
+# Przebudowa strony publicznej (SPEC-001 §8, AC-31…33, ADR-0003) — tylko build + publikacja frontendu,
+# bez migracji i Edge Functions.
+#  - workflow_dispatch z Edge Function `site-rebuild` (input `target` = SITE_ENV projektu Supabase),
+#  - codziennie w nocy dla obu środowisk: minione wpisy znikają z kalendarza.
+#    22:30 i 23:30 UTC — jedno z nich to 00:30 w Polsce (czas zimowy/letni), drugie jest nieszkodliwe.
+#  - produkcja buduje kod z najnowszego opublikowanego Release, staging — z `main`.
+name: Rebuild site
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Środowisko
+        type: choice
+        options: [staging, production]
+        required: true
+  schedule:
+    - cron: '30 22 * * *'
+    - cron: '30 23 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    if: github.event_name == 'schedule' || inputs.target == 'staging'
+    # AC-31: kilka zmian w krótkim czasie — wdraża się ostatnia przebudowa.
+    # Grupa celowo inna niż `deploy-staging` (patrz komentarz przy jobie production).
+    concurrency:
+      group: rebuild-site-staging
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build
+        working-directory: web
+        env:
+          PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          PUBLIC_APP_ENV: staging
+          PUBLIC_SITE_URL: ${{ vars.APP_URL }}
+        run: |
+          npm ci
+          npm run build
+      - name: Publikacja na stagingu
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.AGENT_GH_TOKEN }}
+          external_repository: ${{ github.repository_owner }}/sv-competitions-staging
+          publish_branch: gh-pages
+          publish_dir: web/dist
+          cname: competitions-staging.steel-valley.pl
+
+  production:
+    if: github.event_name == 'schedule' || inputs.target == 'production'
+    # Grupa celowo inna niż `deploy-production`: wspólna grupa z `cancel-in-progress: true` pozwoliłaby
+    # przebudowie anulować wdrożenie w trakcie migracji. Równoległe wdrożenie i przebudowa publikują
+    # ten sam Release, więc wygrywa ostatni zapis o tej samej treści.
+    concurrency:
+      group: rebuild-site-production
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    # Reguła środowiska github-pages musi dopuszczać gałąź `main` (owner-task #13).
+    environment:
+      name: github-pages
+      url: https://competitions.steel-valley.pl
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      # AC-32: kod z najnowszego opublikowanego Release, nie z `main`.
+      - name: Najnowszy Release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Bez Release (produkcja jeszcze nie wdrożona, API zwraca 404) — pomijamy, żeby nocny harmonogram
+          # nie zgłaszał błędów. Każdy inny błąd (sieć, uprawnienia, 5xx) przerywa job, żeby nie było cichego
+          # „braku przebudowy”.
+          tag=""
+          if ! tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>gh-error.txt); then
+            if grep -q "HTTP 404" gh-error.txt; then
+              tag=""
+              echo "::notice::Brak opublikowanego Release — przebudowa produkcji pominięta."
+            else
+              echo "::error::Nie udało się odczytać najnowszego Release: $(cat gh-error.txt)"
+              exit 1
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - if: steps.release.outputs.tag != ''
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+      - if: steps.release.outputs.tag != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build
+        if: steps.release.outputs.tag != ''
+        working-directory: web
+        env:
+          PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          PUBLIC_APP_ENV: production
+          PUBLIC_SITE_URL: ${{ vars.APP_URL }}
+        run: |
+          npm ci
+          npm run build
+      - if: steps.release.outputs.tag != ''
+        uses: actions/configure-pages@v5
+      - if: steps.release.outputs.tag != ''
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - id: deployment
+        if: steps.release.outputs.tag != ''
+        uses: actions/deploy-pages@v4
