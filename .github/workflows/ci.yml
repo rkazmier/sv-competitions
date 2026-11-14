@@ -30,7 +30,7 @@ jobs:
       - if: steps.has.outputs.db == 'true'
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Migracje na czystej bazie
         if: steps.has.outputs.db == 'true'
         run: supabase start -x realtime,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor,postgres-meta

@@ -28,7 +28,7 @@ jobs:
       - if: steps.has.outputs.db == 'true'
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Migracje, sekrety i funkcje (produkcja)
         if: steps.has.outputs.db == 'true'
         env:
@@ -38,9 +38,9 @@ jobs:
         run: |
           supabase link --project-ref "$PROJECT_REF"
           # Kopia schematu i danych przed migracją (artefakt workflowu, 7 dni)
-          supabase db dump --linked -f backup-schema.sql
-          supabase db dump --linked --data-only -f backup-data.sql
-          supabase db push
+          supabase db dump --remote -f backup-schema.sql
+          supabase db dump --remote --data-only -f backup-data.sql
+          supabase db push --remote
           supabase secrets set --project-ref "$PROJECT_REF" \
             TPAY_CLIENT_ID="${{ secrets.TPAY_CLIENT_ID }}" \
             TPAY_CLIENT_SECRET="${{ secrets.TPAY_CLIENT_SECRET }}" \
@@ -50,7 +50,8 @@ jobs:
             supabase functions deploy --project-ref "$PROJECT_REF"
           fi
       - name: Zachowaj kopię bazy
-        if: steps.has.outputs.db == 'true'
+        # always(): kopia ma trafić do artefaktów także wtedy, gdy migracja się wywali
+        if: always() && steps.has.outputs.db == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}

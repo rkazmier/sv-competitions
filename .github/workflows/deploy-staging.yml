@@ -32,7 +32,7 @@ jobs:
       - if: steps.has.outputs.db == 'true'
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Migracje, sekrety i funkcje (staging)
         if: steps.has.outputs.db == 'true'
         env:
@@ -41,7 +41,7 @@ jobs:
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
         run: |
           supabase link --project-ref "$PROJECT_REF"
-          supabase db push
+          supabase db push --remote
           supabase secrets set --project-ref "$PROJECT_REF" \
             TPAY_CLIENT_ID="${{ secrets.TPAY_CLIENT_ID }}" \
             TPAY_CLIENT_SECRET="${{ secrets.TPAY_CLIENT_SECRET }}" \
