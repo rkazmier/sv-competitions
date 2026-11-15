@@ -2,7 +2,7 @@
 
 Aplikacja do obsługi zawodów strzeleckich na strzelnicy Steel Valley:
 kalendarz zawodów, strona zawodów z regulaminem, rejestracja, płatności (Tpay),
-wyniki i ranking zbiorczy. Adres produkcyjny: https://competitions.steel-valley.pl
+wyniki i ranking zbiorczy. Adres produkcyjny: https://events.steel-valley.pl
 
 Właściciel produktu: @rkazmier. Odpowiada na pytania i merguje PR-y. Często z telefonu.
 

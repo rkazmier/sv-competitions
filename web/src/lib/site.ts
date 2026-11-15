@@ -2,7 +2,7 @@
  * Adres produkcyjny serwisu (CLAUDE.md). `link rel=canonical` i Open Graph zawsze wskazują produkcję (SPEC-001 AC-41),
  * także na stagingu — kopia stagingowa nie konkuruje z produkcją w wyszukiwarkach.
  */
-export const PRODUCTION_URL = 'https://competitions.steel-valley.pl';
+export const PRODUCTION_URL = 'https://events.steel-valley.pl';
 
 /** Domyślny obraz podglądu linku (1200 × 630, `public/`). */
 export const DEFAULT_OG_IMAGE = '/og-default.png';

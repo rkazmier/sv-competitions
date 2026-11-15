@@ -10,7 +10,7 @@ Closes #
 
 ## Jak sprawdzić (2 minuty, także z telefonu)
 
-1. Wejdź na https://competitions-staging.steel-valley.pl/...
+1. Wejdź na https://events-staging.steel-valley.pl/...
 2.
 
 ## Zmiany w bazie danych

@@ -14,7 +14,7 @@ const SEED = {
   eventA: '5eed0000-0000-4000-8000-0000000000e1',
   eventOngoing: '5eed0000-0000-4000-8000-0000000000e2',
 };
-const PRODUCTION = 'https://competitions.steel-valley.pl';
+const PRODUCTION = 'https://events.steel-valley.pl';
 
 async function competition(id: string) {
   const { data, error } = await admin().from('competitions').select('slug, name, starts_on, ends_on').eq('id', id).single();

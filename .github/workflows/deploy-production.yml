@@ -1,6 +1,6 @@
 # Produkcja: po opublikowaniu Release (np. v0.1.0). Environment "production" wymaga Twojego zatwierdzenia.
 #  - migracje i Edge Functions -> projekt Supabase "production"
-#  - frontend -> GitHub Pages tego repo, domena competitions.steel-valley.pl (ustawiona w Settings -> Pages)
+#  - frontend -> GitHub Pages tego repo, domena events.steel-valley.pl (ustawiona w Settings -> Pages)
 name: Deploy production
 
 on:
@@ -70,7 +70,7 @@ jobs:
     # Środowisko Pages; w Settings -> Environments -> github-pages dodaj regułę dla tagów "v*".
     environment:
       name: github-pages
-      url: https://competitions.steel-valley.pl
+      url: https://events.steel-valley.pl
     timeout-minutes: 20
     permissions:
       contents: read

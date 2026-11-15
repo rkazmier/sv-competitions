@@ -3,7 +3,7 @@
 ## Cel
 
 Jedno miejsce do obsługi zawodów na strzelnicy Steel Valley: od ogłoszenia, przez zapisy i płatności,
-po wyniki i ranking sezonowy. Aplikacja działa pod adresem https://competitions.steel-valley.pl,
+po wyniki i ranking sezonowy. Aplikacja działa pod adresem https://events.steel-valley.pl,
 a strona główna https://steel-valley.pl prowadzi do niej linkiem.
 
 ## Użytkownicy
