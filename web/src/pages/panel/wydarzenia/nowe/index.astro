@@ -1,0 +1,9 @@
+---
+/** Panel: nowe wydarzenie (SPEC-001 §6.2, AC-48…53). Po pierwszym zapisie — przejście do edycji. */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import CalendarEventForm from '../../../../components/CalendarEventForm.astro';
+import { t } from '../../../../i18n';
+---
+<PanelLayout title={t('calendarEvent.titleNew')}>
+  <CalendarEventForm mode="new" />
+</PanelLayout>

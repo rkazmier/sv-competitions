@@ -1,0 +1,154 @@
+---
+/**
+ * Formularz wydarzenia w kalendarzu strzelnicy + podgląd karty + usuwanie (SPEC-001 §6.2, US-11, AC-48…53).
+ * Wspólny dla `/panel/wydarzenia/nowe/` i `/panel/wydarzenia/edytuj/?id=`; dane obsługuje lib/calendar-event-form-ui.ts.
+ * Podgląd to ten sam komponent karty co w kalendarzu (CalendarCard.astro bez `entry`).
+ */
+import { t } from '../i18n';
+import { EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EVENT_URL_MAX } from '../lib/calendar-events';
+import CalendarCard from './CalendarCard.astro';
+
+interface Props {
+  mode: 'new' | 'edit';
+}
+
+const { mode } = Astro.props;
+---
+<div class="calendar-event" data-calendar-event={mode}>
+  <p><a href="/panel/">{t('calendarEvent.backToCalendar')}</a></p>
+  <h1>
+    {mode === 'new' ? t('calendarEvent.titleNew') : t('calendarEvent.titleEdit')}
+    <span class="tag" data-status-tag hidden></span>
+  </h1>
+  <p class="message-error" role="alert" data-not-found hidden>{t('calendarEvent.notFound')}</p>
+
+  <form class="card stack" data-form novalidate>
+    <p class="hint">{t('calendarEvent.requiredHint')}</p>
+    <label class="field-label" for="e-name">{t('calendarEvent.nameLabel')}</label>
+    <input class="input" id="e-name" name="name" type="text" required maxlength={EVENT_NAME_MAX} autocomplete="off" aria-describedby="e-name-error" />
+    <p class="message-error field-error" id="e-name-error" data-error-for="name" hidden></p>
+
+    <label class="field-label" for="e-category">{t('calendarEvent.categoryLabel')}</label>
+    <select class="input" id="e-category" name="category_id" required aria-describedby="e-category-hint e-category-error">
+      <option value="">{t('calendarEvent.choose')}</option>
+    </select>
+    <p class="hint" id="e-category-hint" data-no-categories hidden>{t('calendarEvent.noCategories')}</p>
+    <p class="message-error field-error" id="e-category-error" data-error-for="category_id" hidden></p>
+
+    <div class="dates">
+      <div>
+        <label class="field-label" for="e-starts">{t('calendarEvent.startsOnLabel')}</label>
+        <input class="input" id="e-starts" name="starts_on" type="date" required aria-describedby="e-starts-error" />
+        <p class="message-error field-error" id="e-starts-error" data-error-for="starts_on" hidden></p>
+      </div>
+      <div>
+        <label class="field-label" for="e-ends">{t('calendarEvent.endsOnLabel')}</label>
+        <input class="input" id="e-ends" name="ends_on" type="date" aria-describedby="e-ends-hint e-ends-error" />
+        <p class="hint" id="e-ends-hint">{t('calendarEvent.endsOnHint')}</p>
+        <p class="message-error field-error" id="e-ends-error" data-error-for="ends_on" hidden></p>
+      </div>
+    </div>
+
+    <label class="field-label" for="e-description">{t('calendarEvent.descriptionLabel')}</label>
+    <textarea class="input" id="e-description" name="description" rows="5" maxlength={EVENT_DESCRIPTION_MAX} aria-describedby="e-description-hint e-description-rodo e-description-error"></textarea>
+    <p class="hint" id="e-description-hint">{t('calendarEvent.descriptionHint', { max: EVENT_DESCRIPTION_MAX })}</p>
+    <p class="hint" id="e-description-rodo">{t('calendarEvent.personalDataHint')}</p>
+    <p class="message-error field-error" id="e-description-error" data-error-for="description" hidden></p>
+
+    <label class="field-label" for="e-url">{t('calendarEvent.urlLabel')}</label>
+    <input class="input" id="e-url" name="external_url" type="url" inputmode="url" maxlength={EVENT_URL_MAX} autocomplete="off" aria-describedby="e-url-hint e-url-publish e-url-error" />
+    <p class="hint" id="e-url-hint">{t('calendarEvent.urlHint')}</p>
+    <p class="hint" id="e-url-publish">{t('calendarEvent.urlPublishHint')}</p>
+    <p class="message-error field-error" id="e-url-error" data-error-for="external_url" hidden></p>
+
+    <div class="button-row">
+      <button type="submit" class="button button-primary" data-save>{t('calendarEvent.save')}</button>
+      <button type="button" class="button button-primary" data-publish hidden>{t('calendarEvent.publish')}</button>
+      <button type="button" class="button" data-unpublish hidden>{t('calendarEvent.unpublish')}</button>
+    </div>
+  </form>
+
+  <p class="status" role="status" data-status></p>
+
+  <section class="stack" data-preview aria-labelledby="preview-heading">
+    <h2 id="preview-heading">{t('calendarEvent.previewHeading')}</h2>
+    <p class="hint" data-preview-empty>{t('calendarEvent.previewEmpty')}</p>
+    <CalendarCard />
+  </section>
+
+  <section class="card stack" data-danger aria-labelledby="danger-heading" hidden>
+    <h2 id="danger-heading">{t('calendarEvent.deleteHeading')}</h2>
+    <div class="button-row">
+      <button type="button" class="button button-danger" data-delete>{t('calendarEvent.delete')}</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { mountCalendarEventForm } from '../lib/calendar-event-form-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-calendar-event]');
+  if (root) void mountCalendarEventForm(root);
+</script>
+
+<style>
+  .calendar-event {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .calendar-event > * {
+    margin: 0;
+  }
+
+  h1 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: var(--text-h3);
+  }
+
+  .stack > * {
+    margin-top: 0;
+    margin-bottom: var(--space-2);
+  }
+
+  .dates {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  @media (min-width: 40rem) {
+    .dates {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+  }
+
+  textarea.input {
+    resize: vertical;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .field-error {
+    display: block;
+    margin: 0 0 var(--space-2);
+  }
+
+  .status:empty {
+    display: none;
+  }
+
+  .button-danger {
+    color: var(--color-danger);
+  }
+</style>

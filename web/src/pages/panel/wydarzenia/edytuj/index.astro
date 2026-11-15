@@ -1,0 +1,9 @@
+---
+/** Panel: edycja wydarzenia `?id=<uuid>` — formularz, publikacja, usuwanie, podgląd karty (SPEC-001 AC-48…53). */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import CalendarEventForm from '../../../../components/CalendarEventForm.astro';
+import { t } from '../../../../i18n';
+---
+<PanelLayout title={t('calendarEvent.titleEdit')}>
+  <CalendarEventForm mode="edit" />
+</PanelLayout>
