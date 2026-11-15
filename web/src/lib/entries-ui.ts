@@ -77,14 +77,11 @@ export async function mountEntries(): Promise<void> {
       query<HTMLElement>(li, '[data-status]').textContent =
         entry.status === 'published' ? t('entries.statusPublished') : t('entries.statusDraft');
       const name = query<HTMLElement>(li, '[data-name]');
-      if (entry.kind === 'competition') {
-        const link = document.createElement('a');
-        link.href = `/panel/zawody/edytuj/?id=${encodeURIComponent(entry.id)}`;
-        link.textContent = entry.name;
-        name.replaceChildren(link);
-      } else {
-        name.textContent = entry.name;
-      }
+      const link = document.createElement('a');
+      const editPath = entry.kind === 'competition' ? '/panel/zawody/edytuj/' : '/panel/wydarzenia/edytuj/';
+      link.href = `${editPath}?id=${encodeURIComponent(entry.id)}`;
+      link.textContent = entry.name;
+      name.replaceChildren(link);
       query<HTMLElement>(li, '[data-date]').textContent = formatDateRange(entry.startsOn, entry.endsOn);
       query<HTMLElement>(li, '[data-label]').textContent = entry.label;
       return li;

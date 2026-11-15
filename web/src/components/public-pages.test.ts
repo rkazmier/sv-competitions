@@ -70,6 +70,21 @@ describe('karta wydarzenia w kalendarzu', () => {
     expect(html).toContain('(otwiera się w nowej karcie)');
     expect(html).not.toContain('/zawody/');
   });
+
+  it('AC-43: wydarzenie bez linku nie ma przycisku ani wzoru podglądu', async () => {
+    const html = await container.renderToString(CalendarCard, { props: { entry: { ...event, externalUrl: null } } });
+    expect(html).not.toContain('Szczegóły u organizatora');
+    expect(html).not.toContain('data-card-paragraph');
+    expect(html).not.toMatch(/<article[^>]*hidden/);
+  });
+
+  it('AC-53: bez `entry` — ukryty pusty wzór karty wydarzenia do podglądu w panelu', async () => {
+    const html = await container.renderToString(CalendarCard, { props: {} });
+    expect(html).toMatch(/<article[^>]*entry-card--event[^>]*hidden/);
+    expect(html).toContain('data-card-paragraph');
+    expect(html).toMatch(/<a[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*data-card-link[^>]*hidden/);
+    expect(html).not.toContain('href=');
+  });
 });
 
 const row: CompetitionRow = {
