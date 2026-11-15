@@ -1,7 +1,7 @@
 # SV Competitions
 
 Zawody strzeleckie Steel Valley — kalendarz, zapisy, płatności Tpay, wyniki i ranking.
-Produkcja: https://competitions.steel-valley.pl · Staging: https://competitions-staging.steel-valley.pl
+Produkcja: https://events.steel-valley.pl · Staging: https://events-staging.steel-valley.pl
 
 Projekt budują agenci AI na GitHubie. Właściciel zgłasza pomysły, odpowiada na pytania i merguje PR-y.
 Proces: [docs/process.md](docs/process.md) · Zasady agentów: [CLAUDE.md](CLAUDE.md)
@@ -49,7 +49,7 @@ otwierają PR-y i nadają etykiety osobnym tokenem.
 | Variable | `SUPABASE_PROJECT_REF` | ID projektu (z URL panelu) |
 | Variable | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | Variable | `SUPABASE_ANON_KEY` | klucz publiczny `sb_publishable_…` (Settings → API Keys) |
-| Variable | `APP_URL` | `https://competitions-staging.steel-valley.pl` / `https://competitions.steel-valley.pl` |
+| Variable | `APP_URL` | `https://events-staging.steel-valley.pl` / `https://events.steel-valley.pl` |
 
 ### 5. Tpay
 1. Konto sandbox: https://register.sandbox.tpay.com — dane API do środowiska **staging**.
@@ -68,12 +68,15 @@ Adres powiadomień ustawi Implementator w etapie płatności (Edge Function `pay
 
 | Typ | Nazwa | Wartość |
 | --- | --- | --- |
-| CNAME | `competitions` | `rkazmier.github.io` |
-| CNAME | `competitions-staging` | `rkazmier.github.io` |
+| CNAME | `events` | `rkazmier.github.io` |
+| CNAME | `events-staging` | `rkazmier.github.io` |
 
 Potem: repo `sv-competitions` → Settings → Pages → zaznacz **Enforce HTTPS**.
 Repo `sv-competitions-staging` → Settings → Pages → źródło: gałąź `gh-pages` (pojawi się po pierwszym wdrożeniu stagingu).
-Na stronie steel-valley.pl dodaj link do https://competitions.steel-valley.pl.
+Na stronie steel-valley.pl dodaj link do https://events.steel-valley.pl.
+
+Stary adres `competitions.steel-valley.pl` (do v0.1.0) przekierowuje na `events.steel-valley.pl`
+przez osobne repo `sv-competitions-redirect` na GitHub Pages (rekord CNAME `competitions` → `rkazmier.github.io`), zob. #32.
 
 ### 7. Telefon
 Zainstaluj **GitHub Mobile**, włącz powiadomienia dla repo (Watch → All Activity lub Participating and @mentions).

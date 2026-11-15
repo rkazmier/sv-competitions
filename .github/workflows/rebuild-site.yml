@@ -58,7 +58,7 @@ jobs:
           external_repository: ${{ github.repository_owner }}/sv-competitions-staging
           publish_branch: gh-pages
           publish_dir: web/dist
-          cname: competitions-staging.steel-valley.pl
+          cname: events-staging.steel-valley.pl
 
   production:
     if: github.event_name == 'schedule' || inputs.target == 'production'
@@ -72,7 +72,7 @@ jobs:
     # Reguła środowiska github-pages musi dopuszczać gałąź `main` (owner-task #13).
     environment:
       name: github-pages
-      url: https://competitions.steel-valley.pl
+      url: https://events.steel-valley.pl
     timeout-minutes: 15
     permissions:
       contents: read

@@ -1,7 +1,7 @@
 # Architektura
 
 ```
- przeglądarka ──► competitions.steel-valley.pl (GitHub Pages, Astro, statyczny)
+ przeglądarka ──► events.steel-valley.pl (GitHub Pages, Astro, statyczny)
        │
        ├──► Supabase Auth            (logowanie organizatora: Google; zawodnicy — w specyfikacji rejestracji)
        ├──► Supabase PostgreSQL      (dane, dostęp przez RLS, klucz publishable)
@@ -18,8 +18,8 @@
 | Środowisko | Frontend | Supabase | Tpay |
 | --- | --- | --- | --- |
 | Lokalnie | `npm run dev` | `supabase start` | sandbox |
-| Staging | competitions-staging.steel-valley.pl (repo `sv-competitions-staging`) | `sv-competitions-staging` (ref `xvqlralvzgmaztugghry`, Frankfurt) | sandbox |
-| Produkcja | competitions.steel-valley.pl (Pages tego repo) | `sv-competitions` (ref `kicftecnawfkfpjbtejg`, Frankfurt) | produkcja |
+| Staging | events-staging.steel-valley.pl (repo `sv-competitions-staging`) | `sv-competitions-staging` (ref `xvqlralvzgmaztugghry`, Frankfurt) | sandbox |
+| Produkcja | events.steel-valley.pl (Pages tego repo) | `sv-competitions` (ref `kicftecnawfkfpjbtejg`, Frankfurt) | produkcja |
 
 ## Zasady
 

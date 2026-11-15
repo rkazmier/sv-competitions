@@ -1,6 +1,6 @@
 # Staging: każdy merge do main.
 #  - migracje i Edge Functions -> projekt Supabase "staging"
-#  - frontend -> repo rkazmier/sv-competitions-staging (GitHub Pages), domena competitions-staging.steel-valley.pl
+#  - frontend -> repo rkazmier/sv-competitions-staging (GitHub Pages), domena events-staging.steel-valley.pl
 name: Deploy staging
 
 on:
@@ -83,4 +83,4 @@ jobs:
           external_repository: ${{ github.repository_owner }}/sv-competitions-staging
           publish_branch: gh-pages
           publish_dir: web/dist
-          cname: competitions-staging.steel-valley.pl
+          cname: events-staging.steel-valley.pl

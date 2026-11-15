@@ -165,6 +165,9 @@ site_url = "http://localhost:4321"
 # SPEC-001 §8: produkcja, staging, lokalnie (powrót do /panel/ po logowaniu — AC-4).
 additional_redirect_urls = [
   "http://localhost:4321/panel/",
+  "https://events-staging.steel-valley.pl/panel/",
+  "https://events.steel-valley.pl/panel/",
+  # Przejściowo, do zakończenia migracji domeny (#27) — potem usunąć.
   "https://competitions-staging.steel-valley.pl/panel/",
   "https://competitions.steel-valley.pl/panel/",
 ]

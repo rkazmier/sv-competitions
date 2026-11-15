@@ -56,9 +56,9 @@ gh api -X PUT "repos/${REPO}/environments/production" --input - >/dev/null <<JSO
 { "reviewers": [ { "type": "User", "id": ${MY_ID} } ] }
 JSON
 
-echo "==> GitHub Pages (źródło: GitHub Actions, domena competitions.steel-valley.pl)"
+echo "==> GitHub Pages (źródło: GitHub Actions, domena events.steel-valley.pl)"
 gh api -X POST "repos/${REPO}/pages" -f build_type=workflow >/dev/null 2>&1 || echo "   (Pages już włączone)"
-gh api -X PUT "repos/${REPO}/pages" -f cname=competitions.steel-valley.pl >/dev/null 2>&1 || echo "   (ustaw domenę ręcznie: Settings → Pages)"
+gh api -X PUT "repos/${REPO}/pages" -f cname=events.steel-valley.pl >/dev/null 2>&1 || echo "   (ustaw domenę ręcznie: Settings → Pages)"
 gh api -X PUT "repos/${REPO}/environments/github-pages" --input - >/dev/null <<'JSON' || true
 { "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
 JSON
