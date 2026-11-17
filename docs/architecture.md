@@ -139,7 +139,7 @@
   - `fulfil_order(order_id)` — tylko `service_role` (`payments-notify`): `pending`/`cancelled` → `paid` + uprawnienie w jednej transakcji,
     idempotentna; `expires_on` = `pass_expires_on(dzień zakupu)` (+ `pass_validity()` = 1 rok), bez konta — dzień zakupu.
   - `create_on_site_order(user_id | null, product_id, 'cash'|'terminal')` — obsługa; bez konta tylko wejście jednorazowe na dziś.
-  - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`, do SPEC-005 z samego stanu uprawnienia);
+  - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`: stan uprawnienia + niewycofane `pass_usages`);
     Tpay → `refund_pending`, na miejscu → `refunded`; wpis `order_refund` w `audit_log`.
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
@@ -153,6 +153,26 @@
     `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
   Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`,
   `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`.
+- Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
+  `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
+  wyzwalacz `range_log_immutable` (`23514 range_log_immutable`) przepuszcza tylko `on delete set null` kluczy obcych,
+  a `delete` — tylko gdy zadanie retencji ustawi w transakcji `sv.range_log_purge = on` (#64). Odczyt: admin — całość,
+  obsługa — dzisiejsze (`range_today()`, Europe/Warsaw z zegara bazy); adnotacje — `insert` admin do dowolnego, obsługa
+  do dzisiejszego wpisu (`created_by = auth.uid()`). Bucket `signatures` prywatny (PNG, 200 KB): `insert` obsługa pod nazwą
+  `<RRRR>/<MM>/<id wpisu>.png` (`range_log.signature_path`), `select` admin (podpisane linki), bez `update`/`delete`
+  (upload bez `upsert`). Funkcje:
+  - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
+    permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, aktywny prowadzący,
+    dane osoby (kopia z profilu albo podane dla osoby bez konta), uprawnienie `for update` + `pass_valid_on(dziś)`, wpis
+    i zużycie (`activated` / `covered` / `decremented` / `consumed`). Uprawnienie bez właściciela — jednym wpisem.
+    Ponowienie z tym samym `id` przez tę samą osobę zwraca istniejący wpis. Błędy: `forbidden`, `invalid_signature_path`,
+    `signature_missing`, `range_officer_inactive`, `person_not_found`, `person_data_incomplete`, `pass_required`,
+    `pass_not_allowed`, `pass_not_valid` (AC-16: „Uprawnienie zostało właśnie wykorzystane”), `entry_exists`.
+  - `passes_for_range_entry(user_id)` — invoker, uprawnienia ważne dziś z `priority` 0–4 (AC-10) i nazwą z zamówienia.
+    `pass_valid_on(pass, date)` — reguły ważności jednego uprawnienia (używa jej też `passes_valid_on`).
+  - `staff_find_by_qr(token)`, `staff_search_people(query)` (od 3 znaków, maks. 10, e-mail częściowo) — obsługa; minimum danych:
+    imię i nazwisko, `is_range_ready`, `missing_fields` (`full_name`, `permit_or_address`), godzina dzisiejszego wpisu.
+  - `my_range_entries()` — własne wpisy bez podpisu i kolumn technicznych, z nazwą wykorzystanego uprawnienia.
 - `calendar_events` (SPEC-003 §5): `access_mode` (`external` domyślnie / `free` / `paid`), `ticket_price` (wymagana dla `paid`),
   `capacity` (1–1000, `null` = bez limitu) — odczyt publiczny. Formularz i warunek publikacji — #51.
 - Custom Access Token Hook `public.custom_access_token_hook` (claim `app_role` = `user` / `staff` / `admin`, tylko UI) — lokalnie włączony w `config.toml`,
