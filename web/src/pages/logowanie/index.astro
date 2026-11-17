@@ -1,0 +1,50 @@
+---
+/**
+ * Logowanie e-mail + hasło (SPEC-002 AC-5), Google (AC-3), „Nie pamiętam hasła” (AC-6). Logika: lib/auth-ui.ts.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { t } from '../../i18n';
+---
+<BaseLayout title={t('auth.loginTitle')}>
+  <section class="section">
+    <div class="container auth">
+      <h1>{t('auth.loginTitle')}</h1>
+      <form class="card auth-form" data-login novalidate>
+        <label class="field-label" for="l-email">{t('auth.emailLabel')}</label>
+        <input class="input" id="l-email" name="email" type="email" autocomplete="email" required aria-describedby="l-email-error" />
+        <p class="message-error" id="l-email-error" data-error-for="email" hidden></p>
+
+        <label class="field-label" for="l-password">{t('auth.passwordLabel')}</label>
+        <input class="input" id="l-password" name="password" type="password" autocomplete="current-password" required />
+
+        <p class="message-error" role="alert" data-form-error hidden></p>
+        <button type="button" class="button" data-resend hidden>{t('auth.resend')}</button>
+        <p role="status" data-resent hidden>{t('auth.resent')}</p>
+        <button type="submit" class="button button-primary" data-submit>{t('auth.signIn')}</button>
+      </form>
+
+      <p class="or">{t('auth.or')}</p>
+      <button type="button" class="button" data-google>{t('auth.google')}</button>
+      <div class="button-row">
+        <button type="button" class="button" data-forgot aria-expanded="false" aria-controls="reset">{t('auth.forgotPassword')}</button>
+        <a class="button" href="/rejestracja/" data-keep-next>{t('auth.noAccount')}</a>
+      </div>
+
+      <form class="card auth-form" id="reset" data-reset novalidate hidden>
+        <p>{t('auth.resetIntro')}</p>
+        <label class="field-label" for="p-email">{t('auth.emailLabel')}</label>
+        <input class="input" id="p-email" name="email" type="email" autocomplete="email" required aria-describedby="p-email-error" />
+        <p class="message-error" id="p-email-error" data-error-for="email" hidden></p>
+        <p class="message-error" role="alert" data-form-error hidden></p>
+        <button type="submit" class="button button-primary" data-submit>{t('auth.sendResetLink')}</button>
+        <p role="status" data-done hidden>{t('auth.resetSent')}</p>
+      </form>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { mountLogin } from '../../lib/auth-ui';
+
+  mountLogin();
+</script>

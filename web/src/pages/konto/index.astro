@@ -1,0 +1,36 @@
+---
+/**
+ * Konto użytkownika — cel po zalogowaniu i po linku potwierdzającym e-mail (SPEC-002 AC-1, AC-3, AC-5).
+ * Na razie: potwierdzenie klauzuli przy pierwszym logowaniu (Google) i przejście do `?next=`.
+ * Dane, gotowość i kod QR dochodzą w #45 (AC-7…AC-15). Logika: lib/auth-ui.ts.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PrivacyNotice from '../../components/PrivacyNotice.astro';
+import { t } from '../../i18n';
+---
+<BaseLayout title={t('account.title')} indexable={false}>
+  <section class="section">
+    <div class="container auth">
+      <p role="status" data-account-state="loading">{t('panel.loading')}</p>
+      <div class="card" data-account-state="ack" hidden>
+        <p>{t('privacy.ackIntro')}</p>
+        <PrivacyNotice headingId="ack-heading" />
+        <p class="message-error" role="alert" data-form-error hidden></p>
+        <button type="button" class="button button-primary" data-ack>{t('privacy.ack')}</button>
+      </div>
+      <div data-account-state="ready" hidden>
+        <h1>{t('account.title')}</h1>
+        <p data-signed-in-as></p>
+        <p>{t('account.comingSoon')}</p>
+        <button type="button" class="button" data-sign-out>{t('account.signOut')}</button>
+      </div>
+      <p class="message-error" role="alert" data-account-state="error" hidden>{t('account.loadError')}</p>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { mountAccount } from '../../lib/auth-ui';
+
+  void mountAccount();
+</script>

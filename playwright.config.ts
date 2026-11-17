@@ -23,6 +23,8 @@ function useLocalSupabase(): void {
   process.env.PUBLIC_SUPABASE_URL = vars.API_URL;
   process.env.PUBLIC_SUPABASE_ANON_KEY = vars.PUBLISHABLE_KEY;
   process.env.SUPABASE_SECRET_KEY = vars.SECRET_KEY;
+  // Skrzynka lokalnego Supabase (e-maile Auth — SPEC-002 AC-1, AC-6)
+  if (vars.MAILPIT_URL) process.env.MAILPIT_URL = vars.MAILPIT_URL;
 }
 
 useLocalSupabase();

@@ -47,9 +47,13 @@ export async function ensureUser(role: Role): Promise<string> {
 
 /** Loguje użytkownika hasłem (lokalnie) i wstrzykuje sesję przed załadowaniem strony. */
 export async function signIn(page: Page, role: Role): Promise<void> {
-  const email = await ensureUser(role);
+  await signInAs(page, await ensureUser(role), PASSWORD);
+}
+
+/** Loguje istniejące konto hasłem i wstrzykuje sesję przed załadowaniem strony. */
+export async function signInAs(page: Page, email: string, password: string): Promise<void> {
   const client = createClient(url, publishableKey, options);
-  const { data, error } = await client.auth.signInWithPassword({ email, password: PASSWORD });
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error || !data.session) throw error ?? new Error('Brak sesji');
   // Tylko przy pierwszym załadowaniu karty — po „Wyloguj się” sesja nie wraca.
   await page.addInitScript(

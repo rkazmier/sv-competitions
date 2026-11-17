@@ -163,7 +163,14 @@ site_url = "http://localhost:4321"
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # SPEC-001 §8: produkcja, staging, lokalnie (powrót do /panel/ po logowaniu — AC-4).
+# SPEC-002 §8: /konto/ (Google, potwierdzenie e-maila) i /logowanie/nowe-haslo/ (reset hasła).
 additional_redirect_urls = [
+  "http://localhost:4321/**",
+  "http://127.0.0.1:4321/**",
+  "https://events-staging.steel-valley.pl/konto/**",
+  "https://events-staging.steel-valley.pl/logowanie/nowe-haslo/",
+  "https://events.steel-valley.pl/konto/**",
+  "https://events.steel-valley.pl/logowanie/nowe-haslo/",
   "http://localhost:4321/panel/",
   "https://events-staging.steel-valley.pl/panel/",
   "https://events.steel-valley.pl/panel/",
@@ -189,7 +196,7 @@ enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+minimum_password_length = 8
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
@@ -234,7 +241,8 @@ enabled = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# SPEC-002 AC-1: potwierdzenie adresu e-mail (tak samo w projektach Supabase).
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # If enabled, users will need to provide their current password to change their password, unless
@@ -256,6 +264,16 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# SPEC-002 §8: polskie szablony (w projektach Supabase wklejane ręcznie — Authentication → Emails → Templates, #40).
+# Link z `token_hash` działa także na innym urządzeniu niż to, na którym założono konto.
+[auth.email.template.confirmation]
+subject = "Potwierdź konto — Steel Valley"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Zmiana hasła — Steel Valley"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
