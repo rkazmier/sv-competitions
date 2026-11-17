@@ -1,12 +1,22 @@
 ---
 /**
- * Konto użytkownika — cel po zalogowaniu i po linku potwierdzającym e-mail (SPEC-002 AC-1, AC-3, AC-5).
- * Na razie: potwierdzenie klauzuli przy pierwszym logowaniu (Google) i przejście do `?next=`.
- * Dane, gotowość i kod QR dochodzą w #45 (AC-7…AC-15). Logika: lib/auth-ui.ts.
+ * Konto użytkownika (SPEC-002 §6) — cel po zalogowaniu i po linku potwierdzającym e-mail (AC-1, AC-3, AC-5).
+ * Klauzula przy pierwszym logowaniu (Google), potem: braki lub gotowość do wpisu (AC-9, AC-10),
+ * „Twoje dane” + „Edytuj dane” (AC-7).
+ * Logika: lib/auth-ui.ts (sesja, klauzula), lib/account-ui.ts (panel).
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PrivacyNotice from '../../components/PrivacyNotice.astro';
 import { t } from '../../i18n';
+
+const fields = [
+  ['full_name', t('profile.fullName')],
+  ['email', t('profile.email')],
+  ['phone', t('profile.phone')],
+  ['permit_number', t('profile.permitNumber')],
+  ['permit_authority', t('profile.permitAuthority')],
+  ['address', t('profile.address')],
+] as const;
 ---
 <BaseLayout title={t('account.title')} indexable={false}>
   <section class="section">
@@ -18,16 +28,91 @@ import { t } from '../../i18n';
         <p class="message-error" role="alert" data-form-error hidden></p>
         <button type="button" class="button button-primary" data-ack>{t('privacy.ack')}</button>
       </div>
-      <div data-account-state="ready" hidden>
+      <div class="account" data-account-state="ready" hidden>
         <h1>{t('account.title')}</h1>
+
+        <div class="card account-missing" data-missing hidden>
+          <h2>{t('account.missingTitle')}</h2>
+          <ul></ul>
+          <a class="button button-primary" href="/konto/dane/">{t('account.completeData')}</a>
+        </div>
+        <p class="account-ready" data-ready hidden>{t('account.ready')}</p>
+
+        <section class="card" aria-labelledby="data-heading">
+          <h2 id="data-heading">{t('account.dataTitle')}</h2>
+          <dl class="account-data">
+            {fields.map(([name, label]) => (
+              <div>
+                <dt>{label}</dt>
+                <dd data-field={name}></dd>
+              </div>
+            ))}
+          </dl>
+          <a class="button" href="/konto/dane/">{t('account.editData')}</a>
+        </section>
+
         <p data-signed-in-as></p>
-        <p>{t('account.comingSoon')}</p>
         <button type="button" class="button" data-sign-out>{t('account.signOut')}</button>
       </div>
       <p class="message-error" role="alert" data-account-state="error" hidden>{t('account.loadError')}</p>
     </div>
   </section>
 </BaseLayout>
+
+<style is:global>
+  .account,
+  .account .card {
+    display: grid;
+    gap: var(--space-3);
+    width: 100%;
+  }
+
+  .account > *,
+  .account .card > * {
+    margin: 0;
+  }
+
+  .account .card > .button {
+    justify-self: start;
+  }
+
+  .account-missing {
+    border-color: var(--color-danger);
+  }
+
+  .account-missing ul {
+    padding-left: var(--space-5);
+  }
+
+  .account-ready {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .account-ready::before {
+    content: '✓ ';
+  }
+
+  .account .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .account-data {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .account-data dt {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .account-data dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+</style>
 
 <script>
   import { mountAccount } from '../../lib/auth-ui';

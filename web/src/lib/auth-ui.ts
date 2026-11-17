@@ -20,6 +20,8 @@ import {
   withNext,
   type FieldErrors,
 } from './auth';
+import { ACCOUNT_COLUMNS, renderAccount } from './account-ui';
+import type { AccountProfile } from './profile';
 import { getSupabase } from './supabase';
 
 const nextParam = () => new URLSearchParams(window.location.search).get('next');
@@ -215,7 +217,7 @@ function showAccountState(state: 'ack' | 'ready' | 'error'): void {
   }
 }
 
-/** `/konto/` — klauzula przy pierwszym logowaniu Google (AC-3), potem `?next=` (AC-5). */
+/** `/konto/` — klauzula przy pierwszym logowaniu Google (AC-3), potem `?next=` (AC-5) albo panel konta (AC-7, AC-9, AC-10). */
 export async function mountAccount(): Promise<void> {
   const supabase = client();
   if (!supabase) return showAccountState('error');
@@ -224,10 +226,11 @@ export async function mountAccount(): Promise<void> {
   const user = data.session?.user;
   if (!user) return window.location.replace(withNext(LOGIN_PAGE, safeNext() ?? ACCOUNT_HOME));
 
-  const proceed = () => {
+  const proceed = (profile: AccountProfile) => {
     const next = safeNext();
     if (next && new URL(next, window.location.origin).pathname !== ACCOUNT_HOME) return window.location.replace(next);
     el(document, '[data-signed-in-as]').textContent = t('account.signedInAs', { email: user.email ?? '' });
+    renderAccount(user, profile);
     showAccountState('ready');
   };
   el(document, '[data-sign-out]').addEventListener('click', async () => {
@@ -235,9 +238,9 @@ export async function mountAccount(): Promise<void> {
     window.location.assign('/');
   });
 
-  const { data: profile, error } = await supabase.from('profiles').select('privacy_notice_ack_at').eq('id', user.id).maybeSingle();
+  const { data: profile, error } = await supabase.from('profiles').select(ACCOUNT_COLUMNS).eq('id', user.id).maybeSingle<AccountProfile>();
   if (error || !profile) return showAccountState('error');
-  if (profile.privacy_notice_ack_at) return proceed();
+  if (profile.privacy_notice_ack_at) return proceed(profile);
 
   showAccountState('ack');
   const ackButton = el<HTMLButtonElement>(document, '[data-ack]');
@@ -251,6 +254,6 @@ export async function mountAccount(): Promise<void> {
     const box = el(document, '[data-account-state="ack"] [data-form-error]');
     box.hidden = !ackError;
     box.textContent = ackError ? t('auth.genericError') : '';
-    if (!ackError) proceed();
+    if (!ackError) proceed(profile);
   });
 }
