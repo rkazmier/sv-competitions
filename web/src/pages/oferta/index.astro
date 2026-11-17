@@ -1,0 +1,89 @@
+---
+/**
+ * Oferta (SPEC-003 AC-5, AC-6): grupy produktów z ceną, opisem i informacjami o ważności.
+ * Produkty pobierane w przeglądarce (ceny zawsze aktualne, bez `site-rebuild`) — lib/offer-ui.ts.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { t } from '../../i18n';
+import { PRODUCT_KINDS } from '../../lib/products';
+---
+<BaseLayout title={t('offer.title')}>
+  <section class="section">
+    <div class="container offer" data-offer>
+      <h1>{t('offer.title')}</h1>
+      <p>{t('offer.intro')}</p>
+      <p role="status" data-loading>{t('offer.loading')}</p>
+      <p class="message-error" role="alert" data-load-error hidden>{t('offer.loadError')}</p>
+      <div class="offer-groups" data-groups hidden>
+        {
+          PRODUCT_KINDS.map((kind) => (
+            <section aria-labelledby={`offer-${kind}`}>
+              <h2 id={`offer-${kind}`}>{t(`products.groups.${kind}`)}</h2>
+              <p class="hint" data-empty={kind}>{t('offer.empty')}</p>
+              <ul class="offer-list" data-group={kind}></ul>
+            </section>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style is:global>
+  .offer,
+  .offer-groups {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .offer > *,
+  .offer-groups h2 {
+    margin: 0;
+  }
+
+  .offer-list {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (min-width: 48rem) {
+    .offer-list {
+      grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    }
+  }
+
+  .offer-item {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+  }
+
+  .offer-item > * {
+    margin: 0;
+  }
+
+  .offer-item .button {
+    justify-self: start;
+  }
+
+  .offer-price {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .offer .hint,
+  .offer-item .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+</style>
+
+<script>
+  import { mountOffer } from '../../lib/offer-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-offer]');
+  if (root) void mountOffer(root);
+</script>

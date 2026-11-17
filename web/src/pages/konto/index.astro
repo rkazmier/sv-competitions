@@ -2,12 +2,14 @@
 /**
  * Konto użytkownika (SPEC-002 §6) — cel po zalogowaniu i po linku potwierdzającym e-mail (AC-1, AC-3, AC-5).
  * Klauzula przy pierwszym logowaniu (Google), potem: braki lub gotowość do wpisu (AC-9, AC-10), kod QR (AC-12…AC-15),
- * „Twoje dane” + „Edytuj dane” (AC-7). Kod QR zaraz po statusie — na telefonie obsługa skanuje z ekranu.
+ * „Twoje dane” + „Edytuj dane” (AC-7). Karnety, historia karnetów i płatności, „Przedłuż karnet” — SPEC-003 AC-12…AC-15
+ * (lib/offer-ui.ts). Kod QR zaraz po statusie — na telefonie obsługa skanuje z ekranu.
  * Logika: lib/auth-ui.ts (sesja, klauzula), lib/account-ui.ts (panel).
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PrivacyNotice from '../../components/PrivacyNotice.astro';
 import { t } from '../../i18n';
+import { OFFER_PAGE } from '../../lib/offer';
 
 const fields = [
   ['full_name', t('profile.fullName')],
@@ -49,6 +51,40 @@ const fields = [
           </div>
           <p role="status" data-qr-status></p>
         </section>
+
+        <div class="account-passes" data-passes-root>
+          <section class="card" aria-labelledby="passes-heading">
+            <h2 id="passes-heading">{t('offer.passesTitle')}</h2>
+            <p class="hint" data-passes-empty hidden>{t('offer.passesEmpty')}</p>
+            <ul class="pass-list" data-passes></ul>
+            <a class="button button-primary" href={OFFER_PAGE}>{t('offer.renew')}</a>
+            <details class="pass-history">
+              <summary>{t('offer.passHistoryTitle')}</summary>
+              <p class="hint" data-pass-history-empty hidden>{t('offer.passHistoryEmpty')}</p>
+              <ul class="pass-list" data-pass-history></ul>
+            </details>
+          </section>
+
+          <section class="card" aria-labelledby="payments-heading">
+            <h2 id="payments-heading">{t('offer.paymentsTitle')}</h2>
+            <p class="hint" data-orders-empty hidden>{t('offer.paymentsEmpty')}</p>
+            <div class="table-scroll" data-orders-table hidden>
+              <table class="orders-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('offer.orderDate')}</th>
+                    <th scope="col">{t('offer.orderItem')}</th>
+                    <th scope="col">{t('offer.orderAmount')}</th>
+                    <th scope="col">{t('offer.orderMethod')}</th>
+                    <th scope="col">{t('offer.orderStatus')}</th>
+                  </tr>
+                </thead>
+                <tbody data-orders></tbody>
+              </table>
+            </div>
+          </section>
+          <p class="message-error" role="alert" data-passes-error hidden>{t('offer.passesLoadError')}</p>
+        </div>
 
         <section class="card" aria-labelledby="data-heading">
           <h2 id="data-heading">{t('account.dataTitle')}</h2>
@@ -97,6 +133,58 @@ const fields = [
 
   .account .card > .button {
     justify-self: start;
+  }
+
+  .account-passes {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .pass-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pass-item {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .pass-item > * {
+    margin: 0;
+  }
+
+  .pass-item h3 {
+    font-size: var(--text-base);
+  }
+
+  .pass-history summary {
+    min-height: var(--tap-target);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: var(--font-weight-strong);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .orders-table th,
+  .orders-table td {
+    padding: var(--space-2);
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
   }
 
   .account-missing {

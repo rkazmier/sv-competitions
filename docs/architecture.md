@@ -98,6 +98,14 @@
   „Pokaż w ofercie” / „Ukryj”, strzałki kolejności (`rpc/move_product`). Walidacja, ceny (zł ↔ grosze, `120,00 zł`) i grupy
   bez DOM w `src/lib/products.ts`, wyspa `src/lib/products-ui.ts`. Produkt z zamówieniami (`rpc/product_has_orders`) ma zablokowane
   pola rodzaju, liczby wejść/dni i dnia. `/oferta/` pobiera produkty w przeglądarce, więc zmiany nie uruchamiają `site-rebuild`.
+- Oferta i zakup (SPEC-003 AC-5…AC-7, AC-10, AC-12…AC-15): `/oferta/` (link „Oferta” w nagłówku) — aktywne produkty w grupach
+  rodzaju, pobierane w przeglądarce; „Kup” prowadzi do `/oferta/zamowienie/?product=` (gość — przez `/logowanie/?next=`).
+  Podsumowanie pobiera cenę z bazy, wymaga akceptacji regulaminu sprzedaży (`/regulamin-sprzedazy/`, tekst zastępczy do czasu #39),
+  ma pusty `data-invoice-slot` na fakturę (SPEC-004) i wywołuje `payments-create` z `{ product_id, request_key }` (nowy klucz na kliknięcie,
+  przycisk zablokowany do odpowiedzi), potem przekierowanie na bramkę Tpay. `/konto/platnosc/?order=` czyta `orders.status`
+  co 3 s przez maks. 60 s. `/konto/` — „Twoje karnety” (aktywne: `status = 'active'` i dziś ≤ „Ważny do”), „Historia karnetów”
+  (`<details>`), „Historia płatności” (tabela od najnowszych), „Przedłuż karnet” → `/oferta/`. Zapytania z kluczem publishable
+  i JWT — RLS zwraca tylko własne `orders`, `user_passes`, `pass_usages`. Logika bez DOM: `src/lib/offer.ts`, wyspy `src/lib/offer-ui.ts`.
 - `src/lib/site.ts` — adres produkcyjny: `link rel=canonical`, `og:url` i `og:image` (`public/og-default.png`) zawsze na produkcję.
 - Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie).
