@@ -1,0 +1,48 @@
+---
+/**
+ * Panel: lista kont (SPEC-002 AC-16). Tylko admin. Wyszukiwarka po imieniu i nazwisku lub e-mailu (od 2 znaków),
+ * 50 kont na stronę (`rpc/admin_list_users`). Fraza nie trafia do adresu strony (e-mail to dana osobowa).
+ * Dane obsługuje lib/admin-users-ui.ts po potwierdzeniu roli admina.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('users.title')}>
+  <div class="users stack" data-users>
+    <h1>{t('users.title')}</h1>
+    <form class="users-search" role="search" data-search>
+      <label class="field-label" for="u-search">{t('users.searchLabel')}</label>
+      <p class="hint" id="u-search-hint">{t('users.searchHint')}</p>
+      <div class="button-row">
+        <input class="input" id="u-search" name="q" type="search" autocomplete="off" aria-describedby="u-search-hint" />
+        <button type="submit" class="button button-primary">{t('users.search')}</button>
+      </div>
+    </form>
+
+    <p role="status" data-status>{t('panel.loading')}</p>
+    <ul class="card-list" data-list></ul>
+
+    <nav class="button-row" aria-label={t('users.title')} data-pager hidden>
+      <button type="button" class="button" data-previous>{t('users.previous')}</button>
+      <button type="button" class="button" data-next>{t('users.next')}</button>
+    </nav>
+
+    <template data-row>
+      <li class="card users-row">
+        <h2><a data-name></a></h2>
+        <dl>
+          <dt>{t('users.email')}</dt><dd data-email></dd>
+          <dt>{t('users.role')}</dt><dd data-role></dd>
+          <dt>{t('users.ready')}</dt><dd data-ready></dd>
+          <dt>{t('users.createdAt')}</dt><dd data-created></dd>
+        </dl>
+      </li>
+    </template>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountUserList } from '../../../lib/admin-users-ui';
+
+  void mountUserList(document.querySelector<HTMLElement>('[data-users]')!);
+</script>

@@ -13,6 +13,7 @@ import {
   normalizeProfile,
   validateProfile,
   type AccountProfile,
+  type ProfileData,
   type ProfileErrors,
 } from './profile';
 import { getSupabase } from './supabase';
@@ -57,6 +58,22 @@ const ERROR_TEXT: Record<NonNullable<ProfileErrors[keyof ProfileErrors]>, Messag
   permitPair: 'profile.errorPermitPair',
 };
 
+/** Wypełnia pola `ProfileFields.astro` danymi profilu i e-mailem (tylko do odczytu). */
+export function fillProfileForm(form: HTMLFormElement, profile: ProfileData, email: string | null): void {
+  for (const name of PROFILE_FIELDS) {
+    (form.elements.namedItem(name) as HTMLInputElement).value = profile[name] ?? '';
+  }
+  (form.elements.namedItem('email') as HTMLInputElement).value = email ?? '';
+}
+
+/** Pola formularza → dane do zapisu; `null`, gdy walidacja nie przeszła (komunikaty przy polach, AC-8, AC-11). */
+export function readProfileForm(form: HTMLFormElement): ProfileData | null {
+  const values = normalizeProfile(
+    Object.fromEntries(PROFILE_FIELDS.map((name) => [name, (form.elements.namedItem(name) as HTMLInputElement).value])),
+  );
+  return showProfileErrors(form, validateProfile(values)) ? null : values;
+}
+
 function showProfileErrors(form: HTMLFormElement, errors: ProfileErrors): boolean {
   for (const name of PROFILE_FIELDS) {
     const input = form.elements.namedItem(name) as HTMLInputElement;
@@ -98,20 +115,15 @@ export async function mountProfileForm(): Promise<void> {
   if (!profile.privacy_notice_ack_at) return window.location.replace(withNext(ACCOUNT_HOME, PROFILE_FORM_PAGE));
 
   const form = el<HTMLFormElement>(document, 'form[data-profile]');
-  for (const name of PROFILE_FIELDS) {
-    (form.elements.namedItem(name) as HTMLInputElement).value = profile[name] ?? '';
-  }
-  (form.elements.namedItem('email') as HTMLInputElement).value = user.email ?? '';
+  fillProfileForm(form, profile, user.email ?? null);
   form.hidden = false;
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formError = el(form, '[data-form-error]');
     formError.hidden = true;
-    const values = normalizeProfile(
-      Object.fromEntries(PROFILE_FIELDS.map((name) => [name, (form.elements.namedItem(name) as HTMLInputElement).value])),
-    );
-    if (showProfileErrors(form, validateProfile(values))) return;
+    const values = readProfileForm(form);
+    if (!values) return;
     const submit = el<HTMLButtonElement>(form, '[data-submit]');
     submit.disabled = true;
     const { error: saveError } = await supabase.from('profiles').update(values).eq('id', user.id);

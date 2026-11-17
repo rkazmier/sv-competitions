@@ -1,0 +1,53 @@
+---
+/**
+ * Pola danych użytkownika (SPEC-002 AC-7, §6): Imię i nazwisko*, Telefon, Numer decyzji, Organ wydający,
+ * Adres zamieszkania; e-mail tylko do odczytu. Wspólne dla `/konto/dane/` i karty użytkownika w panelu (AC-20).
+ * Obsługa: `fillProfileForm`, `readProfileForm`, `showProfileErrors` w lib/account-ui.ts; walidacja: lib/profile.ts.
+ */
+import { t } from '../i18n';
+
+interface Field {
+  name: string;
+  label: string;
+  required?: boolean;
+  type?: 'text' | 'tel';
+  autocomplete?: 'name' | 'tel' | 'street-address';
+  hint?: string;
+}
+
+interface Props {
+  /** Podpowiedź pod e-mailem (konto użytkownika — „nie można tu zmienić”). */
+  emailHint?: string;
+}
+
+const { emailHint } = Astro.props;
+const fields: Field[] = [
+  { name: 'full_name', label: t('profile.fullName'), required: true, autocomplete: 'name' },
+  { name: 'phone', label: t('profile.phone'), type: 'tel', autocomplete: 'tel', hint: t('profile.phoneHint') },
+  { name: 'permit_number', label: t('profile.permitNumber'), hint: t('profile.permitHint') },
+  { name: 'permit_authority', label: t('profile.permitAuthority') },
+  { name: 'address', label: t('profile.address'), autocomplete: 'street-address', hint: t('profile.addressHint') },
+];
+---
+{fields.map((field) => (
+  <div class="auth-form">
+    <label class="field-label" for={`f-${field.name}`}>
+      {field.label}{field.required && <span aria-hidden="true"> *</span>}
+      {field.required && <span class="visually-hidden">{t('profile.required')}</span>}
+    </label>
+    {field.hint && <p class="hint" id={`f-${field.name}-hint`}>{field.hint}</p>}
+    <input
+      class="input"
+      id={`f-${field.name}`}
+      name={field.name}
+      type={field.type ?? 'text'}
+      autocomplete={field.autocomplete ?? 'off'}
+      required={field.required}
+      aria-describedby={[field.hint && `f-${field.name}-hint`, `f-${field.name}-error`].filter(Boolean).join(' ')}
+    />
+    <p class="message-error" id={`f-${field.name}-error`} data-error-for={field.name} hidden></p>
+  </div>
+))}
+<label class="field-label" for="f-email">{t('profile.email')}</label>
+{emailHint && <p class="hint" id="f-email-hint">{emailHint}</p>}
+<input class="input" id="f-email" name="email" type="email" readonly aria-describedby={emailHint ? 'f-email-hint' : undefined} />
