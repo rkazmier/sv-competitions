@@ -69,7 +69,7 @@ test.describe('obsługa strzelnicy', () => {
       await expect(page.getByRole('main').getByRole('link', { name: 'Nowe zawody' })).toBeHidden();
     }
     const menu = page.getByRole('navigation', { name: 'Menu panelu' });
-    for (const name of ['Kalendarz', 'Regulaminy', 'Dyscypliny', 'Kategorie', 'Użytkownicy']) {
+    for (const name of ['Kalendarz', 'Regulaminy', 'Dyscypliny', 'Kategorie', 'Oferta', 'Użytkownicy']) {
       await expect(menu.getByRole('link', { name, exact: true })).toHaveCount(0);
     }
     expect(dataRequests).toEqual([]);
@@ -136,6 +136,7 @@ test.describe('admin (dawny organizator, AC-28)', () => {
       ['Regulaminy', '/panel/regulaminy/'],
       ['Dyscypliny', '/panel/dyscypliny/'],
       ['Kategorie', '/panel/kategorie/'],
+      ['Oferta', '/panel/oferta/'],
     ]) {
       await expect(menu.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
     }

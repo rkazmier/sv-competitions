@@ -1,0 +1,178 @@
+---
+/**
+ * Panel: produkty i ceny Oferty (SPEC-003 US-1, AC-1…AC-4). Tylko admin.
+ * Formularz dodawania / edycji + lista w grupach rodzaju z „Pokaż w ofercie” / „Ukryj” i strzałkami kolejności.
+ * Dane obsługuje lib/products-ui.ts po potwierdzeniu roli admina.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+import {
+  DAY_TYPES,
+  PRODUCT_DAYS_MAX,
+  PRODUCT_DESCRIPTION_MAX,
+  PRODUCT_ENTRIES_MAX,
+  PRODUCT_KINDS,
+  PRODUCT_NAME_MAX,
+} from '../../../lib/products';
+---
+<PanelLayout title={t('products.title')}>
+  <div class="products" data-products>
+    <h1>{t('products.title')}</h1>
+    <p>{t('products.intro')}</p>
+
+    <form class="card stack" data-form novalidate>
+      <h2 data-form-heading>{t('products.addHeading')}</h2>
+      <p class="hint">{t('products.requiredHint')}</p>
+      <p class="hint" data-has-orders hidden>{t('products.hasOrdersHint')}</p>
+
+      <label class="field-label" for="p-kind">{t('products.kindLabel')}</label>
+      <select class="input" id="p-kind" name="kind" required aria-describedby="p-kind-error">
+        <option value="">{t('products.choose')}</option>
+        {PRODUCT_KINDS.map((kind) => <option value={kind}>{t(`products.kinds.${kind}`)}</option>)}
+      </select>
+      <p class="message-error field-error" id="p-kind-error" data-error-for="kind" hidden></p>
+
+      <label class="field-label" for="p-name">{t('products.nameLabel')}</label>
+      <input class="input" id="p-name" name="name" type="text" required maxlength={PRODUCT_NAME_MAX} autocomplete="off" aria-describedby="p-name-error" />
+      <p class="message-error field-error" id="p-name-error" data-error-for="name" hidden></p>
+
+      <label class="field-label" for="p-price">{t('products.priceLabel')}</label>
+      <input class="input" id="p-price" name="price" type="text" inputmode="decimal" required autocomplete="off" aria-describedby="p-price-hint p-price-error" />
+      <p class="hint" id="p-price-hint">{t('products.priceHint')}</p>
+      <p class="message-error field-error" id="p-price-error" data-error-for="price" hidden></p>
+
+      <div data-kind-field="entries" hidden>
+        <label class="field-label" for="p-entries">{t('products.entriesLabel')}</label>
+        <input class="input" id="p-entries" name="entries" type="number" min="1" max={PRODUCT_ENTRIES_MAX} step="1" inputmode="numeric" aria-describedby="p-entries-hint p-entries-error" />
+        <p class="hint" id="p-entries-hint">{t('products.entriesHint', { max: PRODUCT_ENTRIES_MAX })}</p>
+        <p class="message-error field-error" id="p-entries-error" data-error-for="entries" hidden></p>
+      </div>
+
+      <div data-kind-field="days" hidden>
+        <label class="field-label" for="p-days">{t('products.daysLabel')}</label>
+        <input class="input" id="p-days" name="days" type="number" min="1" max={PRODUCT_DAYS_MAX} step="1" inputmode="numeric" aria-describedby="p-days-hint p-days-error" />
+        <p class="hint" id="p-days-hint">{t('products.daysHint', { max: PRODUCT_DAYS_MAX })}</p>
+        <p class="message-error field-error" id="p-days-error" data-error-for="days" hidden></p>
+      </div>
+
+      <div data-kind-field="single_entry" hidden>
+        <label class="field-label" for="p-day-type">{t('products.dayTypeLabel')}</label>
+        <select class="input" id="p-day-type" name="day_type" aria-describedby="p-day-type-error">
+          <option value="">{t('products.choose')}</option>
+          {DAY_TYPES.map((day) => <option value={day}>{t(`products.dayTypes.${day}`)}</option>)}
+        </select>
+        <p class="message-error field-error" id="p-day-type-error" data-error-for="day_type" hidden></p>
+      </div>
+
+      <label class="field-label" for="p-description">{t('products.descriptionLabel')}</label>
+      <textarea class="input" id="p-description" name="description" rows="3" maxlength={PRODUCT_DESCRIPTION_MAX} aria-describedby="p-description-hint p-description-error"></textarea>
+      <p class="hint" id="p-description-hint">{t('products.descriptionHint', { max: PRODUCT_DESCRIPTION_MAX })}</p>
+      <p class="message-error field-error" id="p-description-error" data-error-for="description" hidden></p>
+
+      <p class="message-error" role="alert" data-form-error hidden></p>
+      <div class="button-row">
+        <button type="submit" class="button button-primary" data-submit>{t('products.add')}</button>
+        <button type="button" class="button" data-cancel hidden>{t('products.cancel')}</button>
+      </div>
+    </form>
+
+    <p class="status" role="status" data-status></p>
+
+    {
+      PRODUCT_KINDS.map((kind) => (
+        <section class="group" aria-labelledby={`group-${kind}`}>
+          <h2 id={`group-${kind}`}>{t(`products.groups.${kind}`)}</h2>
+          <p class="hint" data-empty={kind}>{t('products.empty')}</p>
+          <ul class="card-list" data-group={kind}></ul>
+        </section>
+      ))
+    }
+
+    <template data-row-template>
+      <li class="card item" data-item>
+        <p class="item-name">
+          <span data-name></span>
+          <span class="tag" data-state></span>
+        </p>
+        <p class="item-meta"><span data-price></span> · <span data-details></span></p>
+        <div class="button-row">
+          <button type="button" class="button" data-move="up">
+            <span aria-hidden="true">↑ </span>{t('products.moveUp')}<span class="visually-hidden" data-sr-name></span>
+          </button>
+          <button type="button" class="button" data-move="down">
+            <span aria-hidden="true">↓ </span>{t('products.moveDown')}<span class="visually-hidden" data-sr-name></span>
+          </button>
+          <button type="button" class="button" data-toggle>
+            <span data-toggle-text></span><span class="visually-hidden" data-sr-name></span>
+          </button>
+          <button type="button" class="button" data-edit>
+            {t('products.edit')}<span class="visually-hidden" data-sr-name></span>
+          </button>
+        </div>
+      </li>
+    </template>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountProducts } from '../../../lib/products-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-products]');
+  if (root) void mountProducts(root);
+</script>
+
+<style>
+  .products {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .products > * {
+    margin: 0;
+  }
+
+  h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-h3);
+  }
+
+  .stack > *,
+  .stack > [data-kind-field] > * {
+    margin-top: 0;
+    margin-bottom: var(--space-2);
+  }
+
+  textarea.input {
+    resize: vertical;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .field-error {
+    display: block;
+  }
+
+  .status:empty {
+    display: none;
+  }
+
+  .item-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-weight: var(--font-weight-strong);
+  }
+
+  .item-meta {
+    margin: var(--space-1) 0 var(--space-2);
+  }
+
+  .item:has([data-state='hidden']) .item-name > span:first-child {
+    color: var(--color-text-muted);
+  }
+</style>
