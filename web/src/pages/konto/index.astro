@@ -1,8 +1,8 @@
 ---
 /**
  * Konto użytkownika (SPEC-002 §6) — cel po zalogowaniu i po linku potwierdzającym e-mail (AC-1, AC-3, AC-5).
- * Klauzula przy pierwszym logowaniu (Google), potem: braki lub gotowość do wpisu (AC-9, AC-10), kod QR (AC-12…AC-15),
- * „Twoje dane” + „Edytuj dane” (AC-7). Kod QR zaraz po statusie — na telefonie obsługa skanuje z ekranu.
+ * Klauzula przy pierwszym logowaniu (Google), potem: braki lub gotowość do wpisu (AC-9, AC-10),
+ * „Twoje dane” + „Edytuj dane” (AC-7).
  * Logika: lib/auth-ui.ts (sesja, klauzula), lib/account-ui.ts (panel).
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -38,18 +38,6 @@ const fields = [
         </div>
         <p class="account-ready" data-ready hidden>{t('account.ready')}</p>
 
-        <section class="card account-qr" aria-labelledby="qr-heading">
-          <h2 id="qr-heading">{t('account.qrTitle')}</h2>
-          <p class="hint">{t('account.qrIntro')}</p>
-          <div class="qr" data-qr></div>
-          <div class="button-row">
-            <button type="button" class="button" data-qr-fullscreen>{t('account.qrFullscreen')}</button>
-            <button type="button" class="button" data-qr-print>{t('account.qrPrint')}</button>
-            <button type="button" class="button" data-qr-rotate>{t('account.qrRotate')}</button>
-          </div>
-          <p role="status" data-qr-status></p>
-        </section>
-
         <section class="card" aria-labelledby="data-heading">
           <h2 id="data-heading">{t('account.dataTitle')}</h2>
           <dl class="account-data">
@@ -69,17 +57,6 @@ const fields = [
       <p class="message-error" role="alert" data-account-state="error" hidden>{t('account.loadError')}</p>
     </div>
   </section>
-
-  <dialog class="qr-fullscreen" data-qr-dialog aria-label={t('account.qrLabel')}>
-    <div class="qr" data-qr></div>
-    <button type="button" class="button button-primary" data-close>{t('account.close')}</button>
-  </dialog>
-
-  <!-- AC-14: tylko do druku — kod (min. 4 cm) i imię i nazwisko, bez menu i stopki -->
-  <div class="qr-print" aria-hidden="true">
-    <div class="qr" data-qr></div>
-    <p data-print-name></p>
-  </div>
 </BaseLayout>
 
 <style is:global>
@@ -120,16 +97,6 @@ const fields = [
     font-size: var(--text-sm);
   }
 
-  .qr svg {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-
-  .account-qr .qr {
-    width: min(18rem, 100%);
-  }
-
   .account-data {
     display: grid;
     gap: var(--space-2);
@@ -144,60 +111,6 @@ const fields = [
   .account-data dd {
     margin: 0;
     overflow-wrap: anywhere;
-  }
-
-  /* AC-13: kod na cały ekran, czarny na białym */
-  .qr-fullscreen {
-    width: 100vw;
-    max-width: none;
-    height: 100dvh;
-    max-height: none;
-    margin: 0;
-    padding: var(--space-4);
-    border: 0;
-    background: #fff;
-  }
-
-  .qr-fullscreen[open] {
-    display: grid;
-    place-items: center;
-    align-content: center;
-    gap: var(--space-4);
-  }
-
-  .qr-fullscreen::backdrop {
-    background: #fff;
-  }
-
-  .qr-fullscreen .qr {
-    width: min(90vw, calc(100dvh - 8rem));
-  }
-
-  .qr-print {
-    display: none;
-  }
-
-  @media print {
-    body > :not(main),
-    main > :not(.qr-print) {
-      display: none !important;
-    }
-
-    .qr-print {
-      display: block;
-      text-align: center;
-    }
-
-    .qr-print .qr {
-      width: 6cm;
-      margin: 0 auto;
-    }
-
-    .qr-print p {
-      margin-top: 0.5cm;
-      font-size: 14pt;
-      font-weight: bold;
-    }
   }
 </style>
 

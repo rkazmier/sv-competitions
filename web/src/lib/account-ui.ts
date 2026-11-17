@@ -1,7 +1,7 @@
 /**
- * Panel użytkownika (SPEC-002 US-2, US-3): `/konto/` — braki lub gotowość do wpisu, kod QR (pełny ekran, druk,
- * nowy kod), podgląd danych; `/konto/dane/` — formularz danych (AC-7…AC-11).
- * Logika bez DOM: lib/profile.ts, lib/qr.ts. Sesja i klauzula przy pierwszym logowaniu: lib/auth-ui.ts.
+ * Panel użytkownika (SPEC-002 US-2): `/konto/` — braki lub gotowość do wpisu, podgląd danych;
+ * `/konto/dane/` — formularz danych (AC-7…AC-11).
+ * Logika bez DOM: lib/profile.ts. Sesja i klauzula przy pierwszym logowaniu: lib/auth-ui.ts.
  */
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { t, type MessageKey } from '../i18n';
@@ -15,21 +15,15 @@ import {
   type AccountProfile,
   type ProfileErrors,
 } from './profile';
-import { qrSvg } from './qr';
 import { getSupabase } from './supabase';
 
 /** Kolumny profilu potrzebne w `/konto/` i `/konto/dane/`. */
-export const ACCOUNT_COLUMNS = `${PROFILE_FIELDS.join(', ')}, is_range_ready, qr_token, privacy_notice_ack_at`;
+export const ACCOUNT_COLUMNS = `${PROFILE_FIELDS.join(', ')}, is_range_ready, privacy_notice_ack_at`;
 export const PROFILE_FORM_PAGE = '/konto/dane/';
 
 const el = <T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string) => root.querySelector<T>(selector)!;
 
 const MISSING_TEXT = { fullName: 'account.missingFullName', permitOrAddress: 'account.missingPermitOrAddress' } as const;
-
-function renderQr(token: string): void {
-  const svg = qrSvg(token, t('account.qrLabel'));
-  for (const box of document.querySelectorAll<HTMLElement>('[data-qr]')) box.innerHTML = svg;
-}
 
 /** Braki (AC-9) albo status „Gotowy do wpisu do książki” z kolumny `is_range_ready` (AC-10). */
 function renderReadiness(profile: AccountProfile): void {
@@ -45,54 +39,14 @@ function renderReadiness(profile: AccountProfile): void {
   );
 }
 
-/** Pełny ekran (AC-13): okno modalne z wpisem w historii — „Zamknij”, Esc i gest wstecz zamykają. */
-function bindFullscreen(): void {
-  const dialog = el<HTMLDialogElement>(document, 'dialog[data-qr-dialog]');
-  el(document, '[data-qr-fullscreen]').addEventListener('click', () => {
-    dialog.showModal();
-    window.history.pushState({ qrFullscreen: true }, '');
-  });
-  const close = () => window.history.back();
-  el(dialog, '[data-close]').addEventListener('click', close);
-  dialog.addEventListener('cancel', (event) => {
-    event.preventDefault();
-    close();
-  });
-  window.addEventListener('popstate', () => {
-    if (dialog.open) dialog.close();
-  });
-}
-
 /** `/konto/` po zalogowaniu i potwierdzeniu klauzuli. */
-export function renderAccount(supabase: SupabaseClient, user: User, profile: AccountProfile): void {
+export function renderAccount(user: User, profile: AccountProfile): void {
   renderReadiness(profile);
-  renderQr(profile.qr_token);
   for (const node of document.querySelectorAll<HTMLElement>('[data-field]')) {
     const name = node.dataset.field!;
     const value = name === 'email' ? (user.email ?? null) : profile[name as keyof AccountProfile];
     node.textContent = typeof value === 'string' ? value : t('account.notProvided');
   }
-  el(document, '[data-print-name]').textContent = profile.full_name ?? '';
-  bindFullscreen();
-  el(document, '[data-qr-print]').addEventListener('click', () => window.print());
-
-  // AC-15: nowy kod po potwierdzeniu; stary przestaje działać od razu (rotate_qr_token w bazie).
-  const rotate = el<HTMLButtonElement>(document, '[data-qr-rotate]');
-  const status = el(document, '[data-qr-status]');
-  rotate.addEventListener('click', async () => {
-    if (!window.confirm(t('account.qrRotateConfirm'))) return;
-    rotate.disabled = true;
-    const { data, error } = await supabase.rpc('rotate_qr_token');
-    rotate.disabled = false;
-    if (error || typeof data !== 'string') {
-      status.className = 'message-error';
-      status.textContent = t('auth.genericError');
-      return;
-    }
-    renderQr(data);
-    status.className = '';
-    status.textContent = t('account.qrRotated');
-  });
 }
 
 // ===== /konto/dane/ =====

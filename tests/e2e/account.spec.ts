@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { admin, hasLocalSupabase, signInAs } from './support/supabase';
 
-// SPEC-002 US-2, US-3: panel użytkownika /konto/ — dane, gotowość do wpisu, kod QR (AC-7…AC-15, AC-22).
+// SPEC-002 US-2: panel użytkownika /konto/ — dane i gotowość do wpisu (AC-7…AC-11, AC-22).
 test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supabase start + zmienne środowiskowe)');
 
 const PASSWORD = 'haslo-e2e-123';
@@ -34,7 +34,7 @@ async function profileRow(id: string) {
 
 const form = (page: Page) => page.locator('form[data-profile]');
 
-test('AC-9: puste konto → blok „Co uzupełnić…” z listą braków i „Uzupełnij dane”; kod QR nadal widoczny', async ({ page }) => {
+test('AC-9: puste konto → blok „Co uzupełnić…” z listą braków i „Uzupełnij dane”', async ({ page }) => {
   await newAccount(page);
   await page.goto('/konto/');
   const block = page.locator('[data-missing]');
@@ -44,7 +44,6 @@ test('AC-9: puste konto → blok „Co uzupełnić…” z listą braków i „U
     'Numer decyzji i organ wydający albo adres zamieszkania',
   ]);
   await expect(page.getByText('Gotowy do wpisu do książki')).toBeHidden();
-  await expect(page.getByRole('img', { name: 'Kod QR konta' })).toBeVisible();
   await block.getByRole('link', { name: 'Uzupełnij dane' }).click();
   await expect(page).toHaveURL(/\/konto\/dane\/$/);
 });
@@ -127,92 +126,5 @@ test('AC-10, AC-22: zapis własnych danych → „Gotowy do wpisu do książki�
   const row = await profileRow(id);
   expect(row).toMatchObject({ full_name: 'Jan Kowalski', phone: '+48 600 100 200', is_range_ready: true });
   const { count } = await admin().from('audit_log').select('id', { count: 'exact', head: true }).eq('target_user_id', id);
-  expect(count).toBe(0);
-});
-
-test('AC-12: kod QR jako SVG w przeglądarce (bez usług zewnętrznych) z przyciskami', async ({ page }) => {
-  const allowed = new Set([new URL('http://127.0.0.1:4321').host, new URL(process.env.PUBLIC_SUPABASE_URL!).host]);
-  const foreign: string[] = [];
-  page.on('request', (request) => {
-    const url = new URL(request.url());
-    if (url.protocol.startsWith('http') && !allowed.has(url.host)) foreign.push(url.href);
-  });
-  await newAccount(page);
-  await page.goto('/konto/');
-  const section = page.getByRole('region', { name: 'Twój kod QR' });
-  await expect(section.locator('svg[role="img"]')).toBeVisible();
-  for (const name of ['Pełny ekran', 'Drukuj', 'Wygeneruj nowy kod']) {
-    await expect(section.getByRole('button', { name })).toBeVisible();
-  }
-  expect(foreign).toEqual([]);
-});
-
-test('AC-13: „Pełny ekran” → kod na cały ekran, białe tło; zamknięcie „Zamknij” i gestem wstecz', async ({ page }) => {
-  await newAccount(page);
-  await page.goto('/konto/');
-  const dialog = page.getByRole('dialog', { name: 'Kod QR konta' });
-
-  await page.getByRole('button', { name: 'Pełny ekran' }).click();
-  await expect(dialog).toBeVisible();
-  const viewport = page.viewportSize()!;
-  const box = (await dialog.boundingBox())!;
-  expect([box.width, box.height]).toEqual([viewport.width, viewport.height]);
-  await expect(dialog).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await expect(dialog.locator('svg')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Zamknij' }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page).toHaveURL(/\/konto\/$/);
-
-  await page.getByRole('button', { name: 'Pełny ekran' }).click();
-  await expect(dialog).toBeVisible();
-  await page.goBack();
-  await expect(dialog).toBeHidden();
-  await expect(page).toHaveURL(/\/konto\/$/);
-  await expect(page.getByRole('heading', { name: 'Moje konto' })).toBeVisible();
-});
-
-test('AC-14: „Drukuj” → wydruk z kodem (min. 4 cm) i imieniem i nazwiskiem, bez menu i stopki', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.print = () => document.body.setAttribute('data-printed', 'true');
-  });
-  await newAccount(page, { full_name: 'Jan Kowalski' });
-  await page.goto('/konto/');
-  await page.getByRole('button', { name: 'Drukuj' }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-printed', 'true');
-
-  await page.emulateMedia({ media: 'print' });
-  await expect(page.locator('.site-header')).toBeHidden();
-  await expect(page.locator('.site-footer')).toBeHidden();
-  await expect(page.getByRole('heading', { name: 'Moje konto' })).toBeHidden();
-  const printed = page.locator('.qr-print');
-  await expect(printed.getByText('Jan Kowalski')).toBeVisible();
-  const qr = (await printed.locator('svg').boundingBox())!;
-  // 4 cm przy 96 dpi CSS = 151 px
-  expect(qr.width).toBeGreaterThanOrEqual(151);
-});
-
-test('AC-15: „Wygeneruj nowy kod” po potwierdzeniu → nowy qr_token, stary nie znajduje nikogo', async ({ page }) => {
-  const { id } = await newAccount(page);
-  await page.goto('/konto/');
-  const before = (await profileRow(id)).qr_token as string;
-  const svg = page.getByRole('region', { name: 'Twój kod QR' }).locator('svg');
-  const oldSvg = await svg.innerHTML();
-
-  page.once('dialog', (dialog) => {
-    expect(dialog.message()).toBe('Stary kod przestanie działać, także wydrukowany. Kontynuować?');
-    void dialog.dismiss();
-  });
-  await page.getByRole('button', { name: 'Wygeneruj nowy kod' }).click();
-  expect((await profileRow(id)).qr_token).toBe(before);
-
-  page.once('dialog', (dialog) => void dialog.accept());
-  await page.getByRole('button', { name: 'Wygeneruj nowy kod' }).click();
-  await expect(page.getByText('Wygenerowano nowy kod. Stary przestał działać.')).toBeVisible();
-  await expect.poll(() => svg.innerHTML()).not.toBe(oldSvg);
-
-  const after = (await profileRow(id)).qr_token as string;
-  expect(after).not.toBe(before);
-  expect(after).toMatch(/^[A-Za-z0-9_-]{32}$/);
-  const { count } = await admin().from('profiles').select('id', { count: 'exact', head: true }).eq('qr_token', before);
   expect(count).toBe(0);
 });
