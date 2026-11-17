@@ -1,7 +1,8 @@
 ---
 /**
- * Panel: karta użytkownika `/panel/uzytkownicy/profil/?id=` (SPEC-002 AC-17, AC-18, AC-20, AC-21, §6). Tylko admin.
- * Dane (te same pola i walidacja co `/konto/dane/`), rola (`rpc/set_user_role`), „Historia zmian” (`audit_log`).
+ * Panel: karta użytkownika `/panel/uzytkownicy/profil/?id=` (SPEC-002 AC-17, AC-18, AC-20, AC-21, AC-23…AC-25, §6).
+ * Tylko admin. Dane (te same pola i walidacja co `/konto/dane/`), rola (`rpc/set_user_role`), „Historia zmian” (`audit_log`),
+ * „Usuń konto” (Edge Function `admin-delete-user`).
  * Dane obsługuje lib/admin-users-ui.ts po potwierdzeniu roli admina.
  */
 import PanelLayout from '../../../../layouts/PanelLayout.astro';
@@ -15,6 +16,7 @@ import { ROLES } from '../../../../lib/admin-users';
     <h1 data-title>{t('users.cardTitle')}</h1>
     <p role="status" data-loading>{t('panel.loading')}</p>
     <p class="message-error" role="alert" data-not-found hidden>{t('users.notFound')}</p>
+    <p role="status" data-deleted hidden>{t('users.deleted')}</p>
 
     <div class="stack" data-content hidden>
       <p class="tag" data-ready hidden>{t('account.ready')}</p>
@@ -47,6 +49,26 @@ import { ROLES } from '../../../../lib/admin-users';
         <h2 id="u-history">{t('users.historyTitle')}</h2>
         <p data-history-empty hidden>{t('users.historyEmpty')}</p>
         <ol class="users-history" data-history></ol>
+      </section>
+
+      <section class="card stack" aria-labelledby="u-delete" data-delete>
+        <h2 id="u-delete">{t('users.deleteTitle')}</h2>
+        <div class="button-row">
+          <button type="button" class="button" data-delete-open aria-describedby="u-delete-own">
+            {t('users.deleteButton')}
+          </button>
+        </div>
+        <p class="hint" id="u-delete-own" data-delete-own hidden>{t('users.deleteOwn')}</p>
+        <form class="auth-form stack" data-delete-form hidden>
+          <p class="message-error" data-delete-warning>{t('users.deleteWarning')}</p>
+          <label class="field-label" for="u-delete-confirm">{t('users.deleteConfirmLabel')}</label>
+          <input class="input" id="u-delete-confirm" name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          <p class="message-error" role="alert" data-delete-error hidden></p>
+          <div class="button-row">
+            <button type="submit" class="button button-primary" data-delete-submit disabled>{t('users.deleteConfirm')}</button>
+            <button type="button" class="button" data-delete-cancel>{t('users.deleteCancel')}</button>
+          </div>
+        </form>
       </section>
     </div>
   </div>
