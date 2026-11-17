@@ -13,6 +13,7 @@ export type ProfileData = Record<ProfileField, string | null>;
 /** Profil z bazy, jakim go pokazuje `/konto/`. */
 export interface AccountProfile extends ProfileData {
   is_range_ready: boolean;
+  qr_token: string;
   privacy_notice_ack_at: string | null;
 }
 
