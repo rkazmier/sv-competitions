@@ -121,8 +121,19 @@
   `schedule_item_day_out_of_range` (AC-22), `rulebook_file_immutable` (AC-16), `product_has_orders` (SPEC-003 AC-3).
 - `products` (SPEC-003 §5): wyzwalacz `products_before_write` — trim nazwy i opisu, nowy produkt zawsze ukryty
   i na końcu swojej grupy (`position`), blokada zmiany `kind`, `entries`, `days`, `day_type`, gdy produkt ma zamówienia.
-  Sprawdzenie zamówień w `product_order_exists()` (wewnętrzna; do czasu tabeli `orders` z #48 zawsze `false`).
+  Sprawdzenie zamówień w `product_order_exists()` (wewnętrzna, zapytanie do `orders`).
   Bez `delete` dla klientów (ukrycie zamiast usunięcia). `move_product(id, 'up'|'down')` — zamiana z sąsiadem w grupie (RLS: admin).
+- `orders`, `user_passes` (SPEC-003 §5): klient ma tylko `select` (własne; obsługa — wszystkie); `payment_notifications` bez dostępu.
+  Zapis wyłącznie funkcjami `security definer` i kluczem secret:
+  - `fulfil_order(order_id)` — tylko `service_role` (`payments-notify`): `pending`/`cancelled` → `paid` + uprawnienie w jednej transakcji,
+    idempotentna; `expires_on` = `pass_expires_on(dzień zakupu)` (+ `pass_validity()` = 1 rok), bez konta — dzień zakupu.
+  - `create_on_site_order(user_id | null, product_id, 'cash'|'terminal')` — obsługa; bez konta tylko wejście jednorazowe na dziś.
+  - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`, do SPEC-005 z samego stanu uprawnienia);
+    Tpay → `refund_pending`, na miejscu → `refunded`; wpis `order_refund` w `audit_log`.
+  - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
+    `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
+  - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
+  Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`.
 - Custom Access Token Hook `public.custom_access_token_hook` (claim `app_role` = `user` / `staff` / `admin`, tylko UI) — lokalnie włączony w `config.toml`,
   w projektach Supabase włączany ręcznie w panelu (Authentication → Hooks).
 
@@ -157,7 +168,7 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
