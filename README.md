@@ -51,6 +51,12 @@ otwierają PR-y i nadają etykiety osobnym tokenem.
 | Variable | `SUPABASE_ANON_KEY` | klucz publiczny `sb_publishable_…` (Settings → API Keys) |
 | Variable | `APP_URL` | `https://events-staging.steel-valley.pl` / `https://events.steel-valley.pl` |
 
+5. Retencja książki i podpisów (ADR-0006) — w każdym projekcie Supabase wygeneruj losowy sekret (np. `openssl rand -hex 32`) i:
+   - Edge Functions → Secrets: `RETENTION_INVOKE_SECRET` = sekret;
+   - SQL Editor: `select vault.create_secret('https://<ref>.supabase.co', 'project_url');`
+     oraz `select vault.create_secret('<sekret>', 'retention_invoke_secret');`.
+   Bez tego nocne zadanie `range-log-retention` nic nie usuwa (w logu bazy komunikat o braku sekretów).
+
 ### 5. Tpay
 1. Konto sandbox: https://register.sandbox.tpay.com — dane API do środowiska **staging**.
 2. Konto produkcyjne (umowa) — dane API do środowiska **production**.

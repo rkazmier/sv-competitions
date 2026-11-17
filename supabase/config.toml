@@ -439,6 +439,10 @@ deno_version = 2
 [functions.payments-notify]
 verify_jwt = false
 
+# Wywołanie z pg_cron + pg_net z sekretem RETENTION_INVOKE_SECRET, nie JWT (ADR-0006).
+[functions.retention]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

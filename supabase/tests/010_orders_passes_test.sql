@@ -61,7 +61,7 @@ reset role;
 select is(
   (select row(o.status, o.paid_at is not null, p.kind, p.entries_total, p.entries_left, p.status, p.expires_on, p.user_id)::text
    from public.orders o join public.user_passes p on p.order_id = o.id where o.id = (select id from t where name = 'o_entries')),
-  row('paid', true, 'entries', 10, 10, 'active', public.pass_expires_on(current_date), '00000000-0000-0000-0000-0000000000c1'::uuid)::text,
+  row('paid', true, 'entries', 10, 10, 'active', public.pass_expires_on((now() at time zone 'Europe/Warsaw')::date), '00000000-0000-0000-0000-0000000000c1'::uuid)::text,
   'AC-9: zamówienie paid i uprawnienie z expires_on = data zakupu + 1 rok'
 );
 select is(

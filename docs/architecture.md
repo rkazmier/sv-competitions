@@ -173,6 +173,14 @@
   - `staff_find_by_qr(token)`, `staff_search_people(query)` (od 3 znaków, maks. 10, e-mail częściowo) — obsługa; minimum danych:
     imię i nazwisko, `is_range_ready`, `missing_fields` (`full_name`, `permit_or_address`), godzina dzisiejszego wpisu.
   - `my_range_entries()` — własne wpisy bez podpisu i kolumn technicznych, z nazwą wykorzystanego uprawnienia.
+- Retencja (ADR-0006, SPEC-005 AC-30, AC-31, SPEC-002 §9): okresy jako funkcje `range_log_retention()` i `audit_log_retention()`
+  (`1 year`), `orphan_signature_grace()` (`24 hours`) — zmiana przez PR i migrację. Tylko `service_role`:
+  `retention_signatures(limit)` — ścieżki podpisów wpisów starszych niż retencja (`orphan = false`) i plików bez wpisu starszych
+  niż 24 h (`orphan = true`); `purge_range_log()` — usuwa wpisy starsze niż retencja, których plik podpisu już nie istnieje
+  (najpierw pliki, potem wiersze; jedyne miejsce z `sv.range_log_purge = on`), adnotacje kaskadą, `pass_usages` zostaje
+  z `range_log_entry_id = null`. `purge_audit_log()` — `pg_cron` `purge-audit-log` (`15 2 * * *` UTC).
+  `invoke_retention()` — `pg_cron` `range-log-retention` (`30 2 * * *` UTC), `pg_net` → `POST /functions/v1/retention`
+  z `Authorization: Bearer <sekret>`; URL projektu i sekret z Vault (`project_url`, `retention_invoke_secret`), bez nich — `notice`.
 - `calendar_events` (SPEC-003 §5): `access_mode` (`external` domyślnie / `free` / `paid`), `ticket_price` (wymagana dla `paid`),
   `capacity` (1–1000, `null` = bez limitu) — odczyt publiczny. Formularz i warunek publikacji — #51.
 - Custom Access Token Hook `public.custom_access_token_hook` (claim `app_role` = `user` / `staff` / `admin`, tylko UI) — lokalnie włączony w `config.toml`,
@@ -204,6 +212,11 @@
   `tr_amount`, `tr_paid` (→ grosze), `tr_status` (`TRUE`/`PAID` = wpłata), potem `rpc/process_tpay_notification`.
   Odpowiedzi: `TRUE` (przyjęte, powtórzone, inny stan), 400 `FALSE` (odrzucone), 401 (podpis), 500 (Tpay ponowi).
   E-mail płatnika z powiadomienia nie jest zapisywany ani logowany.
+- `retention` (SPEC-005 AC-30, AC-31, ADR-0006, `verify_jwt = false`): POST z `Authorization: Bearer RETENTION_INVOKE_SECRET`
+  (porównanie w stałym czasie, inaczej 401). Kluczem secret: `rpc/retention_signatures` partiami po 1000 (maks. 20),
+  `DELETE /storage/v1/object/signatures` po 100 plików, na końcu `rpc/purge_range_log`. Nieudane usunięcie pliku zostawia
+  wpis do następnego uruchomienia. W logu i odpowiedzi tylko liczby (`signatures_deleted`, `orphans_deleted`,
+  `signatures_failed`, `entries_deleted`). Odpowiedzi: 200, 401, 405, 500.
 - Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);
   osobne `concurrency` z `cancel-in-progress` dla każdego środowiska; nocny harmonogram przebudowuje oba.
 
