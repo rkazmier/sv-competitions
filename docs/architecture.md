@@ -144,7 +144,17 @@
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
-  Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`.
+  - Płatności Tpay (tylko `service_role`, ADR-0002): `create_tpay_order(user_id, product_id | event_id, request_key)` — `pending`
+    z ceną z bazy; ten sam `request_key` konta → istniejące zamówienie (`duplicate`, unikalny indeks `(user_id, request_key)`);
+    wejściówka z blokadą wiersza wydarzenia, limit `capacity` liczy `paid` + `pending` młodsze niż `ticket_reservation()` (30 min).
+    `attach_tpay_transaction` (id i tytuł transakcji), `discard_tpay_order` (Tpay niedostępny — usuwa `pending` bez transakcji).
+    `process_tpay_notification(hash, tytuł, order_id, kwota, wpłata, czy_wpłata)` — w jednej transakcji: idempotencja po
+    `payload_hash`, zgodność `tpay_title` i kwot, `fulfil_order`, wpis do `payment_notifications`; wynik `paid` / `already_paid` /
+    `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
+  Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`,
+  `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`.
+- `calendar_events` (SPEC-003 §5): `access_mode` (`external` domyślnie / `free` / `paid`), `ticket_price` (wymagana dla `paid`),
+  `capacity` (1–1000, `null` = bez limitu) — odczyt publiczny. Formularz i warunek publikacji — #51.
 - Custom Access Token Hook `public.custom_access_token_hook` (claim `app_role` = `user` / `staff` / `admin`, tylko UI) — lokalnie włączony w `config.toml`,
   w projektach Supabase włączany ręcznie w panelu (Authentication → Hooks).
 
@@ -161,6 +171,19 @@
   albo `default` z `SUPABASE_SECRET_KEYS`). Gdy usunięcie się nie uda, wpis jest wycofywany. Skutki w bazie przez klucze obce:
   `profiles` i `user_passes` — kaskada, `orders.user_id`, `created_by`, `audit_log.actor_id` — `null`; `audit_log.target_user_id`
   bez FK, więc wpis zostaje. Odpowiedzi: 204, 403, 404, 409 (własne konto), 500.
+- `payments-create` (SPEC-003 AC-8, AC-18): POST `{ product_id | event_id, request_key }` z JWT osoby. Konto z `/auth/v1/user`,
+  imię i nazwisko z `profiles` (brak → e-mail), `rpc/create_tpay_order` kluczem secret, potem Tpay: `POST /oauth/auth`
+  (client credentials) i `POST /transactions` (kwota, opis „SV <id zamówienia>”, `hiddenDescription` = id zamówienia,
+  powiadomienie na `TPAY_NOTIFICATION_URL`, powrót na `SITE_URL/konto/platnosc/?order=`), na końcu `rpc/attach_tpay_transaction`.
+  Odpowiedzi: 200 `{ order_id, payment_url }`, 400, 401, 409 (`sold_out`, `product_unavailable`, `event_unavailable`,
+  `sales_closed`, `duplicate_request`), 500, 502 (Tpay niedostępny — zamówienie usuwane). Sekrety: `TPAY_API_URL`,
+  `TPAY_CLIENT_ID`, `TPAY_CLIENT_SECRET`, `TPAY_NOTIFICATION_URL`, `SITE_URL`.
+- `payments-notify` (SPEC-003 AC-9, `verify_jwt = false` w `config.toml`): podpis JWS z `X-JWS-Signature` (RS256, payload odłączony),
+  `x5u` musi być certyfikatem Tpay dla środowiska z `TPAY_API_URL` (sandbox: `secure.sandbox.tpay.com`, produkcja: `secure.tpay.com`);
+  klucz publiczny z certyfikatu (`jws.ts`, bez bibliotek), pamiętany w instancji. Pola `tr_id`, `tr_crc` (= id zamówienia),
+  `tr_amount`, `tr_paid` (→ grosze), `tr_status` (`TRUE`/`PAID` = wpłata), potem `rpc/process_tpay_notification`.
+  Odpowiedzi: `TRUE` (przyjęte, powtórzone, inny stan), 400 `FALSE` (odrzucone), 401 (podpis), 500 (Tpay ponowi).
+  E-mail płatnika z powiadomienia nie jest zapisywany ani logowany.
 - Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);
   osobne `concurrency` z `cancel-in-progress` dla każdego środowiska; nocny harmonogram przebudowuje oba.
 
