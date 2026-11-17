@@ -31,7 +31,7 @@ for (const width of WIDTHS) {
 
     test('AC-2: elementy dotykowe ≥ 44 × 44 px', async ({ page }) => {
       await page.goto('/');
-      for (const link of await page.locator('header a, footer a').all()) {
+      for (const link of await page.locator('header a:visible, footer a:visible').all()) {
         const box = await link.boundingBox();
         expect(box, await link.textContent() ?? '').not.toBeNull();
         expect(box!.height).toBeGreaterThanOrEqual(44);

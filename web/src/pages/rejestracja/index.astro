@@ -1,0 +1,55 @@
+---
+/**
+ * Rejestracja e-mail + hasło (SPEC-002 AC-1, AC-2) i Google (AC-3). Logika: lib/auth-ui.ts.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PrivacyNotice from '../../components/PrivacyNotice.astro';
+import { t } from '../../i18n';
+import { PASSWORD_MIN } from '../../lib/auth';
+---
+<BaseLayout title={t('auth.registerTitle')}>
+  <section class="section">
+    <div class="container auth">
+      <h1>{t('auth.registerTitle')}</h1>
+      <form class="card auth-form" data-register novalidate>
+        <label class="field-label" for="r-email">{t('auth.emailLabel')}</label>
+        <input class="input" id="r-email" name="email" type="email" autocomplete="email" required aria-describedby="r-email-error" />
+        <p class="message-error" id="r-email-error" data-error-for="email" hidden></p>
+
+        <label class="field-label" for="r-password">{t('auth.passwordLabel')}</label>
+        <input class="input" id="r-password" name="password" type="password" autocomplete="new-password" required minlength={PASSWORD_MIN} aria-describedby="r-password-hint r-password-error" />
+        <p class="hint" id="r-password-hint">{t('auth.passwordHint', { min: PASSWORD_MIN })}</p>
+        <p class="message-error" id="r-password-error" data-error-for="password" hidden></p>
+
+        <label class="field-label" for="r-password2">{t('auth.password2Label')}</label>
+        <input class="input" id="r-password2" name="password2" type="password" autocomplete="new-password" required aria-describedby="r-password2-error" />
+        <p class="message-error" id="r-password2-error" data-error-for="password2" hidden></p>
+
+        <div class="check">
+          <input id="r-ack" name="ack" type="checkbox" required />
+          <label for="r-ack">{t('auth.privacyAck')}</label>
+        </div>
+        <p><a href="#klauzula" data-open-notice>{t('auth.privacyLink')}</a></p>
+
+        <p class="message-error" role="alert" data-form-error hidden></p>
+        <button type="submit" class="button button-primary" data-submit disabled>{t('auth.register')}</button>
+      </form>
+      <p class="card" role="status" data-done hidden>{t('auth.checkInbox')}</p>
+
+      <p class="or">{t('auth.or')}</p>
+      <button type="button" class="button" data-google>{t('auth.google')}</button>
+      <p><a href="/logowanie/" data-keep-next>{t('auth.haveAccount')}</a></p>
+
+      <dialog class="card notice" id="klauzula" aria-labelledby="klauzula-heading" data-notice>
+        <PrivacyNotice headingId="klauzula-heading" />
+        <form method="dialog"><button class="button">{t('privacy.close')}</button></form>
+      </dialog>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { mountRegister } from '../../lib/auth-ui';
+
+  mountRegister();
+</script>

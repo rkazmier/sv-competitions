@@ -60,6 +60,13 @@
 - `src/lib/panel.ts` — bramka panelu (ADR-0004): stan z roli w `profiles` (jak w RLS) — logowanie Google / brak uprawnień
   z linkiem do `/konto/` (`user`) / menu obsługi (`staff`) / treść i pełne menu (`admin`). `requireAdmin()` zwraca klienta
   tylko adminowi; skrypty stron kalendarza i słowników pobierają dane dopiero po niej. Menu obsługi i admina — `PanelLayout.astro`.
+- Konta (SPEC-002 AC-1…AC-6): `/rejestracja/`, `/logowanie/` (z „Nie pamiętam hasła”), `/logowanie/nowe-haslo/`, `/konto/`.
+  Logika bez DOM w `src/lib/auth.ts` (`?next=` tylko ścieżki aplikacji, walidacja, mapowanie błędów Auth), wyspy w `src/lib/auth-ui.ts`.
+  Google i link potwierdzający wracają na `/konto/` — tam pierwsze logowanie bez `privacy_notice_ack_at` pokazuje klauzulę
+  (`PrivacyNotice.astro`) z „Rozumiem”, potem przejście do `?next=`. Rejestracja e-mailem przekazuje `privacy_notice_ack: true`
+  w metadanych konta, a wyzwalacz `handle_new_user` zapisuje czas potwierdzenia. Linki w e-mailach Auth niosą `token_hash`
+  (szablony `supabase/templates/`, `verifyOtp`), więc działają też na innym urządzeniu. Nagłówek stron publicznych
+  (`HeaderAuthLinks.astro`): „Zaloguj się” / „Moje konto” / „Panel” z sesji w localStorage i claimu `app_role` — bez zapytań.
 - `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia), kolejność wpisów, „dziś” w Europe/Warsaw
   i grupowanie nadchodzących po miesiącach (`upcomingByMonth`).
 - Strony publiczne (`/`, `/zawody/<slug>/`) pobierają dane **przy budowaniu** w `src/lib/public-data.ts` (klucz publishable,
@@ -87,6 +94,8 @@
   Testy panelu wymagają `supabase start`: `playwright.config.ts` bierze URL i klucze z `supabase status`
   (tylko lokalna instancja), użytkownicy testowi z hasłem powstają przez API administratora lokalnego Supabase,
   sesja jest wstrzykiwana do localStorage (bez Google). W CI `supabase start` uruchamia Auth i REST.
+  Testy z e-mailami Auth (rejestracja, ponowny link, reset hasła) czytają skrzynkę lokalnego Mailpit (`MAILPIT_URL`);
+  bez Mailpit (dziś w CI `-x mailpit`) są pomijane.
 
 ## Baza (`supabase/`)
 

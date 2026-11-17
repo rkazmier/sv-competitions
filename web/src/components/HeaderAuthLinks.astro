@@ -1,0 +1,25 @@
+---
+/**
+ * Linki konta w nagłówku strony publicznej (SPEC-002 §6): „Zaloguj się” (gość) / „Moje konto” (zalogowany)
+ * i „Panel” (obsługa, admin). Stan z zapisanej sesji (lib/auth.ts `headerState`), bez klienta Supabase.
+ */
+import { t } from '../i18n';
+---
+<li data-header-auth="guest"><a href="/logowanie/">{t('nav.signIn')}</a></li>
+<li data-header-auth="user" hidden><a href="/konto/">{t('nav.account')}</a></li>
+<li data-header-auth="staff" hidden><a href="/panel/">{t('nav.panel')}</a></li>
+
+<script>
+  import { AUTH_STORAGE_KEY, headerState } from '../lib/auth';
+
+  let state = headerState(null);
+  try {
+    state = headerState(window.localStorage.getItem(AUTH_STORAGE_KEY));
+  } catch {
+    // localStorage niedostępny — zostaje „Zaloguj się”
+  }
+  const visible = { guest: ['guest'], user: ['user'], staff: ['user', 'staff'] }[state];
+  for (const item of document.querySelectorAll<HTMLElement>('[data-header-auth]')) {
+    item.hidden = !visible.includes(item.dataset.headerAuth ?? '');
+  }
+</script>

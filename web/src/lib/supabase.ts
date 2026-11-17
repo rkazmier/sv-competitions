@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { AUTH_STORAGE_KEY } from './auth';
 
 /**
  * Klient Supabase dla wysp w przeglądarce (panel). URL i klucz publishable ze zmiennych `PUBLIC_*`
@@ -6,8 +7,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
  * Klient tworzony leniwie, więc build stron bez zmiennych (np. lint/test w CI) działa.
  */
 
-/** Klucz sesji w localStorage (stały, niezależny od hosta — używany też przez testy E2E). */
-export const AUTH_STORAGE_KEY = 'sv-auth';
+export { AUTH_STORAGE_KEY };
 
 let client: SupabaseClient | undefined;
 

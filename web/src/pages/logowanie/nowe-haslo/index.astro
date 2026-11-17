@@ -1,0 +1,42 @@
+---
+/**
+ * Ustawienie nowego hasła z linku z e-maila (SPEC-002 AC-6). Logika: lib/auth-ui.ts.
+ */
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { t } from '../../../i18n';
+import { PASSWORD_MIN } from '../../../lib/auth';
+---
+<BaseLayout title={t('auth.newPasswordTitle')} indexable={false}>
+  <section class="section">
+    <div class="container auth">
+      <h1>{t('auth.newPasswordTitle')}</h1>
+      <form class="card auth-form" data-new-password novalidate hidden>
+        <label class="field-label" for="n-password">{t('auth.newPasswordLabel')}</label>
+        <input class="input" id="n-password" name="password" type="password" autocomplete="new-password" required minlength={PASSWORD_MIN} aria-describedby="n-password-hint n-password-error" />
+        <p class="hint" id="n-password-hint">{t('auth.passwordHint', { min: PASSWORD_MIN })}</p>
+        <p class="message-error" id="n-password-error" data-error-for="password" hidden></p>
+
+        <label class="field-label" for="n-password2">{t('auth.password2Label')}</label>
+        <input class="input" id="n-password2" name="password2" type="password" autocomplete="new-password" required aria-describedby="n-password2-error" />
+        <p class="message-error" id="n-password2-error" data-error-for="password2" hidden></p>
+
+        <p class="message-error" role="alert" data-form-error hidden></p>
+        <button type="submit" class="button button-primary" data-submit>{t('auth.savePassword')}</button>
+      </form>
+      <div class="card" data-done hidden>
+        <p role="status">{t('auth.passwordSaved')}</p>
+        <a class="button button-primary" href="/konto/">{t('auth.goToAccount')}</a>
+      </div>
+      <div class="card" data-invalid hidden>
+        <p class="message-error" role="alert">{t('auth.linkInvalid')}</p>
+        <a class="button" href="/logowanie/">{t('auth.goToLogin')}</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { mountNewPassword } from '../../../lib/auth-ui';
+
+  mountNewPassword();
+</script>
