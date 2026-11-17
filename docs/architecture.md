@@ -36,6 +36,13 @@
 - Role trzymane w tabeli `profiles`. RLS sprawdza rolę funkcjami `public.is_staff()` / `public.is_admin()` (odczyt z `profiles`;
   `is_organizer()` to alias `is_admin()` z SPEC-001), claim `app_role` w JWT (Custom Access Token Hook) służy tylko interfejsowi.
 - Zmiany danych użytkownika dokonane przez inne osoby, role, zwroty, faktury i eksporty książki → `audit_log` (SPEC-002).
+  Zapis do `audit_log` tylko funkcjami `security definer`: wyzwalacz `audit_profile_changes` (zmiana danych profilu, gdy
+  `auth.uid() <> id`), `set_user_role()` (`role_change`). Odczyt — tylko admin.
+- `profiles` (SPEC-002 §5): klient zmienia wyłącznie kolumny danych (`full_name`, `phone`, `permit_number`, `permit_authority`,
+  `address`, `privacy_notice_ack_at` — uprawnienia kolumnowe; własny wiersz, admin — każdy). Wyzwalacz `profiles_normalize`
+  przycina tekst i zamienia puste ciągi na `null`. `is_range_ready` liczone w bazie (kolumna generowana).
+  `role` — tylko `set_user_role(user_id, role)` (admin, zawsze zostaje jeden admin: błąd `last_admin`);
+  `qr_token` — tylko `rotate_qr_token()` (własny). Lista kont z e-mailem: `admin_list_users(search, page)` (admin, 50 na stronę).
 - Zadania cykliczne: `pg_cron` (ADR-0006); okresy przechowywania jako funkcje SQL zmieniane przez PR.
 - Strony publiczne generowane przy budowaniu, panel pobiera dane w przeglądarce; przebudowa po zmianach (ADR-0003).
 - Kalendarz strzelnicy = zawody (`competitions`) + wydarzenia (`calendar_events`) w osobnych tabelach, łączone we frontendzie (`CalendarEntry`).
