@@ -1,18 +1,23 @@
 /**
  * Wyspy panelu admina — konta użytkowników (SPEC-002 US-4, US-5). Tylko admin (`requireAdmin`).
  * `/panel/uzytkownicy/` — lista z wyszukiwarką (AC-16); `/panel/uzytkownicy/profil/?id=` — dane (AC-20),
- * rola (AC-17, AC-18), „Historia zmian” (AC-21). Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
+ * rola (AC-17, AC-18), „Historia zmian” (AC-21), „Usuń konto” (AC-23…AC-25, Edge Function `admin-delete-user`).
+ * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  * Wpisy w `audit_log` tworzy baza (wyzwalacz `audit_profile_changes`, `set_user_role`), nie ten kod.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { ACCOUNT_COLUMNS, fillProfileForm, readProfileForm } from './account-ui';
 import {
+  DELETE_USER_FUNCTION,
   HISTORY_LIMIT,
   actorName,
+  canDeleteAccount,
+  deleteResultKey,
   describeChanges,
   formatDateTime,
   formatDay,
+  isDeleteConfirmed,
   pageCount,
   roleErrorKey,
   roleLabel,
@@ -85,7 +90,7 @@ export async function mountUserList(root: HTMLElement): Promise<void> {
   await load();
 }
 
-// ===== /panel/uzytkownicy/profil/?id= (AC-17, AC-18, AC-20, AC-21) =====
+// ===== /panel/uzytkownicy/profil/?id= (AC-17, AC-18, AC-20, AC-21, AC-23…AC-25) =====
 
 type CardProfile = AccountProfile & { role: string };
 
@@ -210,7 +215,73 @@ export async function mountUserCard(root: HTMLElement): Promise<void> {
     await loadHistory(supabase, root, userId);
   });
 
+  // Usunięcie konta (AC-23…AC-25): ostrzeżenie i „USUŃ”; własnego konta nie da się usunąć (sprawdza też funkcja).
+  const { data: sessionData } = await supabase.auth.getSession();
+  mountDelete(supabase, root, userId, canDeleteAccount(sessionData.session?.user.id, userId));
+
   await loadHistory(supabase, root, userId);
   loading.hidden = true;
   el(root, '[data-content]').hidden = false;
+}
+
+/** Status HTTP z błędu `functions.invoke` (FunctionsHttpError ma `context: Response`). */
+function errorStatus(error: unknown): number | null {
+  const context = (error as { context?: unknown } | null)?.context;
+  return context instanceof Response ? context.status : null;
+}
+
+function mountDelete(supabase: SupabaseClient, root: HTMLElement, userId: string, allowed: boolean): void {
+  const open = el<HTMLButtonElement>(root, '[data-delete-open]');
+  const form = el<HTMLFormElement>(root, 'form[data-delete-form]');
+  const input = el<HTMLInputElement>(form, '#u-delete-confirm');
+  const submit = el<HTMLButtonElement>(form, '[data-delete-submit]');
+  const error = el(form, '[data-delete-error]');
+
+  // AC-25: przycisk niedostępny z podpowiedzią.
+  if (!allowed) {
+    open.disabled = true;
+    el(root, '[data-delete-own]').hidden = false;
+    return;
+  }
+  open.removeAttribute('aria-describedby');
+
+  const close = () => {
+    form.hidden = true;
+    open.hidden = false;
+    input.value = '';
+    submit.disabled = true;
+    error.hidden = true;
+    open.focus();
+  };
+  open.addEventListener('click', () => {
+    open.hidden = true;
+    form.hidden = false;
+    input.focus();
+  });
+  el(form, '[data-delete-cancel]').addEventListener('click', close);
+  input.addEventListener('input', () => {
+    submit.disabled = !isDeleteConfirmed(input.value);
+  });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!isDeleteConfirmed(input.value)) return;
+    error.hidden = true;
+    submit.disabled = true;
+    let status: number | null;
+    try {
+      const result = await supabase.functions.invoke(DELETE_USER_FUNCTION, { body: { user_id: userId } });
+      status = result.error ? errorStatus(result.error) : 204;
+    } catch {
+      status = null;
+    }
+    if (status === 204) {
+      el(root, '[data-content]').hidden = true;
+      el(root, '[data-title]').textContent = t('users.cardTitle');
+      el(root, '[data-deleted]').hidden = false;
+      return;
+    }
+    submit.disabled = false;
+    error.textContent = t(deleteResultKey(status));
+    error.hidden = false;
+  });
 }

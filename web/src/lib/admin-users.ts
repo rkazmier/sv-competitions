@@ -1,6 +1,7 @@
 /**
- * Panel admina — konta użytkowników (SPEC-002 US-4, US-5; AC-16…AC-18, AC-20, AC-21). Logika bez DOM, testowana w Vitest.
- * Dane: `rpc/admin_list_users`, `rpc/admin_user_email`, `rpc/set_user_role`, `profiles`, `audit_log` (tylko admin — RLS).
+ * Panel admina — konta użytkowników (SPEC-002 US-4…US-6; AC-16…AC-18, AC-20, AC-21, AC-23…AC-25). Logika bez DOM, testowana w Vitest.
+ * Dane: `rpc/admin_list_users`, `rpc/admin_user_email`, `rpc/set_user_role`, `profiles`, `audit_log` (tylko admin — RLS),
+ * Edge Function `admin-delete-user`.
  * Interfejs: lib/admin-users-ui.ts.
  */
 import { t, type MessageKey } from '../i18n';
@@ -96,4 +97,26 @@ export function describeChanges(entry: Pick<AuditEntry, 'action' | 'changes'>): 
 export function actorName(entry: Pick<AuditEntry, 'actor'>): string {
   if (!entry.actor) return t('users.actorDeleted');
   return entry.actor.full_name ?? t('users.actorNoName');
+}
+
+// ===== Usunięcie konta (US-6) =====
+
+export const DELETE_USER_FUNCTION = 'admin-delete-user';
+/** AC-23: słowo, które admin musi wpisać, aby potwierdzić usunięcie konta. */
+export const DELETE_CONFIRM_WORD = 'USUŃ';
+
+/** AC-23: potwierdzenie — dokładnie „USUŃ” (spacje na brzegach pomijane). */
+export const isDeleteConfirmed = (input: string) => input.trim() === DELETE_CONFIRM_WORD;
+
+/** AC-25: admin nie usuwa własnego konta. */
+export const canDeleteAccount = (currentUserId: string | null | undefined, userId: string) =>
+  Boolean(currentUserId) && currentUserId !== userId;
+
+/** Odpowiedź `admin-delete-user` → komunikat (204 — sukces, 409 — własne konto, 404 — brak konta). */
+export function deleteResultKey(status: number | null): MessageKey {
+  if (status === 204) return 'users.deleted';
+  if (status === 409) return 'users.deleteOwn';
+  if (status === 404) return 'users.notFound';
+  if (status === 403) return 'users.deleteForbidden';
+  return 'users.deleteError';
 }

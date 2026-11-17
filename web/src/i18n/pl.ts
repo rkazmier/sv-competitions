@@ -186,6 +186,17 @@ export const pl = {
     privacyAck: 'Potwierdzenie klauzuli informacyjnej',
     actorNoName: '(konto bez imienia i nazwiska)',
     actorDeleted: '(konto usunięte)',
+    deleteTitle: 'Usuń konto',
+    deleteButton: 'Usuń konto',
+    deleteWarning:
+      'Konto, dane profilu i kod QR zostaną usunięte. Niewykorzystane karnety przepadną. Zamówienia i dane do faktur zostają przez 5 lat, wpisy w książce rejestru pobytu — do końca okresu przechowywania.',
+    deleteConfirmLabel: 'Aby potwierdzić, wpisz USUŃ',
+    deleteConfirm: 'Usuń konto na stałe',
+    deleteCancel: 'Anuluj',
+    deleteOwn: 'Nie możesz usunąć własnego konta.',
+    deleted: 'Konto zostało usunięte.',
+    deleteForbidden: 'Nie masz uprawnień do usunięcia konta.',
+    deleteError: 'Nie udało się usunąć konta. Spróbuj ponownie.',
   },
   products: {
     title: 'Oferta — produkty i ceny',

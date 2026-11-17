@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { admin, ensureUser, hasLocalSupabase, signIn } from './support/supabase';
 
-// SPEC-002 US-4, US-5: panel admina — lista kont, rola, dane użytkownika, historia zmian (AC-16…AC-18, AC-20, AC-21).
+// SPEC-002 US-4…US-6: panel admina — lista kont, rola, dane użytkownika, historia zmian, usunięcie konta
+// (AC-16…AC-18, AC-20, AC-21, AC-23…AC-25).
 // Logikę bazy (ostatni admin, uprawnienia, wpisy audit_log) sprawdza też pgTAP (007, 010).
 test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supabase start + zmienne środowiskowe)');
 
@@ -166,6 +167,61 @@ test.describe('admin', () => {
     await expect(history(page).first()).toContainText('Telefon: 600 100 200 → nie podano');
     await expect(history(page).nth(1)).toContainText('Organ wydający: nie podano → KWP w Katowicach');
     await expect(history(page).first().locator('time')).toHaveText(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
+  });
+
+  test('AC-23, AC-24: usunięcie konta — ostrzeżenie, wpisanie „USUŃ”, wywołanie admin-delete-user', async ({ page }) => {
+    // Edge Function (wpis account_delete, Auth Admin API) testują Deno i pgTAP (011); w E2E — odpowiedź zamockowana.
+    const user = await newUser();
+    const requests: { body: unknown; authorization: string | null }[] = [];
+    await page.route('**/functions/v1/admin-delete-user', (route) => {
+      requests.push({ body: route.request().postDataJSON(), authorization: route.request().headers()['authorization'] });
+      return route.fulfill({ status: 204 });
+    });
+    await page.goto(`/panel/uzytkownicy/profil/?id=${user.id}`);
+    await page.getByRole('button', { name: 'Usuń konto', exact: true }).click();
+    await expect(page.getByText(
+      'Konto, dane profilu i kod QR zostaną usunięte. Niewykorzystane karnety przepadną. Zamówienia i dane do faktur zostają przez 5 lat, wpisy w książce rejestru pobytu — do końca okresu przechowywania.',
+    )).toBeVisible();
+    const confirm = page.getByLabel('Aby potwierdzić, wpisz USUŃ');
+    const submit = page.getByRole('button', { name: 'Usuń konto na stałe' });
+    await expect(submit).toBeDisabled();
+    await confirm.fill('USUN');
+    await expect(submit).toBeDisabled();
+    await confirm.fill('USUŃ');
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Konto zostało usunięte.' })).toBeVisible();
+    await expect(page.locator('[data-content]')).toBeHidden();
+    expect(requests).toHaveLength(1);
+    expect(requests[0].body).toEqual({ user_id: user.id });
+    expect(requests[0].authorization).toMatch(/^Bearer \S+/);
+  });
+
+  test('AC-23: „Anuluj” zamyka ostrzeżenie bez wywołania funkcji; błąd funkcji → komunikat', async ({ page }) => {
+    const user = await newUser();
+    let calls = 0;
+    await page.route('**/functions/v1/admin-delete-user', (route) => {
+      calls += 1;
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"delete_failed"}' });
+    });
+    await page.goto(`/panel/uzytkownicy/profil/?id=${user.id}`);
+    await page.getByRole('button', { name: 'Usuń konto', exact: true }).click();
+    await page.getByRole('button', { name: 'Anuluj' }).click();
+    await expect(page.getByLabel('Aby potwierdzić, wpisz USUŃ')).toBeHidden();
+    expect(calls).toBe(0);
+
+    await page.getByRole('button', { name: 'Usuń konto', exact: true }).click();
+    await page.getByLabel('Aby potwierdzić, wpisz USUŃ').fill('USUŃ');
+    await page.getByRole('button', { name: 'Usuń konto na stałe' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Nie udało się usunąć konta. Spróbuj ponownie.' })).toBeVisible();
+    expect(calls).toBe(1);
+    expect(await profileRow(user.id)).toBeTruthy();
+  });
+
+  test('AC-25: własne konto — „Usuń konto” niedostępne z podpowiedzią', async ({ page }) => {
+    await page.goto(`/panel/uzytkownicy/profil/?id=${await adminId()}`);
+    await expect(page.getByRole('button', { name: 'Usuń konto', exact: true })).toBeDisabled();
+    await expect(page.getByText('Nie możesz usunąć własnego konta.')).toBeVisible();
   });
 
   test('karta: nieznane lub błędne id → „Nie znaleziono konta.”', async ({ page }) => {

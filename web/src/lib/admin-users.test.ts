@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '../i18n';
 import {
   actorName,
+  canDeleteAccount,
+  deleteResultKey,
   describeChanges,
   formatDateTime,
+  isDeleteConfirmed,
   pageCount,
   roleErrorKey,
   roleLabel,
@@ -64,5 +68,30 @@ describe('historia zmian', () => {
 
   it('AC-21: data i godzina w strefie Europe/Warsaw', () => {
     expect(formatDateTime('2027-01-15T11:05:00Z')).toBe('15.01.2027, 12:05');
+  });
+});
+
+describe('usunięcie konta', () => {
+  it('AC-23: potwierdzenie wymaga wpisania „USUŃ”', () => {
+    expect(isDeleteConfirmed('USUŃ')).toBe(true);
+    expect(isDeleteConfirmed('  USUŃ ')).toBe(true);
+    expect(isDeleteConfirmed('USUN')).toBe(false);
+    expect(isDeleteConfirmed('usuń')).toBe(false);
+    expect(isDeleteConfirmed('')).toBe(false);
+  });
+
+  it('AC-25: admin nie usuwa własnego konta', () => {
+    expect(canDeleteAccount('a', 'a')).toBe(false);
+    expect(canDeleteAccount('a', 'b')).toBe(true);
+    expect(canDeleteAccount(null, 'b')).toBe(false);
+  });
+
+  it('AC-24, AC-25: odpowiedź admin-delete-user → komunikat', () => {
+    expect(t(deleteResultKey(204))).toBe('Konto zostało usunięte.');
+    expect(t(deleteResultKey(409))).toBe('Nie możesz usunąć własnego konta.');
+    expect(t(deleteResultKey(404))).toBe('Nie znaleziono konta.');
+    expect(t(deleteResultKey(403))).toBe('Nie masz uprawnień do usunięcia konta.');
+    expect(t(deleteResultKey(500))).toBe('Nie udało się usunąć konta. Spróbuj ponownie.');
+    expect(t(deleteResultKey(null))).toBe('Nie udało się usunąć konta. Spróbuj ponownie.');
   });
 });

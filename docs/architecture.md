@@ -37,7 +37,8 @@
   `is_organizer()` to alias `is_admin()` z SPEC-001), claim `app_role` w JWT (Custom Access Token Hook) służy tylko interfejsowi.
 - Zmiany danych użytkownika dokonane przez inne osoby, role, zwroty, faktury i eksporty książki → `audit_log` (SPEC-002).
   Zapis do `audit_log` tylko funkcjami `security definer`: wyzwalacz `audit_profile_changes` (zmiana danych profilu, gdy
-  `auth.uid() <> id`), `set_user_role()` (`role_change`). Odczyt — tylko admin.
+  `auth.uid() <> id`), `set_user_role()` (`role_change`), `admin_log_account_delete()` (`account_delete`, bez danych
+  osobowych — tylko identyfikator konta). Odczyt — tylko admin.
 - `profiles` (SPEC-002 §5): klient zmienia wyłącznie kolumny danych (`full_name`, `phone`, `permit_number`, `permit_authority`,
   `address`, `privacy_notice_ack_at` — uprawnienia kolumnowe; własny wiersz, admin — każdy). Wyzwalacz `profiles_normalize`
   przycina tekst i zamienia puste ciągi na `null`. `is_range_ready` liczone w bazie (kolumna generowana).
@@ -76,7 +77,8 @@
   (`rpc/admin_list_users`; fraza nie trafia do adresu strony), `/panel/uzytkownicy/profil/?id=` — e-mail (`rpc/admin_user_email`),
   dane (zapis do `profiles` jak w `/konto/dane/`, wpis w `audit_log` robi wyzwalacz), rola (`rpc/set_user_role`, potwierdzenie,
   błąd `last_admin`), „Historia zmian” (`audit_log` z autorem przez `actor_id`, od najnowszych, 100 ostatnich).
-  Logika bez DOM w `src/lib/admin-users.ts`, wyspy w `src/lib/admin-users-ui.ts`.
+  „Usuń konto” (AC-23…AC-25): ostrzeżenie i wpisanie „USUŃ”, potem Edge Function `admin-delete-user`; na własnej karcie
+  przycisk niedostępny. Logika bez DOM w `src/lib/admin-users.ts`, wyspy w `src/lib/admin-users-ui.ts`.
 - `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia), kolejność wpisów, „dziś” w Europe/Warsaw
   i grupowanie nadchodzących po miesiącach (`upcomingByMonth`).
 - Strony publiczne (`/`, `/zawody/<slug>/`) pobierają dane **przy budowaniu** w `src/lib/public-data.ts` (klucz publishable,
@@ -150,6 +152,12 @@
 - `site-rebuild` (ADR-0003): rola sprawdzana przez `rpc/is_organizer` (alias `is_admin()`) z JWT wywołującego (to samo źródło co RLS), potem
   `workflow_dispatch` workflowu `rebuild-site.yml` (`ref: main`, `inputs.target` = `SITE_ENV`). Odpowiedzi: 202 — uruchomiono,
   403 — nie organizator, 500 — brak `GITHUB_DISPATCH_TOKEN` / `SITE_ENV`, 502 — błąd GitHub API. Token nie trafia do logów ani odpowiedzi.
+- `admin-delete-user` (SPEC-002 AC-24, AC-25): POST `{ user_id }`. `rpc/is_admin` z JWT wywołującego, potem
+  `rpc/admin_log_account_delete` z tym samym JWT (wpis `account_delete` z autorem; odmowa dla własnego konta — `own_account`,
+  i nieistniejącego — `not_found`), na końcu `DELETE /auth/v1/admin/users/:id` kluczem secret (`SUPABASE_SECRET_KEY`
+  albo `default` z `SUPABASE_SECRET_KEYS`). Gdy usunięcie się nie uda, wpis jest wycofywany. Skutki w bazie przez klucze obce:
+  `profiles` i `user_passes` — kaskada, `orders.user_id`, `created_by`, `audit_log.actor_id` — `null`; `audit_log.target_user_id`
+  bez FK, więc wpis zostaje. Odpowiedzi: 204, 403, 404, 409 (własne konto), 500.
 - Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);
   osobne `concurrency` z `cancel-in-progress` dla każdego środowiska; nocny harmonogram przebudowuje oba.
 
