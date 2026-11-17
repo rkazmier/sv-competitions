@@ -67,10 +67,12 @@
   w metadanych konta, a wyzwalacz `handle_new_user` zapisuje czas potwierdzenia. Linki w e-mailach Auth niosą `token_hash`
   (szablony `supabase/templates/`, `verifyOtp`), więc działają też na innym urządzeniu. Nagłówek stron publicznych
   (`HeaderAuthLinks.astro`): „Zaloguj się” / „Moje konto” / „Panel” z sesji w localStorage i claimu `app_role` — bez zapytań.
-- Panel użytkownika (SPEC-002 AC-7…AC-11): `/konto/` — blok braków albo „Gotowy do wpisu do książki” (z kolumny
-  `is_range_ready`), „Twoje dane”; `/konto/dane/` — formularz danych (zapis tylko kolumn z uprawnieniami
+- Panel użytkownika (SPEC-002 AC-7…AC-15): `/konto/` — blok braków albo „Gotowy do wpisu do książki” (z kolumny
+  `is_range_ready`), kod QR, „Twoje dane”; `/konto/dane/` — formularz danych (zapis tylko kolumn z uprawnieniami
   kolumnowymi, własny wiersz). Walidacja i lista braków bez DOM w `src/lib/profile.ts` (te same limity co `check` w bazie),
-  wyspy w `src/lib/account-ui.ts`.
+  wyspy w `src/lib/account-ui.ts`. Kod QR (`src/lib/qr.ts`) to SVG generowany w przeglądarce z pakietu `qrcode`
+  (treść = sam `qr_token`, bez usług zewnętrznych); pełny ekran to `<dialog>` z wpisem w historii (gest wstecz zamyka),
+  druk — styl `@media print` w `pages/konto/index.astro`, nowy kod — `rpc('rotate_qr_token')`.
 - `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia), kolejność wpisów, „dziś” w Europe/Warsaw
   i grupowanie nadchodzących po miesiącach (`upcomingByMonth`).
 - Strony publiczne (`/`, `/zawody/<slug>/`) pobierają dane **przy budowaniu** w `src/lib/public-data.ts` (klucz publishable,
