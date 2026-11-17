@@ -3,14 +3,18 @@
 ```
  przeglądarka ──► events.steel-valley.pl (GitHub Pages, Astro, statyczny)
        │
-       ├──► Supabase Auth            (logowanie organizatora: Google; zawodnicy — w specyfikacji rejestracji)
+       ├──► Supabase Auth            (Google oraz e-mail + hasło; role user / staff / admin — ADR-0004)
        ├──► Supabase PostgreSQL      (dane, dostęp przez RLS, klucz publishable)
-       ├──► Supabase Storage         (regulaminy PDF, załączniki)
+       ├──► Supabase Storage         (regulaminy PDF — publiczny `documents`; podpisy — prywatny `signatures`)
        └──► Supabase Edge Functions  (logika z kluczem secret)
                  ├── site-rebuild     ──► GitHub Actions (rebuild-site.yml, ADR-0003)
                  ├── payments-create  ──► Tpay Open API (utworzenie transakcji)
-                 ├── payments-notify  ◄── Tpay (powiadomienie JWS) → status płatności
-                 └── emails           ──► dostawca e-mail
+                 ├── payments-notify  ◄── Tpay (powiadomienie JWS) → status zamówienia, uprawnienie
+                 ├── payments-refund  ──► Tpay Open API (zwrot)
+                 ├── company-lookup   ──► Biała lista MF / GUS REGON (dane firmy po NIP)
+                 ├── admin-delete-user ─► Supabase Auth Admin API
+                 └── retention        ◄── pg_cron + pg_net (usuwanie starych wpisów i podpisów, ADR-0006)
+ Faktury: admin wystawia ręcznie w e-mikrofirmie (KSeF) — bez integracji (ADR-0005)
 ```
 
 ## Środowiska
@@ -28,9 +32,11 @@
   Po stronie serwera (Edge Functions) używaj klucza secret (`sb_secret_…`), nigdy we frontendzie.
 - W obu projektach Supabase włączone jest automatyczne RLS dla nowych tabel w schemacie `public`.
   Migracja i tak musi jawnie zawierać `enable row level security` i polityki — nie polegaj na wyzwalaczu.
-- Każda tabela z danymi osobowymi: RLS włączone, polityki per rola (`competitor`, `organizer`, `admin`).
-- Role trzymane w tabeli `profiles`. RLS sprawdza rolę funkcją `public.is_organizer()` (odczyt z `profiles`),
-  claim `app_role` w JWT (Custom Access Token Hook) służy tylko interfejsowi (SPEC-001).
+- Każda tabela z danymi osobowymi: RLS włączone, polityki per rola (`user`, `staff`, `admin` — ADR-0004).
+- Role trzymane w tabeli `profiles`. RLS sprawdza rolę funkcjami `public.is_staff()` / `public.is_admin()` (odczyt z `profiles`;
+  `is_organizer()` to alias `is_admin()` z SPEC-001), claim `app_role` w JWT (Custom Access Token Hook) służy tylko interfejsowi.
+- Zmiany danych użytkownika dokonane przez inne osoby, role, zwroty, faktury i eksporty książki → `audit_log` (SPEC-002).
+- Zadania cykliczne: `pg_cron` (ADR-0006); okresy przechowywania jako funkcje SQL zmieniane przez PR.
 - Strony publiczne generowane przy budowaniu, panel pobiera dane w przeglądarce; przebudowa po zmianach (ADR-0003).
 - Kalendarz strzelnicy = zawody (`competitions`) + wydarzenia (`calendar_events`) w osobnych tabelach, łączone we frontendzie (`CalendarEntry`).
 - Daty wpisów (zawody, wydarzenia) i harmonogram w czasie lokalnym strzelnicy (`date`/`time`), znaczniki zapisu w `timestamptz`.
@@ -103,10 +109,16 @@
 
 ## Model danych
 
-Szczegóły kolumn i polityk RLS — w specyfikacjach (źródło: SPEC-001).
+Szczegóły kolumn i polityk RLS — w specyfikacjach (SPEC-001 kalendarz; SPEC-002…005 klienci strzelnicy).
 
 ```
-auth.users 1──1 profiles (role: competitor | organizer)
+auth.users 1──1 profiles (role: user | staff | admin; dane do książki; qr_token)   — SPEC-002
+profiles 1──0..1 billing_details                                                  — SPEC-004
+profiles 1──* orders *──0..1 products | calendar_events (wejściówka)              — SPEC-003
+orders 1──1 user_passes 1──* pass_usages 0..1──1 range_log                        — SPEC-003 / SPEC-005
+range_officers 1──* range_log 1──* range_log_annotations                          — SPEC-005
+audit_log (kto, kogo, co) — bez FK do usuwanych kont                              — SPEC-002
+Storage bucket signatures (prywatny): signatures/<RRRR>/<MM>/<range_log.id>.png
 disciplines 1──* competitions *──0..1 rulebooks
 competitions 1──* schedule_items
 event_categories 1──* calendar_events
@@ -115,10 +127,18 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
-| `profiles` | rola konta | tak (powiązanie z kontem) | nie (tylko własny wiersz) |
+| `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
+| `audit_log` | dziennik zmian | tak | nie (admin) |
+| `products` | produkty Oferty | nie | tylko aktywne |
+| `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
+| `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
+| `user_passes`, `pass_usages` | uprawnienia i ich zużycie | tak (powiązanie z kontem) | nie (własne; obsługa, admin) |
+| `billing_details` | dane do faktury | tak | nie (własne; obsługa, admin) |
+| `range_officers` | prowadzący strzelanie | tak | nie (obsługa, admin) |
+| `range_log`, `range_log_annotations` | książka rejestru pobytu (tylko `insert`, retencja 1 rok) | tak | nie (admin; obsługa — dzisiejsze; osoba — własne przez funkcję) |
 | `disciplines` | lista dyscyplin | nie | tak |
 | `event_categories` | kategorie wydarzeń | nie | tak |
 | `rulebooks` | biblioteka regulaminów PDF | `created_by` | tylko używane w opublikowanych zawodach, bez `created_by` |
 | `competitions` | zawody (`draft` / `published`) | `created_by` | tylko opublikowane, bez `created_by` |
 | `schedule_items` | punkty harmonogramu | nie | tylko opublikowanych zawodów |
-| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`) | `created_by` | tylko opublikowane, bez `created_by` |
+| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`; tryb `external` / `free` / `paid` — SPEC-003) | `created_by` | tylko opublikowane, bez `created_by` |
