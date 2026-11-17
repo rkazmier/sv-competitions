@@ -14,7 +14,8 @@ Operator płatności: Tpay (Open API) — BLIK, szybkie przelewy, karty.
   2. porównaniu kwoty i waluty z bazą,
   3. sprawdzeniu idempotencji (to samo powiadomienie nie zmienia stanu dwa razy).
 - Środowiska: sandbox (`https://openapi.sandbox.tpay.com`) dla lokalnie i staging, produkcja (`https://api.tpay.com`).
-- Zwrot pieniędzy inicjuje organizator z panelu; zwroty przelewów są asynchroniczne.
+- Zwrot pieniędzy inicjuje admin z panelu (do 2026-11-17: „organizator” — ADR-0004); zwroty przelewów są asynchroniczne.
+- Płatności dotyczą też Oferty (SPEC-003): zamówienie = jeden produkt; dodatkowo Edge Function `payments-refund`.
 
 ## Do ustalenia
-- Faktury / paragony za wpisowe.
+- Faktury za Ofertę — ADR-0005 (e-mikrofirma). Faktury / paragony za wpisowe — w specyfikacji zapisów na zawody.
