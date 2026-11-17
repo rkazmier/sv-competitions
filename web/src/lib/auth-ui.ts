@@ -217,7 +217,7 @@ function showAccountState(state: 'ack' | 'ready' | 'error'): void {
   }
 }
 
-/** `/konto/` — klauzula przy pierwszym logowaniu Google (AC-3), potem `?next=` (AC-5) albo panel konta (AC-7, AC-9, AC-10). */
+/** `/konto/` — klauzula przy pierwszym logowaniu Google (AC-3), potem `?next=` (AC-5) albo panel konta (AC-9…AC-15). */
 export async function mountAccount(): Promise<void> {
   const supabase = client();
   if (!supabase) return showAccountState('error');
@@ -230,7 +230,7 @@ export async function mountAccount(): Promise<void> {
     const next = safeNext();
     if (next && new URL(next, window.location.origin).pathname !== ACCOUNT_HOME) return window.location.replace(next);
     el(document, '[data-signed-in-as]').textContent = t('account.signedInAs', { email: user.email ?? '' });
-    renderAccount(user, profile);
+    renderAccount(supabase, user, profile);
     showAccountState('ready');
   };
   el(document, '[data-sign-out]').addEventListener('click', async () => {
