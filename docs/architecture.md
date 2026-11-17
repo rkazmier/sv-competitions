@@ -42,7 +42,8 @@
   `address`, `privacy_notice_ack_at` — uprawnienia kolumnowe; własny wiersz, admin — każdy). Wyzwalacz `profiles_normalize`
   przycina tekst i zamienia puste ciągi na `null`. `is_range_ready` liczone w bazie (kolumna generowana).
   `role` — tylko `set_user_role(user_id, role)` (admin, zawsze zostaje jeden admin: błąd `last_admin`);
-  `qr_token` — tylko `rotate_qr_token()` (własny). Lista kont z e-mailem: `admin_list_users(search, page)` (admin, 50 na stronę).
+  `qr_token` — tylko `rotate_qr_token()` (własny). Lista kont z e-mailem: `admin_list_users(search, page)` (admin, 50 na stronę);
+  e-mail jednego konta: `admin_user_email(user_id)` (admin).
 - Zadania cykliczne: `pg_cron` (ADR-0006); okresy przechowywania jako funkcje SQL zmieniane przez PR.
 - Strony publiczne generowane przy budowaniu, panel pobiera dane w przeglądarce; przebudowa po zmianach (ADR-0003).
 - Kalendarz strzelnicy = zawody (`competitions`) + wydarzenia (`calendar_events`) w osobnych tabelach, łączone we frontendzie (`CalendarEntry`).
@@ -70,7 +71,12 @@
 - Panel użytkownika (SPEC-002 AC-7…AC-11): `/konto/` — blok braków albo „Gotowy do wpisu do książki” (z kolumny
   `is_range_ready`), „Twoje dane”; `/konto/dane/` — formularz danych (zapis tylko kolumn z uprawnieniami
   kolumnowymi, własny wiersz). Walidacja i lista braków bez DOM w `src/lib/profile.ts` (te same limity co `check` w bazie),
-  wyspy w `src/lib/account-ui.ts`.
+  wyspy w `src/lib/account-ui.ts`. Pola formularza — `src/components/ProfileFields.astro` (wspólne z kartą użytkownika w panelu).
+- Panel admina — konta (SPEC-002 AC-16…AC-18, AC-20, AC-21, tylko admin): `/panel/uzytkownicy/` — lista z wyszukiwarką
+  (`rpc/admin_list_users`; fraza nie trafia do adresu strony), `/panel/uzytkownicy/profil/?id=` — e-mail (`rpc/admin_user_email`),
+  dane (zapis do `profiles` jak w `/konto/dane/`, wpis w `audit_log` robi wyzwalacz), rola (`rpc/set_user_role`, potwierdzenie,
+  błąd `last_admin`), „Historia zmian” (`audit_log` z autorem przez `actor_id`, od najnowszych, 100 ostatnich).
+  Logika bez DOM w `src/lib/admin-users.ts`, wyspy w `src/lib/admin-users-ui.ts`.
 - `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia), kolejność wpisów, „dziś” w Europe/Warsaw
   i grupowanie nadchodzących po miesiącach (`upcomingByMonth`).
 - Strony publiczne (`/`, `/zawody/<slug>/`) pobierają dane **przy budowaniu** w `src/lib/public-data.ts` (klucz publishable,

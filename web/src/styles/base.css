@@ -301,3 +301,58 @@ a:hover {
 .notice {
   max-width: min(40rem, calc(100vw - 2 * var(--space-4)));
 }
+
+/* ---- Panel: użytkownicy (SPEC-002 AC-16…AC-21) ---- */
+
+.users,
+.users .stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.users > *,
+.users .stack > *,
+.users-row > *,
+.users-row dd {
+  margin: 0;
+}
+
+.users h2 {
+  font-size: var(--text-h3);
+}
+
+.users .hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.users-search .button-row > .input {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.users-row dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.users-row dt {
+  color: var(--color-text-muted);
+}
+
+.users-row dd {
+  overflow-wrap: anywhere;
+}
+
+.users-history {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.users [role='status']:empty {
+  display: none;
+}

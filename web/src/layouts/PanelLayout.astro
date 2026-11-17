@@ -22,6 +22,7 @@ const adminMenu = [
   { href: '/panel/dyscypliny/', label: t('panel.menu.disciplines') },
   { href: '/panel/kategorie/', label: t('panel.menu.categories') },
   { href: '/panel/oferta/', label: t('panel.menu.offer') },
+  { href: '/panel/uzytkownicy/', label: t('panel.menu.users') },
 ];
 const staffMenu: { href: string; label: string }[] = [];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
