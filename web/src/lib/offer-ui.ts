@@ -4,9 +4,10 @@
  * Logika bez DOM: lib/offer.ts. Teksty z bazy trafiają do DOM tylko przez `textContent`.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { t } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { LOGIN_PAGE, withNext } from './auth';
-import { formatDate } from './dates';
+import { todayInWarsaw } from './calendar';
+import { formatDate, formatDateRange } from './dates';
 import { formatDay } from './admin-users';
 import {
   OFFER_COLUMNS,
@@ -17,6 +18,7 @@ import {
   PAYMENT_POLL_INTERVAL_MS,
   PAYMENT_STATUS_PAGE,
   buyHref,
+  eventOrderPath,
   firstUsedOn,
   idParam,
   orderPath,
@@ -26,6 +28,7 @@ import {
   productNotes,
   sortOrders,
   splitPasses,
+  ticketSale,
   type UserOrder,
   type UserPass,
 } from './offer';
@@ -105,7 +108,43 @@ async function errorCode(error: unknown): Promise<string | null> {
   }
 }
 
-/** AC-7: podsumowanie produktu; AC-8: „Zapłać” → `payments-create` → bramka Tpay. */
+interface OrderItem {
+  name: string;
+  price: number;
+  notes: HTMLElement[];
+}
+
+/** Wejściówka (AC-17…AC-19): tylko opublikowane wydarzenie płatne; sprzedaż do ostatniego dnia, limit miejsc. */
+async function loadTicket(supabase: SupabaseClient, eventId: string): Promise<OrderItem | string> {
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('id, name, starts_on, ends_on, ticket_price')
+    .eq('id', eventId)
+    .eq('status', 'published')
+    .eq('access_mode', 'paid')
+    .maybeSingle<{ id: string; name: string; starts_on: string; ends_on: string | null; ticket_price: number | null }>();
+  if (error) return t('offer.loadError');
+  if (!data?.ticket_price) return t('offer.unavailable');
+  const seats = await supabase.rpc('event_seats_left', { p_event_id: eventId });
+  const sale = ticketSale(data.ends_on ?? data.starts_on, todayInWarsaw(), typeof seats.data === 'number' ? seats.data : null);
+  if (sale === 'closed') return t('calendarCard.salesClosed');
+  if (sale === 'soldOut') return t('offer.soldOut');
+  const dates = formatDateRange(data.starts_on, data.ends_on);
+  return {
+    name: t('offer.ticketName', { name: data.name }),
+    price: data.ticket_price,
+    notes: [node('p', t('offer.ticketValidity', { dates }), 'hint')],
+  };
+}
+
+const PAY_ERRORS: Record<string, MessageKey> = {
+  product_unavailable: 'offer.unavailable',
+  event_unavailable: 'offer.unavailable',
+  sold_out: 'offer.soldOut',
+  sales_closed: 'calendarCard.salesClosed',
+};
+
+/** AC-7: podsumowanie produktu albo wejściówki (AC-17); AC-8: „Zapłać” → `payments-create` → bramka Tpay. */
 export async function mountOrder(root: HTMLElement): Promise<void> {
   const loading = el(root, '[data-loading]');
   const message = el(root, '[data-message]');
@@ -115,19 +154,28 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
     message.hidden = false;
   };
   const supabase = client();
-  const productId = idParam(new URLSearchParams(window.location.search).get('product'));
-  if (!supabase || !productId) return stop(t('offer.unavailable'));
+  const params = new URLSearchParams(window.location.search);
+  const productId = idParam(params.get('product'));
+  const eventId = productId ? null : idParam(params.get('event'));
+  if (!supabase || !(productId || eventId)) return stop(t('offer.unavailable'));
   const { data: session } = await supabase.auth.getSession();
-  if (!session.session) return window.location.replace(withNext(LOGIN_PAGE, orderPath(productId)));
+  const path = productId ? orderPath(productId) : eventOrderPath(eventId!);
+  if (!session.session) return window.location.replace(withNext(LOGIN_PAGE, path));
 
   // Cena zawsze świeża z bazy (§7: zmiana ceny między wyświetleniem a zapłatą); ukryty produkt — RLS go nie zwraca.
-  const { data, error } = await supabase.from('products').select(OFFER_COLUMNS).eq('id', productId).eq('is_active', true).maybeSingle<Product>();
-  if (error) return stop(t('offer.loadError'));
-  if (!data) return stop(t('offer.unavailable'));
+  let item: OrderItem | string;
+  if (productId) {
+    const { data, error } = await supabase.from('products').select(OFFER_COLUMNS).eq('id', productId).eq('is_active', true).maybeSingle<Product>();
+    item = error ? t('offer.loadError') : data ? { name: data.name, price: data.price, notes: notes(data) } : t('offer.unavailable');
+  } else {
+    item = await loadTicket(supabase, eventId!);
+  }
+  if (typeof item === 'string') return stop(item);
+  const data = item;
 
   el(root, '[data-product-name]').textContent = data.name;
   el(root, '[data-product-price]').textContent = formatPrice(data.price);
-  el(root, '[data-product-notes]').replaceChildren(...notes(data));
+  el(root, '[data-product-notes]').replaceChildren(...data.notes);
   const form = el<HTMLFormElement>(root, 'form[data-order]');
   const pay = el<HTMLButtonElement>(form, '[data-pay]');
   pay.textContent = t('offer.pay', { amount: formatPrice(data.price) });
@@ -150,7 +198,7 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
     let code: string | null = null;
     try {
       const result = await supabase.functions.invoke<{ order_id: string; payment_url: string }>('payments-create', {
-        body: { product_id: productId, request_key: crypto.randomUUID() },
+        body: { ...(productId ? { product_id: productId } : { event_id: eventId }), request_key: crypto.randomUUID() },
       });
       if (!result.error && result.data?.payment_url) return window.location.assign(result.data.payment_url);
       code = await errorCode(result.error);
@@ -159,7 +207,7 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
     }
     pay.disabled = false;
     el(form, '[data-paying]').hidden = true;
-    formError.textContent = t(code === 'product_unavailable' ? 'offer.unavailable' : 'offer.payError');
+    formError.textContent = t((code && PAY_ERRORS[code]) || 'offer.payError');
     formError.hidden = false;
   });
 }

@@ -26,6 +26,19 @@ export function idParam(value: string | null | undefined): string | null {
 /** Adres podsumowania zamówienia produktu. */
 export const orderPath = (productId: string) => `${ORDER_PAGE}?product=${productId}`;
 
+/** Adres podsumowania zamówienia wejściówki (AC-17). */
+export const eventOrderPath = (eventId: string) => `${ORDER_PAGE}?event=${encodeURIComponent(eventId)}`;
+
+/**
+ * Stan sprzedaży wejściówki (AC-17…AC-19): po ostatnim dniu wydarzenia (Europe/Warsaw) — zamknięta;
+ * przy limicie, gdy nie ma wolnych miejsc — wyprzedane. `seatsLeft = null` — bez limitu (albo nieznane).
+ */
+export type TicketSale = 'open' | 'soldOut' | 'closed';
+export function ticketSale(lastDay: string, today: string, seatsLeft: number | null): TicketSale {
+  if (today > lastDay) return 'closed';
+  return seatsLeft !== null && seatsLeft <= 0 ? 'soldOut' : 'open';
+}
+
 /** „Kup” (AC-6, AC-7): zalogowany → podsumowanie; gość → logowanie z powrotem do podsumowania. */
 export function buyHref(productId: string, signedIn: boolean): string {
   return signedIn ? orderPath(productId) : withNext(LOGIN_PAGE, orderPath(productId));

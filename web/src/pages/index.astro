@@ -30,6 +30,12 @@ const months = upcomingByMonth([...data.competitions.map(competitionEntry), ...d
   </section>
 </BaseLayout>
 
+<script>
+  import { mountTicketCards } from '../lib/event-tickets-ui';
+
+  void mountTicketCards();
+</script>
+
 <style>
   .calendar {
     display: grid;

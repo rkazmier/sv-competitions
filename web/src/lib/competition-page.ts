@@ -12,7 +12,8 @@ export const COMPETITION_PAGE_COLUMNS =
   'id, slug, name, starts_on, ends_on, description, matchbook_path, status, ' +
   'discipline:disciplines(name), rulebook:rulebooks(file_path), schedule_items(id, day, time, description, position)';
 export const EVENT_COLUMNS =
-  'id, name, starts_on, ends_on, description, external_url, status, category:event_categories(name)';
+  'id, name, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity, ' +
+  'category:event_categories(name)';
 
 export interface CompetitionRow {
   id: string;
@@ -36,6 +37,9 @@ export interface EventRow {
   description: string | null;
   external_url: string | null;
   status: EntryStatus;
+  access_mode?: 'external' | 'free' | 'paid';
+  ticket_price?: number | null;
+  capacity?: number | null;
   category: { name: string } | null;
 }
 
@@ -115,6 +119,7 @@ export function eventEntry(row: EventRow): CalendarEntry {
     label: row.category?.name ?? '',
     description: row.description,
     externalUrl: safeExternalUrl(row.external_url),
+    ...(row.access_mode === 'paid' && row.ticket_price ? { ticketPrice: row.ticket_price, capacity: row.capacity ?? null } : {}),
   };
 }
 

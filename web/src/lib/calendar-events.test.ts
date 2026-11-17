@@ -3,6 +3,8 @@ import {
   eventCheckError,
   isValidExternalUrl,
   needsExternalUrl,
+  parseCapacity,
+  parseTicketPrice,
   previewEntry,
   toEventRow,
   validateCalendarEvent,
@@ -16,6 +18,9 @@ const input: CalendarEventInput = {
   ends_on: '',
   description: '',
   external_url: '',
+  access_mode: 'external',
+  ticket_price: '',
+  capacity: '',
 };
 
 describe('wydarzenie — formularz', () => {
@@ -28,6 +33,9 @@ describe('wydarzenie — formularz', () => {
       ends_on: null,
       description: null,
       external_url: null,
+      access_mode: 'external',
+      ticket_price: null,
+      capacity: null,
     });
   });
 
@@ -112,5 +120,54 @@ describe('wydarzenie — podgląd karty', () => {
     expect(previewEntry({ ...input, name: ' ' }, 'Szkolenie')).toBeNull();
     expect(previewEntry(input, undefined)).toBeNull();
     expect(previewEntry({ ...input, starts_on: '' }, 'Szkolenie')).toBeNull();
+  });
+});
+
+describe('wydarzenie — tryb i wejściówki (SPEC-003)', () => {
+  const paid: CalendarEventInput = { ...input, access_mode: 'paid', ticket_price: '50', capacity: '' };
+
+  it('AC-16: link wymagany do publikacji tylko w trybie zewnętrznym', () => {
+    expect(validateCalendarEvent(input, 'published')).toEqual({ external_url: 'urlRequired' });
+    expect(validateCalendarEvent({ ...input, access_mode: 'free' }, 'published')).toEqual({});
+    expect(validateCalendarEvent(paid, 'published')).toEqual({});
+    expect(needsExternalUrl('published', '', 'free')).toBe(false);
+  });
+
+  it('AC-16: płatne — cena wymagana, limit opcjonalny 1–1000', () => {
+    expect(validateCalendarEvent({ ...paid, ticket_price: ' ' })).toEqual({ ticket_price: 'required' });
+    expect(validateCalendarEvent({ ...paid, ticket_price: '0' })).toEqual({ ticket_price: 'invalid' });
+    expect(validateCalendarEvent({ ...paid, ticket_price: '12,345' })).toEqual({ ticket_price: 'invalid' });
+    expect(validateCalendarEvent({ ...paid, capacity: '0' })).toEqual({ capacity: 'invalid' });
+    expect(validateCalendarEvent({ ...paid, capacity: '1001' })).toEqual({ capacity: 'invalid' });
+    expect(validateCalendarEvent({ ...paid, capacity: '1000' })).toEqual({});
+    expect(parseCapacity('')).toBeNull();
+    expect(parseCapacity('2,5')).toBeUndefined();
+    expect(parseTicketPrice('49,99')).toBe(4999);
+  });
+
+  it('AC-16: zapis — cena w groszach i limit tylko dla płatnych', () => {
+    expect(toEventRow({ ...paid, ticket_price: '50,00', capacity: '12' })).toMatchObject({
+      access_mode: 'paid',
+      ticket_price: 5000,
+      capacity: 12,
+    });
+    expect(toEventRow({ ...paid, access_mode: 'free', capacity: '12' })).toMatchObject({
+      access_mode: 'free',
+      ticket_price: null,
+      capacity: null,
+    });
+    // pola płatne bezpłatnego/zewnętrznego wydarzenia nie są sprawdzane
+    expect(validateCalendarEvent({ ...input, access_mode: 'free', ticket_price: 'abc', capacity: 'x' })).toEqual({});
+  });
+
+  it('AC-17: podgląd karty pokazuje cenę wejściówki', () => {
+    expect(previewEntry(paid, 'Szkolenia')?.ticketPrice).toBe(5000);
+    expect(previewEntry({ ...paid, access_mode: 'free' }, 'Szkolenia')?.ticketPrice).toBeNull();
+  });
+
+  it('AC-20: rozpoznaje blokadę zmian po sprzedaży wejściówek', () => {
+    expect(eventCheckError({ code: 'P0001', message: 'event_has_tickets' })).toEqual({ field: 'access_mode', code: 'hasTickets' });
+    expect(eventCheckError({ code: 'P0001', message: 'capacity_below_sold' })).toEqual({ field: 'capacity', code: 'belowSold' });
+    expect(eventCheckError({ code: 'P0001', message: 'other' })).toBeNull();
   });
 });

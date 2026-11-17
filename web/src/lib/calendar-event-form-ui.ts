@@ -17,17 +17,29 @@ import {
   validateCalendarEvent,
   type CalendarEventErrors,
   type CalendarEventField,
+  type AccessMode,
   type CalendarEventInput,
   type EventStatus,
 } from './calendar-events';
 import { disciplineOptions, type DisciplineOption } from './competitions';
 import { requireAdmin, showLoadError } from './panel';
+import { priceInputValue } from './products';
 import { rebuildAndDescribe } from './site-rebuild';
 
 // Kolumny jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
-const COLUMNS = 'id, name, category_id, starts_on, ends_on, description, external_url, status';
+const COLUMNS = 'id, name, category_id, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity';
 const EDIT_URL = '/panel/wydarzenia/edytuj/';
-const FIELDS: CalendarEventField[] = ['name', 'category_id', 'starts_on', 'ends_on', 'description', 'external_url'];
+const FIELDS: CalendarEventField[] = [
+  'name',
+  'category_id',
+  'starts_on',
+  'ends_on',
+  'description',
+  'access_mode',
+  'ticket_price',
+  'capacity',
+  'external_url',
+];
 
 interface CalendarEvent {
   id: string;
@@ -38,6 +50,9 @@ interface CalendarEvent {
   description: string | null;
   external_url: string | null;
   status: EventStatus;
+  access_mode: AccessMode;
+  ticket_price: number | null;
+  capacity: number | null;
 }
 
 const FIELD_ERRORS: Record<string, string> = {
@@ -49,6 +64,11 @@ const FIELD_ERRORS: Record<string, string> = {
   'description.tooLong': t('calendarEvent.descriptionTooLong', { max: EVENT_DESCRIPTION_MAX }),
   'external_url.invalidUrl': t('calendarEvent.urlInvalid'),
   'external_url.urlRequired': t('calendarEvent.urlRequired'),
+  'ticket_price.required': t('calendarEvent.priceRequired'),
+  'ticket_price.invalid': t('calendarEvent.priceInvalid'),
+  'capacity.invalid': t('calendarEvent.capacityInvalid'),
+  'capacity.belowSold': t('calendarEvent.capacityBelowSold'),
+  'access_mode.hasTickets': t('calendarEvent.hasTickets'),
 };
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
@@ -67,6 +87,8 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
   const card = query<HTMLElement>(root, '[data-calendar-card]');
   const field = (name: CalendarEventField) =>
     query<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(form, `[name="${name}"]`);
+  const modeList = () => form.elements.namedItem('access_mode') as RadioNodeList;
+  const paidFields = query<HTMLElement>(form, '[data-paid-fields]');
   const announce = (message: string) => {
     status.textContent = message;
   };
@@ -98,12 +120,16 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       ends_on: field('ends_on').value,
       description: field('description').value,
       external_url: field('external_url').value,
+      access_mode: (modeList().value || 'external') as AccessMode,
+      ticket_price: field('ticket_price').value,
+      capacity: field('capacity').value,
     };
   }
 
   // AC-53: podgląd karty pod formularzem, aktualizowany przy każdej zmianie.
   function renderPreview(): void {
     const input = readInput();
+    paidFields.hidden = input.access_mode !== 'paid';
     const entry = previewEntry(input, categoryName(input.category_id));
     renderEventCard(card, entry);
     query<HTMLElement>(root, '[data-preview-empty]').hidden = Boolean(entry);
@@ -125,6 +151,9 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       field('ends_on').value = event.ends_on ?? '';
       field('description').value = event.description ?? '';
       field('external_url').value = event.external_url ?? '';
+      modeList().value = event.access_mode;
+      field('ticket_price').value = event.ticket_price ? priceInputValue(event.ticket_price) : '';
+      field('capacity').value = event.capacity ? String(event.capacity) : '';
       const published = event.status === 'published';
       statusTag.hidden = false;
       statusTag.textContent = published ? t('entries.statusPublished') : t('entries.statusDraft');
@@ -235,7 +264,9 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       const { data, error } = await supabase.from('calendar_events').delete().eq('id', event.id).select('id');
       if (error || !data?.length) {
         deleteButton.disabled = false;
-        return announce(t('calendarEvent.deleteError'));
+        // SPEC-003 AC-20: wydarzenia ze sprzedanymi wejściówkami nie da się usunąć.
+        const tickets = eventCheckError(error)?.code === 'hasTickets';
+        return announce(t(tickets ? 'calendarEvent.hasTickets' : 'calendarEvent.deleteError'));
       }
     } catch {
       deleteButton.disabled = false;

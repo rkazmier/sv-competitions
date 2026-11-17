@@ -5,7 +5,7 @@
  * Podgląd to ten sam komponent karty co w kalendarzu (CalendarCard.astro bez `entry`).
  */
 import { t } from '../i18n';
-import { EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EVENT_URL_MAX } from '../lib/calendar-events';
+import { ACCESS_MODES, EVENT_CAPACITY_MAX, EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EVENT_URL_MAX } from '../lib/calendar-events';
 import CalendarCard from './CalendarCard.astro';
 
 interface Props {
@@ -13,6 +13,11 @@ interface Props {
 }
 
 const { mode } = Astro.props;
+const MODE_LABELS = {
+  external: t('calendarEvent.modeExternal'),
+  free: t('calendarEvent.modeFree'),
+  paid: t('calendarEvent.modePaid'),
+} as const;
 ---
 <div class="calendar-event" data-calendar-event={mode}>
   <p><a href="/panel/">{t('calendarEvent.backToCalendar')}</a></p>
@@ -54,6 +59,25 @@ const { mode } = Astro.props;
     <p class="hint" id="e-description-hint">{t('calendarEvent.descriptionHint', { max: EVENT_DESCRIPTION_MAX })}</p>
     <p class="hint" id="e-description-rodo">{t('calendarEvent.personalDataHint')}</p>
     <p class="message-error field-error" id="e-description-error" data-error-for="description" hidden></p>
+
+    <!-- SPEC-003 AC-16: tryb wydarzenia; cena i limit tylko dla „Płatne przez Ofertę” -->
+    <fieldset class="mode" aria-describedby="e-mode-error">
+      <legend class="field-label">{t('calendarEvent.modeLegend')}</legend>
+      {ACCESS_MODES.map((value) => (
+        <label class="check"><input type="radio" name="access_mode" value={value} checked={value === 'external'} /> {MODE_LABELS[value]}</label>
+      ))}
+    </fieldset>
+    <p class="message-error field-error" id="e-mode-error" data-error-for="access_mode" hidden></p>
+
+    <div class="stack" data-paid-fields hidden>
+      <label class="field-label" for="e-price">{t('calendarEvent.priceLabel')}</label>
+      <input class="input" id="e-price" name="ticket_price" type="text" inputmode="decimal" autocomplete="off" aria-describedby="e-price-error" />
+      <p class="message-error field-error" id="e-price-error" data-error-for="ticket_price" hidden></p>
+      <label class="field-label" for="e-capacity">{t('calendarEvent.capacityLabel')}</label>
+      <input class="input" id="e-capacity" name="capacity" type="number" min="1" max={EVENT_CAPACITY_MAX} inputmode="numeric" aria-describedby="e-capacity-hint e-capacity-error" />
+      <p class="hint" id="e-capacity-hint">{t('calendarEvent.capacityHint')}</p>
+      <p class="message-error field-error" id="e-capacity-error" data-error-for="capacity" hidden></p>
+    </div>
 
     <label class="field-label" for="e-url">{t('calendarEvent.urlLabel')}</label>
     <input class="input" id="e-url" name="external_url" type="url" inputmode="url" maxlength={EVENT_URL_MAX} autocomplete="off" aria-describedby="e-url-hint e-url-publish e-url-error" />
@@ -128,6 +152,14 @@ const { mode } = Astro.props;
       grid-template-columns: 1fr 1fr;
       gap: var(--space-4);
     }
+  }
+
+  .mode {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    border: 0;
   }
 
   textarea.input {
