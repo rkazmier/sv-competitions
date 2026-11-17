@@ -48,7 +48,7 @@ const preview = (page: Page) => page.locator('[data-preview] article.entry-card'
 
 test.describe('organizator', () => {
   test.beforeEach(async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
   });
 
   test('AC-48 AC-53: nowy szkic z formularza, podpowiedzi i podgląd karty', async ({ page }) => {

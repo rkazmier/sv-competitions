@@ -26,7 +26,7 @@ export function admin(): SupabaseClient {
   return createClient(url, secretKey, options);
 }
 
-export type Role = 'competitor' | 'organizer';
+export type Role = 'user' | 'staff' | 'admin';
 
 /** Tworzy (jeśli trzeba) użytkownika testowego z rolą i zwraca jego e-mail. */
 export async function ensureUser(role: Role): Promise<string> {

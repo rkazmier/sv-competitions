@@ -14,7 +14,7 @@ import {
   type DictionaryTable,
   type NameError,
 } from './dictionary';
-import { requireOrganizer, showLoadError } from './panel';
+import { requireAdmin, showLoadError } from './panel';
 import { rebuildAndDescribe } from './site-rebuild';
 
 type Kind = 'disciplines' | 'categories';
@@ -51,7 +51,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
   const list = query<HTMLUListElement>(root, '[data-list]');
   const template = query<HTMLTemplateElement>(root, '[data-row-template]');
 
-  const supabase: SupabaseClient = await requireOrganizer();
+  const supabase: SupabaseClient = await requireAdmin();
   let items: DictionaryItem[] = [];
 
   const announce = (message: string) => {

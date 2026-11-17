@@ -52,7 +52,7 @@ const status = (page: Page, text: string) => page.getByRole('status').filter({ h
 
 test.describe('organizator', () => {
   test.beforeEach(async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
   });
 
   test('AC-25 AC-29: „Opublikuj” — stan, published_at, komunikat i przebudowa', async ({ page }) => {

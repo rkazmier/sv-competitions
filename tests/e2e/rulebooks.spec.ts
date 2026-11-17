@@ -39,7 +39,7 @@ test.describe('niezalogowany', () => {
 
 test.describe('organizator', () => {
   test.beforeEach(async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
   });
 
   test('AC-12: wczytanie PDF — plik w Storage, regulamin na liście z datą, linkiem i liczbą zawodów', async ({

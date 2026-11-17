@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { admin, hasLocalSupabase, signIn, unique } from './support/supabase';
 
 // SPEC-001 US-2, US-3, US-10: logowanie, uprawnienia, lista wpisów, dyscypliny i kategorie.
+// SPEC-002 US-7 (ADR-0004): panel obsługi (AC-26) i brak uprawnień użytkownika (AC-27).
 // Wymaga lokalnego Supabase (zmienne — tests/e2e/support/supabase.ts); w CI zawsze uruchamiane.
 test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supabase start + zmienne środowiskowe)');
 
@@ -15,7 +16,7 @@ test.describe('niezalogowany', () => {
       return route.fulfill({ status: 200, body: 'ok' });
     });
     await page.goto('/panel/dyscypliny/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Panel organizatora');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Panel strzelnicy');
     await expect(page.getByRole('navigation', { name: 'Menu panelu' })).toBeHidden();
     await page.getByRole('button', { name: 'Zaloguj się przez Google' }).click();
 
@@ -31,30 +32,56 @@ test.describe('niezalogowany', () => {
   }
 });
 
-test.describe('zalogowany bez roli organizatora', () => {
-  test('AC-5: komunikat o braku uprawnień, „Wyloguj się”, bez pobierania danych', async ({ page }) => {
-    await signIn(page, 'competitor');
+const DATA_REQUEST = /\/rest\/v1\/(competitions|calendar_events|disciplines|event_categories|rulebooks)/;
+
+test.describe('użytkownik', () => {
+  test('AC-27 (SPEC-002): „Nie masz uprawnień do panelu.”, link do konta, bez pobierania danych', async ({ page }) => {
+    await signIn(page, 'user');
     const dataRequests: string[] = [];
     page.on('request', (request) => {
-      if (/\/rest\/v1\/(competitions|calendar_events|disciplines|event_categories)/.test(request.url())) {
-        dataRequests.push(request.url());
-      }
+      if (DATA_REQUEST.test(request.url())) dataRequests.push(request.url());
     });
     await page.goto('/panel/');
-    await expect(
-      page.getByText('Nie masz uprawnień organizatora. Skontaktuj się z administratorem strzelnicy.'),
-    ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Nowe zawody' })).toBeHidden();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Nie masz uprawnień do panelu.')).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Przejdź do swojego konta' })).toHaveAttribute('href', '/konto/');
+    await expect(main.getByRole('link', { name: 'Nowe zawody' })).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'Menu panelu' }).getByRole('link')).toHaveCount(0);
     expect(dataRequests).toEqual([]);
 
-    await page.getByRole('main').getByRole('button', { name: 'Wyloguj się' }).click();
+    await main.getByRole('button', { name: 'Wyloguj się' }).click();
     await expect(page.getByRole('button', { name: 'Zaloguj się przez Google' })).toBeVisible();
   });
 });
 
-test.describe('organizator', () => {
+test.describe('obsługa strzelnicy', () => {
+  test('AC-26 (SPEC-002): menu obsługi bez kalendarza i słowników, „Moduły obsługi będą dostępne wkrótce.”', async ({
+    page,
+  }) => {
+    await signIn(page, 'staff');
+    const dataRequests: string[] = [];
+    page.on('request', (request) => {
+      if (DATA_REQUEST.test(request.url())) dataRequests.push(request.url());
+    });
+    for (const path of ['/panel/', '/panel/regulaminy/', '/panel/dyscypliny/']) {
+      await page.goto(path);
+      await expect(page.getByRole('main').getByText('Moduły obsługi będą dostępne wkrótce.')).toBeVisible();
+      await expect(page.getByRole('main').getByRole('link', { name: 'Nowe zawody' })).toBeHidden();
+    }
+    const menu = page.getByRole('navigation', { name: 'Menu panelu' });
+    for (const name of ['Kalendarz', 'Regulaminy', 'Dyscypliny', 'Kategorie', 'Użytkownicy']) {
+      await expect(menu.getByRole('link', { name, exact: true })).toHaveCount(0);
+    }
+    expect(dataRequests).toEqual([]);
+
+    await menu.getByRole('button', { name: 'Wyloguj się' }).click();
+    await expect(page.getByRole('button', { name: 'Zaloguj się przez Google' })).toBeVisible();
+  });
+});
+
+test.describe('admin (dawny organizator, AC-28)', () => {
   test.beforeEach(async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
   });
 
   test('AC-6: lista wpisów kalendarza (zawody i wydarzenia, szkice i opublikowane), przyciski i menu', async ({

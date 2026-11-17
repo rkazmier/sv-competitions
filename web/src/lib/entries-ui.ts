@@ -5,7 +5,7 @@
 import { t } from '../i18n';
 import { sortEntries, type CalendarEntry, type EntryStatus } from './calendar';
 import { formatDateRange } from './dates';
-import { requireOrganizer, showLoadError } from './panel';
+import { requireAdmin, showLoadError } from './panel';
 import { rebuildAndDescribe } from './site-rebuild';
 
 interface Row {
@@ -35,7 +35,7 @@ export async function mountEntries(): Promise<void> {
   const empty = query<HTMLElement>(document, '[data-entries-empty]');
   const template = query<HTMLTemplateElement>(document, '[data-entry-template]');
 
-  const supabase = await requireOrganizer();
+  const supabase = await requireAdmin();
   // AC-34: ręczne odświeżenie strony publicznej (np. po nieudanej automatycznej przebudowie, §7).
   const refresh = query<HTMLButtonElement>(document, '[data-refresh-site]');
   const refreshStatus = query<HTMLElement>(document, '[data-refresh-status]');

@@ -6,7 +6,7 @@ select plan(7);
 delete from public.calendar_events;
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'org@example.test');
-update public.profiles set role = 'organizer' where id = '00000000-0000-0000-0000-0000000000a1';
+update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-0000000000a1';
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 set local role authenticated;
 
