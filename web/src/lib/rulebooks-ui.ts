@@ -10,7 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { formatDate } from './dates';
-import { requireOrganizer, showLoadError } from './panel';
+import { requireAdmin, showLoadError } from './panel';
 import { rebuildAndDescribe } from './site-rebuild';
 import {
   PDF_MIME,
@@ -75,7 +75,7 @@ export async function mountRulebooks(root: HTMLElement): Promise<void> {
   const list = query<HTMLUListElement>(root, '[data-list]');
   const template = query<HTMLTemplateElement>(root, '[data-row-template]');
 
-  const supabase: SupabaseClient = await requireOrganizer();
+  const supabase: SupabaseClient = await requireAdmin();
   const storage = supabase.storage.from(STORAGE_BUCKET);
   let items: Rulebook[] = [];
 

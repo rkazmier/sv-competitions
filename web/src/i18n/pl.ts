@@ -47,13 +47,15 @@ export const pl = {
     backToEdit: 'Wróć do edycji',
   },
   panel: {
-    title: 'Panel organizatora',
+    title: 'Panel strzelnicy',
     loading: 'Wczytywanie…',
     loadError: 'Nie udało się wczytać danych. Odśwież stronę.',
-    signInIntro: 'Zaloguj się, aby prowadzić kalendarz strzelnicy.',
+    signInIntro: 'Zaloguj się, aby korzystać z panelu strzelnicy.',
     signIn: 'Zaloguj się przez Google',
     signOut: 'Wyloguj się',
-    forbidden: 'Nie masz uprawnień organizatora. Skontaktuj się z administratorem strzelnicy.',
+    forbidden: 'Nie masz uprawnień do panelu.',
+    goToAccount: 'Przejdź do swojego konta',
+    staffComingSoon: 'Moduły obsługi będą dostępne wkrótce.',
     saved: 'Zapisano.',
     saveError: 'Nie udało się zapisać. Spróbuj ponownie.',
     menu: {

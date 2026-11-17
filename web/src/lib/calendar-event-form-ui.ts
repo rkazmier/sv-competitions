@@ -21,7 +21,7 @@ import {
   type EventStatus,
 } from './calendar-events';
 import { disciplineOptions, type DisciplineOption } from './competitions';
-import { requireOrganizer, showLoadError } from './panel';
+import { requireAdmin, showLoadError } from './panel';
 import { rebuildAndDescribe } from './site-rebuild';
 
 // Kolumny jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
@@ -71,7 +71,7 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
     status.textContent = message;
   };
 
-  const supabase: SupabaseClient = await requireOrganizer();
+  const supabase: SupabaseClient = await requireAdmin();
   const isEdit = root.dataset.calendarEvent === 'edit';
   const id = isEdit ? new URLSearchParams(window.location.search).get('id') : null;
 

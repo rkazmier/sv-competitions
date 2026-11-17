@@ -50,8 +50,9 @@
 - `src/layouts/BaseLayout.astro` (strony publiczne), `PanelLayout.astro` (menu panelu, `noindex`, bramka logowania).
 - `src/lib/supabase.ts` — klient Supabase w przeglądarce (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, PKCE,
   sesja w localStorage pod kluczem `sv-auth`); tworzony leniwie, więc build bez tych zmiennych działa.
-- `src/lib/panel.ts` — bramka panelu: `requireOrganizer()` pokazuje logowanie Google / brak uprawnień / treść
-  i zwraca klienta tylko organizatorowi (rola z `profiles`, jak w RLS). Skrypty stron panelu pobierają dane dopiero po niej.
+- `src/lib/panel.ts` — bramka panelu (ADR-0004): stan z roli w `profiles` (jak w RLS) — logowanie Google / brak uprawnień
+  z linkiem do `/konto/` (`user`) / menu obsługi (`staff`) / treść i pełne menu (`admin`). `requireAdmin()` zwraca klienta
+  tylko adminowi; skrypty stron kalendarza i słowników pobierają dane dopiero po niej. Menu obsługi i admina — `PanelLayout.astro`.
 - `src/lib/calendar.ts` — typ `CalendarEntry` (zawody + wydarzenia), kolejność wpisów, „dziś” w Europe/Warsaw
   i grupowanie nadchodzących po miesiącach (`upcomingByMonth`).
 - Strony publiczne (`/`, `/zawody/<slug>/`) pobierają dane **przy budowaniu** w `src/lib/public-data.ts` (klucz publishable,
@@ -94,14 +95,14 @@
   niezmienność pliku regulaminu.
 - Błędy z wyzwalaczy mają kod `23514` i stały komunikat do mapowania w UI na tekst i18n:
   `schedule_item_day_out_of_range` (AC-22), `rulebook_file_immutable` (AC-16).
-- Custom Access Token Hook `public.custom_access_token_hook` — lokalnie włączony w `config.toml`,
+- Custom Access Token Hook `public.custom_access_token_hook` (claim `app_role` = `user` / `staff` / `admin`, tylko UI) — lokalnie włączony w `config.toml`,
   w projektach Supabase włączany ręcznie w panelu (Authentication → Hooks).
 
 ## Edge Functions (`supabase/functions/`)
 
 - Logika w `handler.ts` (zależności — `fetch`, konfiguracja — wstrzykiwane), `index.ts` tylko czyta `Deno.env` i uruchamia `Deno.serve`.
   Testy Deno obok (`*_test.ts`, `deno test supabase/functions/`), z zamockowanym `fetch`.
-- `site-rebuild` (ADR-0003): rola sprawdzana przez `rpc/is_organizer` z JWT wywołującego (to samo źródło co RLS), potem
+- `site-rebuild` (ADR-0003): rola sprawdzana przez `rpc/is_organizer` (alias `is_admin()`) z JWT wywołującego (to samo źródło co RLS), potem
   `workflow_dispatch` workflowu `rebuild-site.yml` (`ref: main`, `inputs.target` = `SITE_ENV`). Odpowiedzi: 202 — uruchomiono,
   403 — nie organizator, 500 — brak `GITHUB_DISPATCH_TOKEN` / `SITE_ENV`, 502 — błąd GitHub API. Token nie trafia do logów ani odpowiedzi.
 - Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);

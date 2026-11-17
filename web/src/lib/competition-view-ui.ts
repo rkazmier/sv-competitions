@@ -4,7 +4,7 @@
  */
 import { t } from '../i18n';
 import { COMPETITION_PAGE_COLUMNS, toCompetitionView, type CompetitionRow, type CompetitionView } from './competition-page';
-import { requireOrganizer, showLoadError } from './panel';
+import { requireAdmin, showLoadError } from './panel';
 import { STORAGE_BUCKET } from './rulebooks';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
@@ -51,7 +51,7 @@ export function renderCompetitionView(root: HTMLElement, view: CompetitionView):
 
 export async function mountCompetitionPreview(): Promise<void> {
   const root = query<HTMLElement>(document, '[data-competition-page]');
-  const supabase = await requireOrganizer();
+  const supabase = await requireAdmin();
   const id = new URLSearchParams(window.location.search).get('id');
   const { data, error } = id
     ? await supabase.from('competitions').select(COMPETITION_PAGE_COLUMNS).eq('id', id).maybeSingle()

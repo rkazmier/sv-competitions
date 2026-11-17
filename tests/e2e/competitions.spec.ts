@@ -45,7 +45,7 @@ async function addPoint(page: Page, day: string, time: string, description: stri
 
 test.describe('organizator', () => {
   test.beforeEach(async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
   });
 
   test('AC-17: nowe zawody z nazwą, aktywną dyscypliną i datą — szkic', async ({ page }) => {

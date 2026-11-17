@@ -145,7 +145,7 @@ test.describe('strona zawodów', () => {
 
 test.describe('podgląd w panelu', () => {
   test('AC-24: „Podgląd” szkicu pokazuje stronę zawodów z paskiem podglądu', async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
     const draft = await competition(SEED.competitionDraft);
     await page.goto(`/panel/zawody/edytuj/?id=${SEED.competitionDraft}`);
     await page.getByRole('link', { name: 'Podgląd' }).click();
@@ -160,7 +160,7 @@ test.describe('podgląd w panelu', () => {
   });
 
   test('AC-24: podgląd opublikowanych zawodów — bez paska, z harmonogramem', async ({ page }) => {
-    await signIn(page, 'organizer');
+    await signIn(page, 'admin');
     await page.goto(`/panel/zawody/podglad/?id=${SEED.competitionA}`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Zawody przykładowe A');
     await expect(page.locator('table.schedule-day')).toHaveCount(2);

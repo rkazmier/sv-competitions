@@ -33,7 +33,7 @@ import {
   type ScheduleItemError,
 } from './competitions';
 import { formatDate } from './dates';
-import { requireOrganizer, showLoadError } from './panel';
+import { requireAdmin, showLoadError } from './panel';
 import { PDF_MIME, STORAGE_BUCKET, uploadDay, validateFile, type FileError } from './rulebooks';
 import { rebuildAndDescribe } from './site-rebuild';
 
@@ -110,7 +110,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
   const publishButton = query<HTMLButtonElement>(form, '[data-publish]');
   const unpublishButton = query<HTMLButtonElement>(form, '[data-unpublish]');
 
-  const supabase: SupabaseClient = await requireOrganizer();
+  const supabase: SupabaseClient = await requireAdmin();
   const storage = supabase.storage.from(STORAGE_BUCKET);
   const id = root.dataset.competition === 'edit' ? new URLSearchParams(window.location.search).get('id') : null;
   let competition: Competition | null = null;

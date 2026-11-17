@@ -1,4 +1,4 @@
--- AC-37: anon i competitor widzą tylko opublikowane dane i nic nie zapisują; organizator widzi i zapisuje wszystko.
+-- AC-37: anon i user widzą tylko opublikowane dane i nic nie zapisują; admin (dawny organizator) widzi i zapisuje wszystko.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(28);
@@ -12,7 +12,7 @@ delete from public.rulebooks;
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'org@example.test'),
   ('00000000-0000-0000-0000-0000000000c1', 'comp@example.test');
-update public.profiles set role = 'organizer' where id = '00000000-0000-0000-0000-0000000000a1';
+update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-0000000000a1';
 
 insert into public.disciplines (id, name) values ('00000000-0000-0000-0000-00000000d001', 'Long Range');
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-00000000e001', 'Szkolenie');
@@ -59,14 +59,14 @@ reset role;
 
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c1","role":"authenticated"}', true);
 set local role authenticated;
-select * from pg_temp.check_public('competitor');
+select * from pg_temp.check_public('user');
 reset role;
 
 select is(
   (select count(*)::int from public.competitions where name = 'Zmienione')
     + (select count(*)::int from public.disciplines where name = 'Zmienione')
     + 2 - (select count(*)::int from public.calendar_events),
-  0, 'AC-37: anon i competitor nic nie zmienili ani nie usunęli'
+  0, 'AC-37: anon i user nic nie zmienili ani nie usunęli'
 );
 
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
