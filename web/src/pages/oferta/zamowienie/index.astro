@@ -1,0 +1,92 @@
+---
+/**
+ * Podsumowanie zamówienia (SPEC-003 AC-7): produkt, cena, ważność, akceptacja regulaminu sprzedaży,
+ * miejsce na „Potrzebuję faktury” (SPEC-004) i „Zapłać” (AC-8, `payments-create`). Wymaga logowania (AC-6).
+ */
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { t } from '../../../i18n';
+import { OFFER_PAGE, SALES_TERMS_PAGE } from '../../../lib/offer';
+---
+<BaseLayout title={t('offer.orderTitle')} indexable={false}>
+  <section class="section">
+    <div class="container auth order" data-order-root>
+      <h1>{t('offer.orderTitle')}</h1>
+      <p role="status" data-loading>{t('panel.loading')}</p>
+      <p class="message-error" role="alert" data-message hidden></p>
+
+      <form class="card order-form" data-order novalidate hidden>
+        <dl class="order-summary">
+          <div>
+            <dt>{t('offer.product')}</dt>
+            <dd data-product-name></dd>
+          </div>
+          <div>
+            <dt>{t('offer.price')}</dt>
+            <dd data-product-price></dd>
+          </div>
+          <div>
+            <dt>{t('offer.validityLabel')}</dt>
+            <dd data-product-notes></dd>
+          </div>
+        </dl>
+
+        <div class="check">
+          <input type="checkbox" id="o-terms" name="terms" required aria-describedby="o-terms-error" />
+          <label for="o-terms">
+            {t('offer.acceptTerms')} <a href={SALES_TERMS_PAGE} target="_blank" rel="noopener">{t('offer.salesTermsLink')}</a> *
+          </label>
+        </div>
+        <p class="message-error" id="o-terms-error" data-terms-error hidden>{t('offer.termsRequired')}</p>
+
+        <!-- SPEC-004: miejsce na „Potrzebuję faktury” -->
+        <div data-invoice-slot></div>
+
+        <p class="message-error" role="alert" data-form-error hidden></p>
+        <button type="submit" class="button button-primary" data-pay></button>
+        <p role="status" data-paying hidden>{t('offer.paying')}</p>
+      </form>
+
+      <a href={OFFER_PAGE}>{t('offer.backToOffer')}</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style is:global>
+  .order,
+  .order-form,
+  .order-summary {
+    display: grid;
+    gap: var(--space-3);
+    width: 100%;
+  }
+
+  .order > *,
+  .order-form > *,
+  .order-summary dd {
+    margin: 0;
+  }
+
+  .order-summary {
+    margin: 0;
+  }
+
+  .order-summary dt {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .order-summary .hint {
+    margin: 0;
+  }
+
+  .order-form .button {
+    justify-self: start;
+  }
+</style>
+
+<script>
+  import { mountOrder } from '../../../lib/offer-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-order-root]');
+  if (root) void mountOrder(root);
+</script>
