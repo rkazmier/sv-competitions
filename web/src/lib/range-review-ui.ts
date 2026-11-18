@@ -16,6 +16,7 @@ import {
   defaultFilters,
   entryCells,
   exportFileName,
+  fetchSignatures,
   filterArgs,
   hasDateRange,
   rangeLogCsv,
@@ -47,11 +48,9 @@ async function fetchEntries(supabase: SupabaseClient, filters: ReviewFilters, fo
 }
 
 /** Podpisane linki (60 s) do podpisów; ścieżka bez linku → brak w mapie. */
-async function signedUrls(supabase: SupabaseClient, entries: readonly ReviewEntry[]): Promise<Map<string, string>> {
-  if (entries.length === 0) return new Map();
-  const { data, error } = await supabase.storage
-    .from('signatures')
-    .createSignedUrls(entries.map((entry) => entry.signature_path), SIGNATURE_URL_SECONDS);
+async function signedUrls(supabase: SupabaseClient, paths: readonly string[]): Promise<Map<string, string>> {
+  if (paths.length === 0) return new Map();
+  const { data, error } = await supabase.storage.from('signatures').createSignedUrls([...paths], SIGNATURE_URL_SECONDS);
   if (error) throw error;
   return new Map(data.flatMap((item) => (item.path && item.signedUrl ? [[item.path, item.signedUrl] as const] : [])));
 }
@@ -60,6 +59,19 @@ async function bytes(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.arrayBuffer();
+}
+
+/** Fonty PDF pobierane raz na sesję strony; nieudane pobranie nie zostaje w pamięci (kolejna próba pobierze ponownie). */
+let fontCache: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer }> | null = null;
+function pdfFonts(): Promise<{ regular: ArrayBuffer; bold: ArrayBuffer }> {
+  fontCache ??= Promise.all([bytes(FONTS.regular), bytes(FONTS.bold)]).then(
+    ([regular, bold]) => ({ regular, bold }),
+    (error: unknown) => {
+      fontCache = null;
+      throw error;
+    },
+  );
+  return fontCache;
 }
 
 export async function mountRangeReview(root: HTMLElement): Promise<void> {
@@ -146,7 +158,7 @@ export async function mountRangeReview(root: HTMLElement): Promise<void> {
     summary.textContent = t('rangeReview.loading');
     try {
       const entries = await fetchEntries(supabase, readFilters(), 'view');
-      render(entries, await signedUrls(supabase, entries));
+      render(entries, await signedUrls(supabase, entries.map((entry) => entry.signature_path)));
     } catch {
       summary.textContent = '';
       showError('rangeReview.loadError');
@@ -164,22 +176,17 @@ export async function mountRangeReview(root: HTMLElement): Promise<void> {
       if (format === 'csv') {
         download(rangeLogCsv(entries, t), 'text/csv;charset=utf-8', exportFileName(filters, 'csv'));
       } else {
-        const [{ buildRangeLogPdf }, urls, regular, bold] = await Promise.all([
+        // Wszystkie podpisy pobrane przed budową PDF (porcjami, każda z własnymi linkami 60 s).
+        const [{ buildRangeLogPdf }, signatures, fonts] = await Promise.all([
           import('./range-pdf'),
-          signedUrls(supabase, entries),
-          bytes(FONTS.regular),
-          bytes(FONTS.bold),
+          fetchSignatures(
+            entries.map((entry) => entry.signature_path),
+            (paths) => signedUrls(supabase, paths),
+            bytes,
+          ),
+          pdfFonts(),
         ]);
-        const pdf = await buildRangeLogPdf({
-          entries,
-          filters,
-          fonts: { regular, bold },
-          signature: (entry) => {
-            const url = urls.get(entry.signature_path);
-            return url ? bytes(url) : Promise.reject(new Error('signature_missing'));
-          },
-          text: t,
-        });
+        const pdf = await buildRangeLogPdf({ entries, filters, fonts, signatures, text: t });
         download(pdf as Uint8Array<ArrayBuffer>, 'application/pdf', exportFileName(filters, 'pdf'));
       }
       status.textContent = '';

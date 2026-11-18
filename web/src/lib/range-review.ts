@@ -42,6 +42,36 @@ export interface ReviewFilters {
 /** Ważność podpisanych linków do podpisów (SPEC-005 §5, §9). */
 export const SIGNATURE_URL_SECONDS = 60;
 
+/** Liczba podpisów na porcję eksportu PDF: jedna porcja = jedno `createSignedUrls` + równoległe pobranie. */
+export const SIGNATURE_BATCH = 20;
+
+/**
+ * Pobiera obrazy podpisów przed budową PDF (SPEC-005 AC-27). Linki ważą 60 s, więc każda porcja jest podpisywana
+ * tuż przed pobraniem, a pliki w porcji ściągane równolegle — czas eksportu nie zależy od ważności linku.
+ * Brak linku lub błąd pobrania przerywa eksport (książka bez podpisu byłaby niepełna).
+ */
+export async function fetchSignatures<T>(
+  paths: readonly string[],
+  sign: (batch: string[]) => Promise<Map<string, string>>,
+  fetchBytes: (url: string) => Promise<T>,
+  batchSize = SIGNATURE_BATCH,
+): Promise<Map<string, T>> {
+  const unique = [...new Set(paths)];
+  const result = new Map<string, T>();
+  for (let start = 0; start < unique.length; start += batchSize) {
+    const batch = unique.slice(start, start + batchSize);
+    const urls = await sign(batch);
+    const files = await Promise.all(
+      batch.map((path) => {
+        const url = urls.get(path);
+        return url ? fetchBytes(url) : Promise.reject(new Error('signature_missing'));
+      }),
+    );
+    batch.forEach((path, i) => result.set(path, files[i]));
+  }
+  return result;
+}
+
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

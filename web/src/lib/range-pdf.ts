@@ -33,8 +33,11 @@ export interface RangeLogPdfInput {
   filters: Pick<ReviewFilters, 'from' | 'to'>;
   /** Inter 400 i 600 jako OTF: pdf-lib osadza plik bez konwersji (czytniki PDF nie znają WOFF2); bez podzbioru — podzbiór CFF z fontkit jest nieczytelny. */
   fonts: { regular: ArrayBuffer | Uint8Array; bold: ArrayBuffer | Uint8Array };
-  /** Obraz podpisu (PNG) — błąd przerywa eksport (książka bez podpisu byłaby niepełna). */
-  signature: (entry: ReviewEntry) => Promise<ArrayBuffer | Uint8Array>;
+  /**
+   * Obrazy podpisów (PNG) wg `signature_path`, pobrane wcześniej (`fetchSignatures`) — budowa PDF nie korzysta z sieci,
+   * więc nie zależy od 60-sekundowej ważności linków. Brak podpisu przerywa eksport (książka byłaby niepełna).
+   */
+  signatures: ReadonlyMap<string, ArrayBuffer | Uint8Array>;
   text: Translate;
 }
 
@@ -89,7 +92,9 @@ export async function buildRangeLogPdf(input: RangeLogPdfInput): Promise<Uint8Ar
     if (y - rowHeight - notesHeight < bottom) newPage();
 
     cells.forEach((lines, i) => lines.forEach((line, n) => draw(page, line, columnX[i] + PAD, y - PAD - n * LINE, regular, SIZE)));
-    const image = await doc.embedPng(await input.signature(entry));
+    const png = input.signatures.get(entry.signature_path);
+    if (!png) throw new Error('signature_missing');
+    const image = await doc.embedPng(png);
     const scale = Math.min((COLUMN_WIDTHS[4] - 2 * PAD) / image.width, SIGNATURE_HEIGHT / image.height);
     page.drawImage(image, { x: columnX[4] + PAD, y: y - PAD - image.height * scale, width: image.width * scale, height: image.height * scale });
     y -= rowHeight;

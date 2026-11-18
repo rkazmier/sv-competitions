@@ -5,6 +5,7 @@ import {
   defaultFilters,
   entryCells,
   exportFileName,
+  fetchSignatures,
   filterArgs,
   hasDateRange,
   rangeLabel,
@@ -100,5 +101,47 @@ describe('przegląd książki (SPEC-005 US-9)', () => {
     expect(wrapText('ul. Stalowa 12, Gliwice', 12, measure)).toEqual(['ul. Stalowa', '12, Gliwice']);
     expect(wrapText('ABCDEFGHIJ', 4, measure)).toEqual(['ABCD', 'EFGH', 'IJ']);
     expect(wrapText('', 4, measure)).toEqual(['']);
+  });
+});
+
+describe('fetchSignatures (SPEC-005 AC-27, linki 60 s)', () => {
+  it('podpisuje porcjami tuż przed pobraniem, pobiera równolegle w porcji, bez duplikatów', async () => {
+    const log: string[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const result = await fetchSignatures(
+      ['a', 'b', 'c', 'a', 'd', 'e'],
+      async (batch) => {
+        log.push(`sign:${batch.join(',')}`);
+        return new Map(batch.map((path) => [path, `url:${path}`]));
+      },
+      async (url) => {
+        log.push(`get:${url}`);
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight -= 1;
+        return url.toUpperCase();
+      },
+      2,
+    );
+    expect([...result]).toEqual([
+      ['a', 'URL:A'],
+      ['b', 'URL:B'],
+      ['c', 'URL:C'],
+      ['d', 'URL:D'],
+      ['e', 'URL:E'],
+    ]);
+    expect(log).toEqual(['sign:a,b', 'get:url:a', 'get:url:b', 'sign:c,d', 'get:url:c', 'get:url:d', 'sign:e', 'get:url:e']);
+    expect(maxInFlight).toBe(2);
+  });
+
+  it('brak linku lub błąd pobrania przerywa eksport; pusta lista — bez wywołań', async () => {
+    await expect(fetchSignatures(['a'], async () => new Map(), async () => 1)).rejects.toThrow('signature_missing');
+    await expect(
+      fetchSignatures(['a'], async () => new Map([['a', 'u']]), () => Promise.reject(new Error('HTTP 404'))),
+    ).rejects.toThrow('HTTP 404');
+    const sign = () => Promise.reject(new Error('unexpected'));
+    expect((await fetchSignatures([], sign, async () => 1)).size).toBe(0);
   });
 });

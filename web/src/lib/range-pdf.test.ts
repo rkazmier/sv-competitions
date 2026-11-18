@@ -32,27 +32,20 @@ const filters = { from: '2026-03-10', to: '2026-03-12' };
 
 describe('PDF książki (SPEC-005 AC-27)', () => {
   it('AC-27: A4 poziomo, tytuł z zakresem dat, podpis każdego wpisu, kolejne strony', async () => {
-    const asked: string[] = [];
     const entries = Array.from({ length: 30 }, (_, i) => entry(i + 1));
-    const bytes = await buildRangeLogPdf({
-      entries,
-      filters,
-      fonts,
-      text: t,
-      signature: async (e) => (asked.push(e.signature_path), PNG),
-    });
+    const signatures = new Map(entries.map((e) => [e.signature_path, PNG]));
+    const bytes = await buildRangeLogPdf({ entries, filters, fonts, text: t, signatures });
     const doc = await PDFDocument.load(bytes);
     expect(doc.getTitle()).toBe('Książka rejestru pobytu na strzelnicy Steel Valley 10.03.2026 – 12.03.2026');
     expect(doc.getPageCount()).toBeGreaterThan(1);
     for (const page of doc.getPages()) expect([page.getWidth(), page.getHeight()]).toEqual(PAGE_SIZE);
-    expect(asked).toEqual(entries.map((e) => e.signature_path));
   });
 
   it('AC-27: pusty zakres — jedna strona; brak podpisu przerywa eksport', async () => {
-    const empty = await PDFDocument.load(await buildRangeLogPdf({ entries: [], filters, fonts, text: t, signature: async () => PNG }));
+    const empty = await PDFDocument.load(await buildRangeLogPdf({ entries: [], filters, fonts, text: t, signatures: new Map() }));
     expect(empty.getPageCount()).toBe(1);
     await expect(
-      buildRangeLogPdf({ entries: [entry(1)], filters, fonts, text: t, signature: () => Promise.reject(new Error('404')) }),
-    ).rejects.toThrow('404');
+      buildRangeLogPdf({ entries: [entry(1)], filters, fonts, text: t, signatures: new Map() }),
+    ).rejects.toThrow('signature_missing');
   });
 });
