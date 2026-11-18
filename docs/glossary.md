@@ -77,7 +77,9 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | --- | --- | --- |
 | Książka rejestru pobytu na strzelnicy | `range_log` | Elektroniczna książka wejść; wpisy niezmienne, przechowywane 1 rok |
 | Wpis do książki | `range_log entry` | Data i godzina, imię i nazwisko, numer decyzji z organem lub adres, prowadzący, podpis |
-| Prowadzący strzelanie | `range_officer` | Osoba z listy admina, przypisywana do wpisów na zmianę |
+| Prowadzący strzelanie | `range_officer` | Osoba z listy admina (imię i nazwisko, nr legitymacji, instytucja), przypisywana do wpisów na zmianę |
+| Nr legitymacji | `license_number` | Numer legitymacji prowadzącego strzelanie |
+| Instytucja | `institution` | Wydawca legitymacji prowadzącego: PZSS, LOK, PZŁ, Inne (z nazwą wpisaną ręcznie — `institution_other`) |
 | Osoba towarzysząca | `companion` | Osoba wpisywana do książki bez zużycia uprawnienia |
 | Podpis | `signature` | Obraz podpisu odręcznego złożonego palcem na ekranie, w prywatnym buckecie |
 | Adnotacja | `range_log_annotation` | Korekta wpisu: kto, kiedy, treść; wpis pozostaje bez zmian |

@@ -1,0 +1,52 @@
+---
+/**
+ * Pola prowadzącego strzelanie (SPEC-005 AC-1, AC-1a): nr legitymacji, instytucja, przy „Inne” — nazwa instytucji.
+ * Używane w formularzu dodania i edycji `DictionaryList.astro`; identyfikatory pól nadaje skrypt
+ * (`wireOfficerFields` w lib/dictionary-ui.ts), bo formularz edycji powstaje z szablonu dla każdego wiersza.
+ */
+import { t, type MessageKey } from '../i18n';
+import { INSTITUTION_OTHER_MAX, LICENSE_NUMBER_MAX, OFFICER_INSTITUTIONS } from '../lib/dictionary';
+---
+<div class="officer-fields" data-officer-fields>
+  <div class="field">
+    <label class="field-label" data-for="license_number">{t('dictionary.officers.licenseLabel')}</label>
+    <input class="input" name="license_number" type="text" required maxlength={LICENSE_NUMBER_MAX} autocomplete="off" />
+    <p class="message-error field-error" data-field-error="license_number" hidden></p>
+  </div>
+  <div class="field">
+    <label class="field-label" data-for="institution">{t('dictionary.officers.institutionLabel')}</label>
+    <select class="input" name="institution" required>
+      <option value="">{t('dictionary.officers.institutionPlaceholder')}</option>
+      {OFFICER_INSTITUTIONS.map((code) => (
+        <option value={code}>{t(`dictionary.officers.institutions.${code}` as MessageKey)}</option>
+      ))}
+    </select>
+    <p class="message-error field-error" data-field-error="institution" hidden></p>
+  </div>
+  <div class="field" data-institution-other hidden>
+    <label class="field-label" data-for="institution_other">{t('dictionary.officers.institutionOtherLabel')}</label>
+    <input class="input" name="institution_other" type="text" maxlength={INSTITUTION_OTHER_MAX} autocomplete="off" />
+    <p class="message-error field-error" data-field-error="institution_other" hidden></p>
+  </div>
+</div>
+
+<style>
+  .officer-fields {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .field {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .field[hidden] {
+    display: none;
+  }
+
+  .field-error {
+    margin: 0;
+  }
+</style>

@@ -26,25 +26,55 @@ test.describe('admin — /panel/prowadzacy/', () => {
     await signIn(page, 'admin');
   });
 
-  test('AC-1: dodanie prowadzącego (2–150 znaków) — na liście jako aktywny; menu', async ({ page }) => {
+  test('AC-1: dodanie prowadzącego (imię i nazwisko, nr legitymacji, instytucja) — na liście jako aktywny; menu', async ({
+    page,
+  }) => {
     const name = unique('Prowadzący');
     await page.goto('/panel/prowadzacy/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Prowadzący strzelanie');
+    const form = page.getByRole('form', { name: 'Dodaj prowadzącego' });
 
-    await page.getByLabel('Imię i nazwisko', { exact: true }).fill('A');
-    await page.getByRole('button', { name: 'Dodaj' }).click();
-    await expect(page.getByText('Imię i nazwisko musi mieć co najmniej 2 znaki.')).toBeVisible();
+    await form.getByLabel('Imię i nazwisko', { exact: true }).fill('A');
+    await form.getByRole('button', { name: 'Dodaj' }).click();
+    await expect(form.getByText('Imię i nazwisko musi mieć co najmniej 2 znaki.')).toBeVisible();
+    await expect(form.getByText('Podaj nr legitymacji.')).toBeVisible();
+    await expect(form.getByText('Wybierz instytucję.')).toBeVisible();
 
-    await page.getByLabel('Imię i nazwisko', { exact: true }).fill(`  ${name}  `);
-    await page.getByRole('button', { name: 'Dodaj' }).click();
+    await form.getByLabel('Imię i nazwisko', { exact: true }).fill(`  ${name}  `);
+    await form.getByLabel('Nr legitymacji').fill(' 123/2024 ');
+    await form.getByLabel('Instytucja').selectOption({ label: 'PZŁ' });
+    await expect(form.getByLabel('Nazwa instytucji')).toBeHidden();
+    await form.getByRole('button', { name: 'Dodaj' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Zapisano.' })).toBeVisible();
     await expect(itemFor(page, name)).toContainText('Aktywny');
-    const { data } = await admin().from('range_officers').select('is_active').eq('full_name', name).single();
-    expect(data?.is_active).toBe(true);
+    await expect(itemFor(page, name)).toContainText('Nr legitymacji: 123/2024 · PZŁ');
+    const { data } = await admin()
+      .from('range_officers')
+      .select('is_active, license_number, institution, institution_other')
+      .eq('full_name', name)
+      .single();
+    expect(data).toEqual({ is_active: true, license_number: '123/2024', institution: 'PZL', institution_other: null });
 
     const menu = page.getByRole('navigation', { name: 'Menu panelu' });
     await expect(menu.getByRole('link', { name: 'Prowadzący', exact: true })).toHaveAttribute('href', '/panel/prowadzacy/');
     await expect(menu.getByRole('link', { name: 'Książka', exact: true })).toHaveAttribute('href', '/panel/ksiazka/');
+  });
+
+  test('AC-1: instytucja „Inne” — wymagane pole „Nazwa instytucji”', async ({ page }) => {
+    const name = unique('Inna instytucja');
+    await page.goto('/panel/prowadzacy/');
+    const form = page.getByRole('form', { name: 'Dodaj prowadzącego' });
+    await form.getByLabel('Imię i nazwisko', { exact: true }).fill(name);
+    await form.getByLabel('Nr legitymacji').fill('77');
+    await form.getByLabel('Instytucja').selectOption({ label: 'Inne' });
+    await form.getByRole('button', { name: 'Dodaj' }).click();
+    await expect(form.getByText('Podaj nazwę instytucji.')).toBeVisible();
+
+    await form.getByLabel('Nazwa instytucji').fill('Klub Strzelecki ABC');
+    await form.getByRole('button', { name: 'Dodaj' }).click();
+    await expect(itemFor(page, name)).toContainText('Nr legitymacji: 77 · Klub Strzelecki ABC');
+    const { data } = await admin().from('range_officers').select('institution, institution_other').eq('full_name', name).single();
+    expect(data).toEqual({ institution: 'OTHER', institution_other: 'Klub Strzelecki ABC' });
   });
 
   test('AC-1: „Ukryj” / „Przywróć”, bez usuwania', async ({ page }) => {
@@ -63,18 +93,24 @@ test.describe('admin — /panel/prowadzacy/', () => {
     await expect(item).toContainText('Aktywny');
   });
 
-  test('AC-2: zmiana imienia i nazwiska prowadzącego', async ({ page }) => {
+  test('AC-2, AC-1a: edycja prowadzącego sprzed #104 — uzupełnienie nr legitymacji i instytucji', async ({ page }) => {
     const name = unique('Stary');
     const renamed = unique('Nowy');
     const id = await addOfficer(name);
     await page.goto('/panel/prowadzacy/');
     const item = itemFor(page, name);
-    await item.getByRole('button', { name: 'Zmień imię i nazwisko' }).click();
-    await item.getByLabel('Nowe imię i nazwisko').fill(renamed);
+    await expect(item).toContainText('Brak nr legitymacji');
+    await item.getByRole('button', { name: 'Edytuj' }).click();
+    await item.getByLabel('Imię i nazwisko', { exact: true }).fill(renamed);
     await item.getByRole('button', { name: 'Zapisz' }).click();
-    await expect(itemFor(page, renamed)).toBeVisible();
-    const { data } = await admin().from('range_officers').select('full_name').eq('id', id).single();
-    expect(data?.full_name).toBe(renamed);
+    await expect(item.getByText('Podaj nr legitymacji.')).toBeVisible();
+
+    await item.getByLabel('Nr legitymacji').fill('9');
+    await item.getByLabel('Instytucja').selectOption({ label: 'LOK' });
+    await item.getByRole('button', { name: 'Zapisz' }).click();
+    await expect(itemFor(page, renamed)).toContainText('Nr legitymacji: 9 · LOK');
+    const { data } = await admin().from('range_officers').select('full_name, license_number, institution').eq('id', id).single();
+    expect(data).toEqual({ full_name: renamed, license_number: '9', institution: 'LOK' });
   });
 });
 

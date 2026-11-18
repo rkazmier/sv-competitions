@@ -7,6 +7,7 @@
  */
 import { t } from '../i18n';
 import { DICTIONARIES, dictionaryText, type DictionaryKind } from '../lib/dictionary';
+import OfficerFields from './OfficerFields.astro';
 
 interface Props {
   kind: DictionaryKind;
@@ -15,13 +16,15 @@ interface Props {
 const { kind } = Astro.props;
 const { table, max } = DICTIONARIES[kind];
 const id = `dict-${kind}`;
+// Prowadzący (SPEC-005 AC-1): dodatkowe pola, przycisk „Dodaj” pod nimi.
+const officers = kind === 'officers';
 ---
 <div class="dictionary" data-dictionary={table} data-kind={kind}>
   <h1>{t(`dictionary.${kind}.title`)}</h1>
   <p class="lead">{t(`dictionary.${kind}.intro`)}</p>
 
-  <form class="card add-form" data-add-form novalidate>
-    <h2 class="form-heading">{t(`dictionary.${kind}.addHeading`)}</h2>
+  <form class="card add-form" data-add-form novalidate aria-labelledby={`${id}-add-heading`}>
+    <h2 class="form-heading" id={`${id}-add-heading`}>{t(`dictionary.${kind}.addHeading`)}</h2>
     <label class="field-label" for={`${id}-name`}>{dictionaryText(kind, 'nameLabel')}</label>
     <div class="field-row">
       <input
@@ -34,9 +37,11 @@ const id = `dict-${kind}`;
         autocomplete="off"
         aria-describedby={`${id}-error`}
       />
-      <button type="submit" class="button button-primary">{t('dictionary.add')}</button>
+      {!officers && <button type="submit" class="button button-primary">{t('dictionary.add')}</button>}
     </div>
     <p class="message-error field-error" id={`${id}-error`} data-error hidden></p>
+    {officers && <OfficerFields />}
+    {officers && <button type="submit" class="button button-primary">{t('dictionary.add')}</button>}
   </form>
 
   <p class="status" role="status" data-status></p>
@@ -52,6 +57,7 @@ const id = `dict-${kind}`;
           <span data-name></span>
           <span class="tag" data-state></span>
         </p>
+        {officers && <p class="item-details" data-details></p>}
         <div class="button-row">
           <button type="button" class="button" data-rename>
             {dictionaryText(kind, 'rename')}<span class="visually-hidden" data-sr-name></span>
@@ -67,6 +73,7 @@ const id = `dict-${kind}`;
           <input class="input" name="name" type="text" required maxlength={max} autocomplete="off" />
         </div>
         <p class="message-error field-error" data-error hidden></p>
+        {officers && <OfficerFields />}
         <div class="button-row">
           <button type="submit" class="button button-primary">{t('dictionary.save')}</button>
           <button type="button" class="button" data-cancel>{t('dictionary.cancel')}</button>
@@ -130,6 +137,14 @@ const id = `dict-${kind}`;
     gap: var(--space-2);
     margin: 0;
     font-weight: var(--font-weight-strong);
+  }
+
+  .item-details {
+    flex-basis: 100%;
+    order: 1;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
   }
 
   .item:has([data-state='hidden']) .item-name > span:first-child {
