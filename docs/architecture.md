@@ -246,8 +246,9 @@
   `invalid_invoice_number`, `invalid_ksef_number`, `invoice_not_requested`, `invoice_already_issued`, `invoice_not_issued`,
   `order_not_paid`, `order_refunded`.
   Interfejs (AC-1…AC-9): wspólny komponent `InvoiceFields.astro` + wyspa `src/lib/invoice-ui.ts` (logika bez DOM:
-  `src/lib/invoice.ts` — normalizacja i suma kontrolna NIP jak w bazie): NIP → `company-lookup` → potwierdzenie danych
-  z rejestru albo wpis ręczny (`manual`); zapisane `billing_details` → „Użyj zapisanych danych” / „Inna firma”. Nic nie zapisuje
+  `src/lib/invoice.ts` — normalizacja i suma kontrolna NIP jak w bazie): NIP → `company-lookup` → dane z rejestru
+  (przyjęte bez ręcznego potwierdzenia) albo wpis ręczny (`manual`, „Dane są poprawne”); zapisane `billing_details` →
+  NIP wypełniony i automatyczne pobranie z rejestru (gdy rejestr nie zwróci danych — zapisane dane). Nic nie zapisuje
   sama — zapis robi strona: `/oferta/zamowienie/` przekazuje `invoice` do `payments-create` („Zapłać” nieaktywny do potwierdzenia),
   `/konto/dane/` — `upsert`/`delete` własnego `billing_details` (RLS), `/panel/sprzedaz/` — `rpc/set_order_invoice_details`
   po `create_on_site_order` (bez `save_billing_details`; błąd → sprzedaż zostaje, komunikat „poproś admina”).

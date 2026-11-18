@@ -39,12 +39,12 @@ kompletną listę „Do wystawienia” z danymi do skopiowania, a admin zapisuje
 ## 4. Historyjki i kryteria akceptacji
 
 ### US-1: Jako klient firmowy chcę zamówić fakturę na NIP
-- **AC-1**: Given podsumowanie zamówienia (SPEC-003 AC-7) When zaznaczam „Potrzebuję faktury” Then widzę pole „NIP” i przycisk „Pobierz dane firmy”; jeśli mam zapisane `billing_details`, pola są wypełnione i widzę „Użyj zapisanych danych” lub „Inna firma”.
+- **AC-1**: Given podsumowanie zamówienia (SPEC-003 AC-7) When zaznaczam „Potrzebuję faktury” Then widzę pole „NIP” i przycisk „Pobierz dane firmy”; jeśli mam zapisane `billing_details`, NIP wypełnia się sam i dane firmy pobierają się automatycznie z rejestru (jak AC-3, bez klikania); gdy rejestr nie zwróci danych, używane są zapisane `billing_details`. W obu przypadkach dane są od razu gotowe (AC-6 spełnione), a „Zmień dane do faktury” pozwala wpisać inny NIP.
 - **AC-2**: Given wpisuję NIP (cyfry, dopuszczalne myślniki/spacje, opcjonalny prefiks `PL`) When suma kontrolna jest błędna Then widzę „Nieprawidłowy NIP.” i rejestr nie jest odpytywany.
-- **AC-3**: Given poprawny NIP When klikam „Pobierz dane firmy” Then Edge Function `company-lookup` zwraca nazwę i adres siedziby z Białej listy MF (a gdy brak — z GUS BIR, jeśli jest klucz), a ja widzę je do potwierdzenia: „Nazwa”, „Adres”, źródło („Biała lista VAT” / „REGON”) i przycisk „Dane są poprawne”.
+- **AC-3**: Given poprawny NIP When klikam „Pobierz dane firmy” Then Edge Function `company-lookup` zwraca nazwę i adres siedziby z Białej listy MF (a gdy brak — z GUS BIR, jeśli jest klucz) i dane są od razu przyjęte bez ręcznego potwierdzenia: widzę „Nazwa”, „Adres”, źródło („Biała lista VAT” / „REGON”) i przycisk „Zmień dane do faktury”. Przycisk „Dane są poprawne” dotyczy tylko danych wpisanych ręcznie (AC-4).
 - **AC-4**: Given firmy nie ma w rejestrach albo rejestr nie odpowiada (limit 5 s) When wynik wraca Then widzę „Nie znaleźliśmy firmy w rejestrze. Wpisz dane ręcznie.” i pola Nazwa* (2–250 znaków), Adres* (5–300 znaków); zamówienie dostaje źródło `manual` („Dane niezweryfikowane” u admina).
-- **AC-5**: Given potwierdziłam/potwierdziłem dane When klikam „Zapłać” Then zamówienie zapisuje kopię: NIP, nazwę, adres, źródło, datę pobrania; dane zapisują się też w `billing_details` (nadpisując poprzednie).
-- **AC-6**: Given zaznaczony checkbox faktury When dane nie są potwierdzone Then „Zapłać” jest nieaktywny z podpowiedzią „Potwierdź dane do faktury.”.
+- **AC-5**: Given dane do faktury są gotowe (z rejestru — AC-1, AC-3 — albo potwierdzone ręcznie — AC-4) When klikam „Zapłać” Then zamówienie zapisuje kopię: NIP, nazwę, adres, źródło, datę pobrania; dane zapisują się też w `billing_details` (nadpisując poprzednie).
+- **AC-6**: Given zaznaczony checkbox faktury When dane nie są gotowe (trwa pobieranie z rejestru, NIP bez pobranych danych albo niepotwierdzony wpis ręczny) Then „Zapłać” jest nieaktywny z podpowiedzią „Potwierdź dane do faktury.”.
 - **AC-7**: Given `/konto/` When zamówienie ma fakturę Then w „Historia płatności” widzę „Faktura: w przygotowaniu” albo „Faktura: <numer>” (bez pliku — e-mikrofirma/KSeF).
 - **AC-8**: Given `/konto/dane/` When edytuję sekcję „Dane do faktury” Then mogę zmienić lub usunąć zapisane dane (te same kroki NIP → rejestr / ręcznie); nie wpływa to na złożone zamówienia.
 

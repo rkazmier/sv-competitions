@@ -66,7 +66,7 @@ export interface LookupResult {
 }
 
 /**
- * Co pokazać po „Pobierz dane firmy”: dane z rejestru do potwierdzenia (AC-3), wpis ręczny (AC-4 — brak w rejestrach,
+ * Co pokazać po „Pobierz dane firmy”: dane z rejestru przyjęte od razu (AC-3), wpis ręczny (AC-4 — brak w rejestrach,
  * brak odpowiedzi, limit zapytań) albo komunikat błędu NIP (`invalid_nip`, `foreign_nip`).
  */
 export type LookupView =
