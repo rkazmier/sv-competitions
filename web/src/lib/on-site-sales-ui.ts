@@ -271,7 +271,9 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
     // SPEC-006 AC-15: numer nadaje baza — odczyt z `orders` (obsługa ma odczyt, RLS).
     const { data: saved } = await supabase.from('orders').select('order_number').eq('id', orderId as string)
       .maybeSingle<{ order_number: string }>();
-    status.textContent = t('sales.saved', { number: saved?.order_number ?? '' });
+    status.textContent = saved?.order_number
+      ? t('sales.saved', { number: saved.order_number })
+      : t('sales.savedNoNumber');
     // SPEC-005 AC-12: sprzedaż z książki → powrót do wpisu tej osoby z nowym uprawnieniem.
     if (returnUrl && !guest && person?.id === presetId && !invoiceError) return window.location.assign(returnUrl);
     person = null;

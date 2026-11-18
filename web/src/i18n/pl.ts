@@ -422,6 +422,7 @@ export const pl = {
     itemRequired: 'Wybierz produkt lub wejściówkę.',
     methodRequired: 'Wybierz „Gotówka” albo „Terminal”.',
     saved: 'Sprzedaż zarejestrowana: {number}.',
+    savedNoNumber: 'Sprzedaż zarejestrowana.',
     errorSoldOut: 'Wejściówki zostały wyprzedane.',
     errorSalesClosed: 'Sprzedaż zakończona.',
     errorUnavailable: 'Ten produkt nie jest już dostępny.',

@@ -60,6 +60,8 @@ test('AC-21, AC-23, SPEC-006 AC-15: obsługa sprzedaje karnet osobie z kontem; p
   await page.getByLabel('Produkt lub wejściówka *').selectOption({ label: `${product} — 123,45 zł` });
   await page.getByLabel('Gotówka').check();
   await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
+  // Najpierw komunikat — dopiero wtedy zamówienie na pewno jest w bazie (inaczej wyścig z zapisem).
+  await expect(page.getByText(/^Sprzedaż zarejestrowana: SV-\d{4}-\d{6,}\.$/)).toBeVisible();
   const { data: sold } = await admin().from('orders').select('order_number').eq('user_id', person.id).single();
   await expect(page.getByText(`Sprzedaż zarejestrowana: ${sold!.order_number}.`)).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Nr zamówienia' })).toBeVisible();
