@@ -125,7 +125,8 @@
 - Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie,
   prowadzący strzelanie); ustawienia list (tabela, kolumna nazwy, długość, unikalność, przebudowa) w `DICTIONARIES`.
-- Książka — prowadzący (SPEC-005 AC-1…AC-4): `/panel/prowadzacy/` (admin) — lista `range_officers` z „Ukryj” / „Przywróć”,
+- Książka — prowadzący (SPEC-005 AC-1…AC-4): `/panel/prowadzacy/` (admin) — lista `range_officers` (imię i nazwisko, nr legitymacji,
+  instytucja — `OFFICER_INSTITUTIONS` w `src/lib/dictionary.ts`, pola dodatkowe tylko dla tej listy) z „Ukryj” / „Przywróć”,
   bez usuwania (zmiana nazwiska nie zmienia wpisów — kopia w `range_log.range_officer_name`). `/panel/ksiazka/` (obsługa i admin) —
   „Kto prowadzi strzelanie?” z aktywnymi prowadzącymi; wybór w localStorage `sv-range-shift` = `{ id, day }` (bez nazwiska),
   ważny do końca dnia Europe/Warsaw; prowadzący ukryty w trakcie zmiany → ponowny wybór. Logika `src/lib/range-shift.ts`

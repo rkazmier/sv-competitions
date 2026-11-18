@@ -42,7 +42,8 @@ Podpis zawsze składa osobiście osoba wpisywana.
 ## 4. Historyjki i kryteria akceptacji
 
 ### US-1: Jako admin chcę prowadzić listę prowadzących strzelanie
-- **AC-1**: Given `/panel/prowadzacy/` When dodaję imię i nazwisko (2–150 znaków) Then prowadzący pojawia się na liście jako aktywny; „Ukryj” / „Przywróć”, bez usuwania.
+- **AC-1**: Given `/panel/prowadzacy/` When dodaję imię i nazwisko (2–150 znaków), nr legitymacji (1–50 znaków) i instytucję (lista: PZSS, LOK, PZŁ, Inne; przy „Inne” pojawia się wymagane pole „Nazwa instytucji”, 2–150 znaków) Then prowadzący pojawia się na liście jako aktywny, z nr legitymacji i instytucją; bez któregokolwiek pola zapis jest odrzucony („Podaj nr legitymacji.”, „Wybierz instytucję.”, „Podaj nazwę instytucji.”); „Ukryj” / „Przywróć”, bez usuwania.
+- **AC-1a**: Given prowadzący na liście When klikam „Edytuj” Then zmieniam imię i nazwisko, nr legitymacji i instytucję (wszystkie wymagane); prowadzący dodani przed #104 mają przy nazwisku „Brak nr legitymacji” do uzupełnienia. Nr legitymacji i instytucja nie trafiają do wpisów książki.
 - **AC-2**: Given zmieniam imię i nazwisko prowadzącego When zapisuję Then wcześniejsze wpisy zachowują dawną wartość (kopia we wpisie).
 
 ### US-2: Jako obsługa chcę ustawić prowadzącego na zmianę
@@ -98,6 +99,9 @@ Podpis zawsze składa osobiście osoba wpisywana.
 | --- | --- | --- | --- | --- | --- |
 | `range_officers` | `id` | `uuid` PK | tak | nie | |
 | | `full_name` | `text` | tak | tak | 2–150 znaków |
+| | `license_number` | `text` | nie* | tak | nr legitymacji, 1–50 znaków; *wymagany w formularzu (puste tylko u prowadzących sprzed #104); parą z `institution` |
+| | `institution` | `text` | nie* | nie | `PZSS` / `LOK` / `PZL` (PZŁ) / `OTHER` (Inne) |
+| | `institution_other` | `text` | gdy `OTHER` | nie | nazwa instytucji przy „Inne”, 2–150 znaków; tylko przy `OTHER` |
 | | `is_active` | `boolean` | tak | nie | |
 | | `created_at` | `timestamptz` | tak | nie | |
 | `range_log` | `id` | `uuid` PK | tak | nie | nadawany przez klienta przed wysłaniem podpisu (ścieżka pliku) |
@@ -181,6 +185,7 @@ Nie zawiera rodzaju osoby, wersji regulaminu ani informacji rozliczeniowych — 
 | Karnet imienny, osoby towarzyszące nie zużywają karnetu | 8-A | 2026-11-17 |
 | Osoba bez konta płaci na miejscu, dane tylko w książce | 10-A | 2026-11-17 |
 | Regulamin strzelnicy i klauzula informacyjna | 12-A: teksty od właściciela, do tego czasu zastępcze | 2026-11-17 |
+| Nr legitymacji i instytucja prowadzącego | #104: obowiązkowe; tylko na liście prowadzących (nie we wpisach); „Inne” z polem na nazwę instytucji | 2026-11-18 |
 
 Założenia analityka (zatwierdzane razem ze specyfikacją): prowadzący zapamiętywany na urządzeniu do końca dnia; obsługa widzi tylko dzisiejsze wpisy
 i dodaje adnotacje tylko do nich; admin może cofnąć omyłkowe zużycie karnetu (wpis zostaje); eksport i podgląd podpisów zapisywane w dzienniku zmian.

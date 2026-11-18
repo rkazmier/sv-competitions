@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   DICTIONARIES,
   dictionaryText,
+  formatOfficerDetails,
   isUniqueViolation,
+  officerDetailsRow,
+  validateOfficerDetails,
   nameKey,
   sortItems,
   validateName,
@@ -86,5 +89,53 @@ describe('prowadzący strzelanie (SPEC-005 US-1)', () => {
     expect(dictionaryText('officers', 'nameLabel')).toBe('Imię i nazwisko');
     expect(dictionaryText('officers', 'tooShort', { min: 2 })).toBe('Imię i nazwisko musi mieć co najmniej 2 znaki.');
     expect(dictionaryText('disciplines', 'active')).toBe('Aktywna');
+  });
+
+  const details = { license_number: ' 123/2024 ', institution: 'PZSS', institution_other: '' };
+
+  it('AC-1: nr legitymacji i instytucja są wymagane', () => {
+    expect(validateOfficerDetails(details)).toEqual({});
+    expect(validateOfficerDetails({ ...details, license_number: '  ', institution: '' })).toEqual({
+      license_number: 'licenseRequired',
+      institution: 'institutionRequired',
+    });
+    expect(validateOfficerDetails({ ...details, license_number: '1'.repeat(51) })).toEqual({
+      license_number: 'licenseTooLong',
+    });
+    expect(validateOfficerDetails({ ...details, institution: 'PZŁ' })).toEqual({ institution: 'institutionRequired' });
+  });
+
+  it('AC-1: przy „Inne” nazwa instytucji wymagana (2–150 znaków); przy innych opcjach pomijana', () => {
+    const other = { ...details, institution: 'OTHER' };
+    expect(validateOfficerDetails(other)).toEqual({ institution_other: 'institutionOtherRequired' });
+    expect(validateOfficerDetails({ ...other, institution_other: ' X ' })).toEqual({
+      institution_other: 'institutionOtherTooShort',
+    });
+    expect(validateOfficerDetails({ ...other, institution_other: 'x'.repeat(151) })).toEqual({
+      institution_other: 'institutionOtherTooLong',
+    });
+    expect(validateOfficerDetails({ ...other, institution_other: ' Klub ABC ' })).toEqual({});
+    expect(officerDetailsRow({ ...other, institution_other: ' Klub ABC ' })).toEqual({
+      license_number: '123/2024',
+      institution: 'OTHER',
+      institution_other: 'Klub ABC',
+    });
+    expect(officerDetailsRow({ ...details, institution_other: 'zostało po zmianie' })).toEqual({
+      license_number: '123/2024',
+      institution: 'PZSS',
+      institution_other: null,
+    });
+  });
+
+  it('AC-1, AC-1a: opis na liście — instytucja z etykietą (PZŁ), „Inne” z nazwą, brak danych', () => {
+    expect(formatOfficerDetails({ license_number: '7', institution: 'PZL', institution_other: null })).toBe(
+      'Nr legitymacji: 7 · PZŁ',
+    );
+    expect(formatOfficerDetails({ license_number: '7', institution: 'OTHER', institution_other: 'Klub ABC' })).toBe(
+      'Nr legitymacji: 7 · Klub ABC',
+    );
+    expect(formatOfficerDetails({ license_number: null, institution: null, institution_other: null })).toBe(
+      'Brak nr legitymacji — uzupełnij w „Edytuj”.',
+    );
   });
 });
