@@ -56,6 +56,7 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Wejściówka | `event_ticket` | Uprawnienie wejścia na płatne wydarzenie Steel Valley w dniach wydarzenia |
 | Tryb wydarzenia | `access_mode` | `external` (zewnętrzne), `free` (otwarte, bezpłatne), `paid` (płatne przez Ofertę) |
 | Zamówienie | `order` | Zakup jednego produktu lub wejściówki; płatność Tpay albo na miejscu |
+| Numer zamówienia | `order_number` | Czytelny numer zamówienia `SV-RRRR-NNNNNN` (rok utworzenia, licznik ciągły; SPEC-006); nie jest numerem faktury |
 | Sprzedaż na miejscu | `on_site` | Zamówienie opłacone gotówką lub terminalem, rejestrowane przez obsługę |
 | Uprawnienie (karnet w koncie) | `user_pass` | To, co powstaje z opłaconego zamówienia; ważne 1 rok od zakupu |
 | Zużycie | `pass_usage` | Wykorzystanie uprawnienia przy wpisie do książki (historia karnetu) |

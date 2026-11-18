@@ -257,7 +257,11 @@
   (Clipboard API), `mark_invoice_issued` / `unmark_invoice`, eksport CSV bieżącej zakładki (BOM, `;`), ostrzeżenie o korekcie
   przy zwrocie. Menu admina: „Faktury (n)” — liczba „Do wystawienia” (`count` z `orders`, RLS). `admin_list_orders` zwraca też
   `invoice_requested`; `/panel/zamowienia/` — „Dodaj dane do faktury” przy opłaconych bez faktury (`InvoiceFields` w oknie,
-  `set_order_invoice_details` z `save_billing_details = false`, AC-14). Numer zamówienia na fakturze = `orders.id`.
+  `set_order_invoice_details` z `save_billing_details = false`, AC-14). Numer zamówienia na fakturze = `orders.order_number` (SPEC-006).
+- Numer zamówienia (SPEC-006 §5): `orders.order_number` (`SV-RRRR-NNNNNN`, `unique`, `not null`) z sekwencji
+  `order_number_seq` (ciągła, rok utworzenia w Europe/Warsaw); nadaje wyzwalacz `orders_before_insert_number`, zmianę blokuje
+  `orders_before_update_number` (`order_number_immutable`). `orders.id` (UUID) zostaje kluczem, w adresach i w `tr_crc` Tpay;
+  `order_number` — w UI, CSV, wyszukiwaniu `admin_list_orders` i `description` transakcji Tpay.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
   `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
   wyzwalacz `range_log_immutable` (`23514 range_log_immutable`) przepuszcza tylko `on delete set null` kluczy obcych,
