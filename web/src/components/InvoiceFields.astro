@@ -1,7 +1,7 @@
 ---
 /**
- * Dane do faktury (SPEC-004 AC-1…AC-4, AC-8, AC-9): NIP → „Pobierz dane firmy” → potwierdzenie danych z rejestru
- * albo wpis ręczny; zapisane `billing_details` — „Użyj zapisanych danych” / „Inna firma”.
+ * Dane do faktury (SPEC-004 AC-1…AC-4, AC-8, AC-9): NIP → „Pobierz dane firmy” → dane z rejestru (bez potwierdzenia)
+ * albo wpis ręczny; zapisane `billing_details` — NIP wypełniony i automatyczne pobranie z rejestru.
  * `toggle` — checkbox „Potrzebuję faktury” (zakup, sprzedaż na miejscu); bez niego pola są zawsze widoczne (`/konto/dane/`).
  * Logika: lib/invoice-ui.ts (`bindInvoiceFields`), lib/invoice.ts.
  */
@@ -27,11 +27,6 @@ const { id, toggle = true } = Astro.props;
   <div class="invoice-body" data-invoice-body hidden={toggle}>
     <dl class="invoice-summary" data-invoice-summary hidden></dl>
     <p class="invoice-done" data-invoice-done hidden>{t('invoice.confirmed')}</p>
-
-    <div class="button-row" data-invoice-saved hidden>
-      <button type="button" class="button button-primary" data-use-saved>{t('invoice.useSaved')}</button>
-      <button type="button" class="button" data-other-company>{t('invoice.otherCompany')}</button>
-    </div>
 
     <div class="invoice-nip" data-invoice-nip>
       <label class="field-label" for={`${id}-nip`}>{t('invoice.nip')} *</label>

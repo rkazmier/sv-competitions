@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { admin, ensureUser, hasLocalSupabase, signIn, signInAs, unique } from './support/supabase';
 
-// SPEC-004 US-1, US-2 (AC-1…AC-9): faktura przy zakupie, „Dane do faktury” w `/konto/dane/`, status w „Historii płatności”,
+// SPEC-004 US-1, US-2 (AC-1…AC-9): faktura przy zakupie (zapisany NIP pobierany automatycznie, dane z rejestru bez potwierdzenia), „Dane do faktury” w `/konto/dane/`, status w „Historii płatności”,
 // faktura przy sprzedaży na miejscu. `company-lookup` i `payments-create` są podmienione (`page.route`) — ich logikę
 // sprawdzają testy Deno; zapis kopii w zamówieniu i `billing_details` — pgTAP (supabase/tests/022_invoices_test.sql).
 test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supabase start + zmienne środowiskowe)');
@@ -71,7 +71,7 @@ async function mockPayment(page: Page): Promise<{ body: Record<string, unknown> 
 }
 
 test.describe('zakup online', () => {
-  test('AC-1, AC-2, AC-3, AC-5, AC-6: NIP → dane z rejestru → potwierdzenie → „Zapłać” z danymi faktury', async ({ page }) => {
+  test('AC-1, AC-2, AC-3, AC-5, AC-6: NIP → dane z rejestru bez potwierdzenia → „Zapłać” z danymi faktury', async ({ page }) => {
     const item = await product();
     await account(page);
     const lookup = await mockLookup(page, true);
@@ -94,16 +94,15 @@ test.describe('zakup online', () => {
     await expect(page.getByText('Nieprawidłowy NIP.')).toBeVisible();
     expect(lookup.count).toBe(0);
 
-    // AC-3: prefiks PL i myślniki dopuszczalne; dane do potwierdzenia ze źródłem
+    // AC-3: prefiks PL i myślniki dopuszczalne; dane z rejestru przyjęte od razu, ze źródłem
     await page.getByLabel('NIP *').fill('PL 526-025-09-95');
     await page.getByRole('button', { name: 'Pobierz dane firmy' }).click();
     await expect(page.getByText(FIRM.name)).toBeVisible();
     await expect(page.getByText(FIRM.address)).toBeVisible();
     await expect(page.getByText('Biała lista VAT')).toBeVisible();
     expect(lookup.count).toBe(1);
-    await expect(pay).toBeDisabled();
-    await page.getByRole('button', { name: 'Dane są poprawne' }).click();
-    await expect(page.getByText('Dane do faktury potwierdzone.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dane są poprawne' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Zmień dane do faktury' })).toBeVisible();
     await expect(pay).toBeEnabled();
 
     // AC-5: kopia danych w żądaniu do `payments-create`
@@ -118,17 +117,35 @@ test.describe('zakup online', () => {
     expect(typeof (payment.body.invoice as { fetched_at: unknown }).fetched_at).toBe('string');
   });
 
-  test('AC-1: zapisane dane — „Użyj zapisanych danych” albo „Inna firma”', async ({ page }) => {
+  test('AC-1: zapisany NIP — wypełnia się sam, dane z rejestru pobierają się automatycznie', async ({ page }) => {
     const item = await product();
     const userId = await account(page);
     await saveBilling(userId);
+    const lookup = await mockLookup(page, true);
+    const payment = await mockPayment(page);
+    await page.goto(`/oferta/zamowienie/?product=${item.id}`);
+    await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
+    expect(lookup.count).toBe(0); // rejestr dopiero po zaznaczeniu faktury
+    await page.getByLabel('Potrzebuję faktury').check();
+    await expect(page.getByText(FIRM.name)).toBeVisible(); // świeże dane z rejestru zamiast zapisanych
+    expect(lookup.count).toBe(1);
+    const pay = page.getByRole('button', { name: 'Zapłać 120,00 zł' });
+    await expect(pay).toBeEnabled();
+    await pay.click();
+    await expect(page).toHaveURL(/secure\.sandbox\.tpay\.com/);
+    expect(payment.body.invoice).toMatchObject({ nip: NIP, company_name: FIRM.name, data_source: 'vat_whitelist' });
+  });
+
+  test('AC-1: rejestr nie zwraca danych — używane są zapisane dane', async ({ page }) => {
+    const item = await product();
+    const userId = await account(page);
+    await saveBilling(userId);
+    await mockLookup(page, false);
     const payment = await mockPayment(page);
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
     await page.getByLabel('Potrzebuję faktury').check();
     await expect(page.getByText('Zapisana Firma S.A.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Inna firma' })).toBeVisible();
-    await page.getByRole('button', { name: 'Użyj zapisanych danych' }).click();
     await page.getByRole('button', { name: 'Zapłać 120,00 zł' }).click();
     await expect(page).toHaveURL(/secure\.sandbox\.tpay\.com/);
     expect(payment.body.invoice).toMatchObject({ nip: NIP, company_name: 'Zapisana Firma S.A.', data_source: 'vat_whitelist' });
@@ -143,8 +160,8 @@ test.describe('zakup online', () => {
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
     await page.getByLabel('Potrzebuję faktury').check();
-    await page.getByRole('button', { name: 'Inna firma' }).click();
-    await page.getByLabel('NIP *').fill(NIP);
+    await page.getByRole('button', { name: 'Zmień dane do faktury' }).click();
+    await expect(page.getByLabel('NIP *')).toHaveValue(NIP);
     await page.getByRole('button', { name: 'Pobierz dane firmy' }).click();
     await expect(page.getByText('Nie znaleźliśmy firmy w rejestrze. Wpisz dane ręcznie.')).toBeVisible();
     await page.getByLabel('Nazwa *').fill('A');
@@ -209,7 +226,6 @@ test('AC-8: „Dane do faktury” w /konto/dane/ — usunięcie i zapis nowych d
   await expect(save).toBeDisabled();
   await section.getByLabel('NIP *').fill(NIP);
   await section.getByRole('button', { name: 'Pobierz dane firmy' }).click();
-  await section.getByRole('button', { name: 'Dane są poprawne' }).click();
   await save.click();
   await expect(section.getByText('Zapisano dane do faktury.')).toBeVisible();
   const { data } = await admin().from('billing_details').select('nip, company_name, data_source').eq('user_id', userId).single();
@@ -222,11 +238,12 @@ test.describe('sprzedaż na miejscu', () => {
     await signIn(page, 'staff');
   });
 
-  test('AC-9: osoba z kontem — podpowiedź billing_details, kopia danych w zamówieniu', async ({ page }) => {
+  test('AC-9: osoba z kontem — zapisany NIP pobiera się sam, kopia danych w zamówieniu', async ({ page }) => {
     const item = await product();
     const fullName = unique('Klient Firmowy');
     const userId = await account(undefined, fullName);
     await saveBilling(userId);
+    await mockLookup(page, false); // rejestr bez danych — zostają zapisane `billing_details`
 
     await page.goto('/panel/sprzedaz/');
     await page.getByLabel('Imię i nazwisko lub e-mail').fill(fullName);
@@ -235,11 +252,7 @@ test.describe('sprzedaż na miejscu', () => {
     await page.getByLabel('Produkt lub wejściówka *').selectOption({ label: `${item.name} — 120,00 zł` });
     await page.getByLabel('Gotówka').check();
     await page.getByLabel('Potrzebuję faktury').check();
-    await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
-    await expect(page.getByText('Potwierdź dane do faktury.')).toBeVisible();
-
     await expect(page.getByText('Zapisana Firma S.A.')).toBeVisible();
-    await page.getByRole('button', { name: 'Użyj zapisanych danych' }).click();
     await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
     await expect(page.getByText(/^Sprzedaż zarejestrowana: SV-\d{4}-\d{6,}\.$/)).toBeVisible();
 
@@ -263,7 +276,6 @@ test.describe('sprzedaż na miejscu', () => {
     await page.getByLabel('Potrzebuję faktury').check();
     await page.getByLabel('NIP *').fill(NIP);
     await page.getByRole('button', { name: 'Pobierz dane firmy' }).click();
-    await page.getByRole('button', { name: 'Dane są poprawne' }).click();
     await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
     await expect(page.getByText(/^Sprzedaż zarejestrowana: SV-\d{4}-\d{6,}\.$/)).toBeVisible();
 

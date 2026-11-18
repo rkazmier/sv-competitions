@@ -151,7 +151,7 @@ test.describe('admin', () => {
     await expect(dialog.getByText('Nieprawidłowy NIP.')).toBeVisible();
     await dialog.getByLabel('NIP *').fill(NIP);
     await dialog.getByRole('button', { name: 'Pobierz dane firmy' }).click();
-    await dialog.getByRole('button', { name: 'Dane są poprawne' }).click();
+    await expect(dialog.getByRole('button', { name: 'Dane są poprawne' })).toBeHidden(); // dane z rejestru — bez potwierdzenia
     await dialog.getByRole('button', { name: 'Zapisz i dodaj do „Do wystawienia”' }).click();
     await expect(page.getByText('Dodano dane do faktury.')).toBeVisible();
     await expect(page.getByRole('row').filter({ hasText: seeded.person })).toContainText('Faktura zamówiona');

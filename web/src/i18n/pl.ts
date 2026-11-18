@@ -172,8 +172,6 @@ export const pl = {
     confirm: 'Dane są poprawne',
     confirmed: 'Dane do faktury potwierdzone.',
     edit: 'Zmień dane do faktury',
-    useSaved: 'Użyj zapisanych danych',
-    otherCompany: 'Inna firma',
     confirmRequired: 'Potwierdź dane do faktury.',
     invalidDetails: 'Dane do faktury są nieprawidłowe. Sprawdź NIP, nazwę i adres.',
     statusPending: 'Faktura: w przygotowaniu',
