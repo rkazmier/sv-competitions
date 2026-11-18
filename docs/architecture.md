@@ -189,8 +189,16 @@
   z `range_log_entry_id = null`. `purge_audit_log()` — `pg_cron` `purge-audit-log` (`15 2 * * *` UTC).
   `invoke_retention()` — `pg_cron` `range-log-retention` (`30 2 * * *` UTC), `pg_net` → `POST /functions/v1/retention`
   z `Authorization: Bearer <sekret>`; URL projektu i sekret z Vault (`project_url`, `retention_invoke_secret`), bez nich — `notice`.
-- `calendar_events` (SPEC-003 §5): `access_mode` (`external` domyślnie / `free` / `paid`), `ticket_price` (wymagana dla `paid`),
-  `capacity` (1–1000, `null` = bez limitu) — odczyt publiczny. Formularz i warunek publikacji — #51.
+- `calendar_events` (SPEC-003 §5, US-4): `access_mode` (`external` domyślnie / `free` / `paid`), `ticket_price` (grosze,
+  wymagana dla `paid`), `capacity` (1–1000, `null` = bez limitu) — odczyt publiczny. `check` publikacji
+  `calendar_events_published_needs_url`: link wymagany tylko dla `external` (AC-16). `event_seats_left(event_id)` — `anon`,
+  `security definer`: `capacity` − (`paid` + `pending` młodsze niż `ticket_reservation()`), min. 0; `null` — bez limitu,
+  szkic lub wydarzenie niepłatne (AC-17, AC-18). Wyzwalacz `calendar_events_tickets_guard` (AC-20): gdy są zamówienia `paid`,
+  zmiana `access_mode` / `ticket_price` i `delete` → `P0001 event_has_tickets`, `capacity` poniżej liczby sprzedanych →
+  `P0001 capacity_below_sold`.
+  Frontend: formularz wydarzenia (tryb, cena, limit), karta w kalendarzu „Wejściówka: 50,00 zł” + „Kup wejściówkę”
+  (`/oferta/zamowienie/?event=`); wolne miejsca, „Wyprzedane” i „Sprzedaż zakończona.” liczone w przeglądarce
+  (`lib/event-tickets-ui.ts`), bo kalendarz jest statyczny.
 - Custom Access Token Hook `public.custom_access_token_hook` (claim `app_role` = `user` / `staff` / `admin`, tylko UI) — lokalnie włączony w `config.toml`,
   w projektach Supabase włączany ręcznie w panelu (Authentication → Hooks).
 

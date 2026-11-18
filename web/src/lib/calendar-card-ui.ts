@@ -5,6 +5,8 @@
  */
 import type { CalendarEntry } from './calendar';
 import { formatDateRange } from './dates';
+import { formatPrice } from './products';
+import { t } from '../i18n';
 import { safeExternalUrl, toParagraphs } from './text';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
@@ -32,6 +34,13 @@ export function renderEventCard(card: HTMLElement, entry: CalendarEntry | null):
     return p;
   });
   template.before(...paragraphs);
+
+  // SPEC-003 AC-17: cena wejściówki wydarzenia płatnego (w podglądzie przycisk bez adresu).
+  const ticket = query<HTMLElement>(card, '[data-card-ticket]');
+  ticket.hidden = !entry.ticketPrice;
+  query<HTMLElement>(ticket, '[data-card-price]').textContent = entry.ticketPrice
+    ? t('calendarCard.ticketPrice', { price: formatPrice(entry.ticketPrice) })
+    : '';
 
   const link = query<HTMLAnchorElement>(card, '[data-card-link]');
   const url = safeExternalUrl(entry.externalUrl);

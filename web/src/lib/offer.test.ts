@@ -4,6 +4,7 @@ import {
   ORDER_STATUS_TEXT,
   PAYMENT_METHOD_TEXT,
   buyHref,
+  eventOrderPath,
   firstUsedOn,
   idParam,
   passHistoryState,
@@ -12,6 +13,7 @@ import {
   productNotes,
   sortOrders,
   splitPasses,
+  ticketSale,
   type UserOrder,
   type UserPass,
 } from './offer';
@@ -62,6 +64,25 @@ describe('/oferta/', () => {
     expect(idParam(ID.toUpperCase())).toBe(ID);
     expect(idParam('1 or 1=1')).toBeNull();
     expect(idParam(null)).toBeNull();
+  });
+});
+
+describe('wejściówki (SPEC-003 US-4)', () => {
+  it('AC-17: „Kup wejściówkę” → /oferta/zamowienie/?event=<id>', () => {
+    expect(eventOrderPath(ID)).toBe(`/oferta/zamowienie/?event=${ID}`);
+  });
+
+  it('AC-18: brak wolnych miejsc → „Wyprzedane”; bez limitu — sprzedaż otwarta', () => {
+    expect(ticketSale('2027-06-15', '2027-06-14', 0)).toBe('soldOut');
+    expect(ticketSale('2027-06-15', '2027-06-14', 1)).toBe('open');
+    expect(ticketSale('2027-06-15', '2027-06-14', null)).toBe('open');
+  });
+
+  it('AC-19: sprzedaż do końca ostatniego dnia wydarzenia, potem zamknięta', () => {
+    expect(ticketSale('2027-06-15', '2027-06-15', null)).toBe('open');
+    expect(ticketSale('2027-06-15', '2027-06-16', null)).toBe('closed');
+    expect(ticketSale('2027-06-15', '2027-06-16', 0)).toBe('closed');
+    expect(t('calendarCard.salesClosed')).toBe('Sprzedaż zakończona.');
   });
 });
 

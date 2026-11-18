@@ -1,7 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { CalendarEntry } from '../lib/calendar';
-import { toCompetitionView, type CompetitionRow } from '../lib/competition-page';
+import { eventEntry, toCompetitionView, type CompetitionRow, type EventRow } from '../lib/competition-page';
 import CalendarCard from './CalendarCard.astro';
 import CompetitionDetails from './CompetitionDetails.astro';
 
@@ -86,6 +86,49 @@ describe('karta wydarzenia w kalendarzu', () => {
     expect(html).not.toContain('href=');
   });
 });
+
+describe('karta wydarzenia płatnego (SPEC-003)', () => {
+  const paid: CalendarEntry = { ...event, id: 'e2', externalUrl: null, ticketPrice: 5000, capacity: 12 };
+
+  it('AC-17: „Wejściówka: 50,00 zł” i „Kup wejściówkę” → /oferta/zamowienie/?event=<id>', async () => {
+    const html = await container.renderToString(CalendarCard, { props: { entry: paid } });
+    expect(html).toContain('Wejściówka: 50,00');
+    expect(html).toMatch(/href="\/oferta\/zamowienie\/\?event=e2"[^>]*>\s*Kup wejściówkę/);
+    // AC-17: wolne miejsca pobiera przeglądarka (data-ticket-capacity), nie build
+    expect(html).toContain('data-ticket-capacity="true"');
+    expect(html).toContain('data-ticket-last-day="2027-06-14"');
+    expect(html).not.toContain('Wolne miejsca');
+  });
+
+  it('AC-18 AC-19: „Wyprzedane” i „Sprzedaż zakończona.” ukryte do sprawdzenia w przeglądarce', async () => {
+    const html = await container.renderToString(CalendarCard, { props: { entry: paid } });
+    expect(html).toMatch(/<button[^>]*disabled[^>]*data-ticket-sold-out[^>]*hidden[^>]*>Wyprzedane/);
+    expect(html).toMatch(/<p[^>]*data-ticket-closed[^>]*hidden[^>]*>Sprzedaż zakończona\./);
+  });
+
+  it('AC-17: bez limitu nie pobiera miejsc; bezpłatne i zewnętrzne — bez wejściówki', async () => {
+    const unlimited = await container.renderToString(CalendarCard, { props: { entry: { ...paid, capacity: null } } });
+    expect(unlimited).not.toContain('data-ticket-capacity');
+    const free = await container.renderToString(CalendarCard, { props: { entry: event } });
+    expect(free).not.toContain('Kup wejściówkę');
+    expect(eventEntry({ ...eventRow, access_mode: 'free', ticket_price: 5000 }).ticketPrice).toBeUndefined();
+    expect(eventEntry({ ...eventRow, access_mode: 'paid', ticket_price: 5000, capacity: 3 })).toMatchObject({
+      ticketPrice: 5000,
+      capacity: 3,
+    });
+  });
+});
+
+const eventRow: EventRow = {
+  id: 'e3',
+  name: 'Szkolenie',
+  starts_on: '2027-06-14',
+  ends_on: null,
+  description: null,
+  external_url: null,
+  status: 'published',
+  category: { name: 'Szkolenia' },
+};
 
 const row: CompetitionRow = {
   id: 'c1',

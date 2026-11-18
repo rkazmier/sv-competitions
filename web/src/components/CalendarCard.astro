@@ -6,11 +6,16 @@
  *
  * Bez `entry` — pusty wzór karty wydarzenia (ukryty), wypełniany w przeglądarce przez lib/calendar-card-ui.ts
  * (podgląd karty pod formularzem wydarzenia w panelu, AC-53), tylko przez `textContent`.
+ *
+ * Wydarzenie płatne (SPEC-003 AC-17…AC-19): cena i „Kup wejściówkę”; wolne miejsca, „Wyprzedane”
+ * i „Sprzedaż zakończona.” ustawia w przeglądarce lib/event-tickets-ui.ts (nie przy budowaniu).
  */
 import { t } from '../i18n';
 import type { CalendarEntry } from '../lib/calendar';
 import { competitionPath } from '../lib/competition-page';
 import { formatDateRange } from '../lib/dates';
+import { eventOrderPath } from '../lib/offer';
+import { formatPrice } from '../lib/products';
 import { toParagraphs } from '../lib/text';
 
 interface Props {
@@ -25,6 +30,7 @@ const entryKind = entry?.kind ?? 'event';
 const isCompetition = entryKind === 'competition';
 const kind = isCompetition ? t('calendarCard.competitionKind') : entry?.label;
 const externalUrl = isCompetition ? null : (entry?.externalUrl ?? null);
+const ticketPrice = isCompetition ? null : (entry?.ticketPrice ?? null);
 ---
 <article class:list={['entry-card', `entry-card--${entryKind}`]} data-entry-kind={entryKind} data-calendar-card hidden={!entry}>
   <p class="entry-kind" data-card-kind>{kind}</p>
@@ -37,6 +43,24 @@ const externalUrl = isCompetition ? null : (entry?.externalUrl ?? null);
     <a class="button button-primary" href={competitionPath(entry.slug)}>
       {t('calendarCard.competitionLink')}<span class="visually-hidden">: {entry.name}</span>
     </a>
+  )}
+  {!isCompetition && (ticketPrice || !entry) && (
+    <div
+      class="entry-ticket"
+      data-card-ticket
+      data-ticket-event={entry?.id}
+      data-ticket-last-day={entry ? (entry.endsOn ?? entry.startsOn) : undefined}
+      data-ticket-capacity={entry?.capacity ? 'true' : undefined}
+      hidden={!ticketPrice}
+    >
+      <p class="entry-price" data-card-price>{ticketPrice && t('calendarCard.ticketPrice', { price: formatPrice(ticketPrice) })}</p>
+      <p data-ticket-seats hidden></p>
+      <a class="button button-primary" href={entry ? eventOrderPath(entry.id) : undefined} data-ticket-buy>
+        {t('calendarCard.buyTicket')}<span class="visually-hidden">: {entry?.name}</span>
+      </a>
+      <button type="button" class="button" disabled data-ticket-sold-out hidden>{t('calendarCard.soldOut')}</button>
+      <p data-ticket-closed hidden>{t('calendarCard.salesClosed')}</p>
+    </div>
   )}
   {!isCompetition && (externalUrl || !entry) && (
     <a class="button" href={externalUrl ?? undefined} target="_blank" rel="noopener noreferrer" data-card-link hidden={!externalUrl}>
@@ -96,6 +120,20 @@ const externalUrl = isCompetition ? null : (entry?.externalUrl ?? null);
 
   .entry-description {
     white-space: pre-line;
+  }
+
+  .entry-ticket {
+    display: grid;
+    gap: var(--space-1);
+    justify-items: start;
+  }
+
+  .entry-ticket > * {
+    margin: 0;
+  }
+
+  .entry-price {
+    font-weight: var(--font-weight-strong);
   }
 
   .entry-card .button {

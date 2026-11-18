@@ -23,6 +23,9 @@ export interface CalendarEntry {
   /** Wydarzenie: opis (zwykły tekst) i link do szczegółów */
   description?: string | null;
   externalUrl?: string | null;
+  /** Wydarzenie płatne (SPEC-003 AC-17): cena wejściówki w groszach i limit miejsc */
+  ticketPrice?: number | null;
+  capacity?: number | null;
 }
 
 export interface CalendarMonth {
