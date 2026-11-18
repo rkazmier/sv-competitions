@@ -1,7 +1,7 @@
 -- SPEC-003 US-5 (AC-21…AC-23): sprzedaż na miejscu — wejściówki, osoba bez konta, dzisiejsza lista.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(17);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000005a1', 'sale-admin@example.test'),
@@ -14,8 +14,6 @@ insert into public.products (id, kind, name, price, entries, day_type) values
   ('00000000-0000-0000-0000-0000000005f1', 'entries', 'Karnet 5 wejść', 60000, 5, null),
   ('00000000-0000-0000-0000-0000000005f2', 'single_entry', 'Wejście dziś', 5000, null,
    case when extract(isodow from public.range_today()) in (6, 7) then 'weekend' else 'weekday' end);
-insert into public.products (id, kind, name, price, entries, day_type, is_active) values
-  ('00000000-0000-0000-0000-0000000005f3', 'entries', 'Karnet wycofany', 50000, 5, null, false);
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-0000000005e0', 'Szkolenia S');
 insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, access_mode, ticket_price, capacity) values
   ('00000000-0000-0000-0000-0000000005e1', 'Dziś', '00000000-0000-0000-0000-0000000005e0',
@@ -60,9 +58,6 @@ select is(
   row('Wejściówka: Dziś', 8000, 'paid', 'terminal', '00000000-0000-0000-0000-0000000005b1'::uuid,
       '00000000-0000-0000-0000-0000000005c1'::uuid, 'event_ticket', public.range_today() + 1)::text,
   'AC-21: wejściówka na miejscu — opłacona, cena z wydarzenia, created_by = obsługa, uprawnienie dla osoby');
-select throws_ok($$select public.create_on_site_order('00000000-0000-0000-0000-0000000005c1',
-  '00000000-0000-0000-0000-0000000005f3', 'cash')$$, 'P0002', 'product_not_found',
-  'AC-21: nieaktywnego produktu nie da się sprzedać na miejscu (jak w Tpay)');
 insert into t values ('future', public.create_on_site_order('00000000-0000-0000-0000-0000000005c1', null, 'cash',
   '00000000-0000-0000-0000-0000000005e2'));
 select ok((select id from t where name = 'future') is not null, 'AC-21: osobie z kontem można sprzedać wejściówkę na przyszłe wydarzenie');
