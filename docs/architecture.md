@@ -227,6 +227,22 @@
     `already_paid` / `refunded` / `already_refunded` / `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
   Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`,
   `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`.
+- Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
+  kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
+  `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
+  `is_valid_nip(nip)` (10 cyfr, suma kontrolna) i `is_valid_ksef_number` (`NIP-RRRRMMDD-12 hex-2 hex`) — w `check` i funkcjach.
+  `orders`: `invoice_requested`, kopia `invoice_nip`, `invoice_company_name`, `invoice_company_address`, `invoice_data_source`
+  (`vat_whitelist` / `regon` / `manual`), `invoice_fetched_at` (null dla `manual`), oraz `invoice_number`, `ksef_number`,
+  `invoice_issued_at`, `invoice_issued_by`; stany pilnują `check` (`orders_invoice_details`, `orders_invoice_issued`),
+  indeks częściowy `orders_invoice_todo_idx` dla listy „Do wystawienia”. Zapis tylko funkcjami `security definer`:
+  - `set_order_invoice_details(order_id, nip, name, address, source, fetched_at, save_billing_details)` — klucz secret
+    (`payments-create`, AC-5), admin (AC-14) albo obsługa dla własnej sprzedaży `on_site` (AC-9); tylko przed wystawieniem
+    i nie dla zwróconych. `save_billing_details` (nadpisanie `billing_details` właściciela zamówienia) — tylko klucz secret i admin.
+  - `mark_invoice_issued(order_id, invoice_number, ksef_number)` — admin (AC-12): opłacone z żądaniem faktury; wpis `invoice_issued`.
+  - `unmark_invoice(order_id)` — admin (AC-13): czyści numer, KSeF, kto/kiedy; wpis `invoice_unmarked`.
+  Błędy: `forbidden`, `order_not_found`, `invalid_nip`, `invalid_company_name`, `invalid_company_address`, `invalid_data_source`,
+  `invalid_invoice_number`, `invalid_ksef_number`, `invoice_not_requested`, `invoice_already_issued`, `invoice_not_issued`,
+  `order_not_paid`, `order_refunded`.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
   `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
   wyzwalacz `range_log_immutable` (`23514 range_log_immutable`) przepuszcza tylko `on delete set null` kluczy obcych,
@@ -345,7 +361,7 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`) | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
