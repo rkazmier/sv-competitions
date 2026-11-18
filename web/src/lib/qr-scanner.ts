@@ -60,13 +60,18 @@ export async function scanQrCode(dialog: HTMLDialogElement): Promise<string | nu
   let finished = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
+  const stopStream = () => {
+    stream?.getTracks().forEach((track) => track.stop());
+    stream = null;
+    video.srcObject = null;
+  };
+
   return new Promise<string | null>((resolve) => {
     const finish = (value: string | null) => {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
-      stream?.getTracks().forEach((track) => track.stop());
-      video.srcObject = null;
+      stopStream();
       if (dialog.open) dialog.close();
       resolve(value);
     };
@@ -79,10 +84,14 @@ export async function scanQrCode(dialog: HTMLDialogElement): Promise<string | nu
         status.textContent = t('scan.noCamera');
         return;
       }
-      if (finished) return finish(null);
+      // Okno zamknięto, zanim kamera wystartowała (np. podczas monitu o zgodę) — `finish` już się wykonał,
+      // więc strumień trzeba zatrzymać tutaj, inaczej kamera zostaje włączona.
+      if (finished) return stopStream();
       video.srcObject = stream;
       await video.play().catch(() => undefined);
+      if (finished) return stopStream();
       const decode = (await nativeDecoder()) ?? (await fallbackDecoder());
+      if (finished) return stopStream();
       status.textContent = t('scan.hint');
       const tick = async () => {
         if (finished) return;
