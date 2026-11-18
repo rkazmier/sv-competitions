@@ -38,7 +38,8 @@
 - Zmiany danych użytkownika dokonane przez inne osoby, role, zwroty, faktury i eksporty książki → `audit_log` (SPEC-002).
   Zapis do `audit_log` tylko funkcjami `security definer`: wyzwalacz `audit_profile_changes` (zmiana danych profilu, gdy
   `auth.uid() <> id`), `set_user_role()` (`role_change`), `admin_log_account_delete()` (`account_delete`, bez danych
-  osobowych — tylko identyfikator konta), `revert_pass_usage()` (`pass_usage_revert`, SPEC-005 AC-23). Odczyt — tylko admin.
+  osobowych — tylko identyfikator konta), `revert_pass_usage()` (`pass_usage_revert`, SPEC-005 AC-23), `admin_range_log()` (`range_log_export`, SPEC-005 AC-29).
+  Odczyt — tylko admin.
 - `profiles` (SPEC-002 §5): klient zmienia wyłącznie kolumny danych (`full_name`, `phone`, `permit_number`, `permit_authority`,
   `address`, `privacy_notice_ack_at` — uprawnienia kolumnowe; własny wiersz, admin — każdy). Wyzwalacz `profiles_normalize`
   przycina tekst i zamienia puste ciągi na `null`. `is_range_ready` liczone w bazie (kolumna generowana).
@@ -150,11 +151,22 @@
   (godzina, imię i nazwisko; `range_log` z dzisiejszego dnia Europe/Warsaw, odświeżana po zapisie — zdarzenie `range-entry-saved`),
   ukryta w trybie „podaj urządzenie”; przy wpisie adnotacje (autor przez `profiles!range_log_annotations_created_by_fkey`, czas,
   treść) i „Dodaj adnotację” (5–500 znaków, `insert` do `range_log_annotations`; odrzucenie RLS `42501` → komunikat AC-22).
-  Adnotacje do starszych wpisów — admin w przeglądzie książki (#63). Karta użytkownika (admin) — „Karnety i zużycie”:
+  Adnotacje do starszych wpisów — admin w przeglądzie książki. Formularz adnotacji wspólny:
+  `src/components/AnnotationForm.astro` + `src/lib/range-annotation-ui.ts`. Karta użytkownika (admin) — „Karnety i zużycie”:
   `user_passes` osoby z niecofniętymi `pass_usages` i „Cofnij zużycie” → `rpc/revert_pass_usage` (AC-23), potem odświeżenie
   „Historii zmian”. `/konto/` — „Historia wejść” (`rpc/my_range_entries`, od najnowszych, bez podpisów; osoba towarzysząca —
   „osoba towarzysząca”) i w każdym karnecie zwinięta „Historia zużycia” (data i godzina niecofniętych zużyć, AC-25).
   Logika `src/lib/range-history.ts`, wyspy `src/lib/range-today-ui.ts`, `src/lib/range-revert-ui.ts`, `src/lib/offer-ui.ts`.
+- Książka — przegląd i eksport (SPEC-005 AC-26…AC-29): `/panel/ksiazka/przeglad/` (admin, menu „Przegląd książki”) — filtry
+  data od–do (domyślnie dziś), imię i nazwisko, prowadzący; kolumny książki (bez kolumn technicznych), miniatura podpisu
+  przez podpisany link 60 s (`storage.createSignedUrls`), pod wpisem adnotacje i „Dodaj adnotację” (admin — dowolny wpis).
+  Każde pobranie wpisów to `rpc/admin_range_log(format)`: `view` (lista z podpisami), `pdf`, `csv` — funkcja zapisuje
+  `range_log_export` w `audit_log`. Eksport wymaga dnia lub zakresu dat. CSV: UTF-8 z BOM, `;`, data `RRRR-MM-DD GG:MM`
+  (Europe/Warsaw), podpis „tak”, adnotacje w ostatniej kolumnie. PDF w przeglądarce: `pdf-lib` + `@pdf-lib/fontkit`
+  (ładowane dynamicznie przy eksporcie), A4 poziomo, nagłówek z zakresem dat, obrazy podpisów (pobrane z linków 60 s),
+  adnotacje pod wpisem, „Strona X z Y”; font Inter z `public/fonts/inter-{400,600}.otf` (OTF z tych samych podzbiorów co
+  WOFF2 — pdf-lib osadza plik bez konwersji; bez podzbioru i bez `calt`, inaczej czytniki źle rysują tekst). Błąd pobrania
+  podpisu przerywa eksport. Logika `src/lib/range-review.ts`, PDF `src/lib/range-pdf.ts`, wyspa `src/lib/range-review-ui.ts`.
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
@@ -246,6 +258,11 @@
     zużyć — `first_used_on = null` (zdjęcie aktywacji). Anulowane uprawnienie zostaje anulowane. Adnotacja „Cofnięto zużycie
     karnetu” do wpisu (jeśli nie usunięty retencją) i `audit_log` `pass_usage_revert` (`changes`: zużycie, karnet, `used_on`,
     `effect`, wpis). Błędy: `forbidden`, `usage_not_found`, `usage_already_reverted`.
+  - `admin_range_log(format, from?, to?, person?, officer_id?)` — admin (AC-26, AC-29); `volatile`, filtry: dzień od–do
+    w Europe/Warsaw, fragment `full_name` (`ilike`, znaki wzorca dosłownie), `range_officer_id`. Zwraca kolumny książki
+    + `signature_path` i `annotations` (jsonb: `body`, `created_at`, `author`), od najstarszego wpisu, i w tej samej
+    transakcji dopisuje `audit_log` `range_log_export` (`changes`: `format` `view`/`pdf`/`csv`, `from`, `to`, liczba wpisów;
+    bez filtra nazwiska). Błędy: `forbidden`, `invalid_format`.
 - Retencja (ADR-0006, SPEC-005 AC-30, AC-31, SPEC-002 §9): okresy jako funkcje `range_log_retention()` i `audit_log_retention()`
   (`1 year`), `orphan_signature_grace()` (`24 hours`) — zmiana przez PR i migrację. Tylko `service_role`:
   `retention_signatures(limit)` — ścieżki podpisów wpisów starszych niż retencja (`orphan = false`) i plików bez wpisu starszych
@@ -328,7 +345,7 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`) | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |

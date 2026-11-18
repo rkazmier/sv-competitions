@@ -1,0 +1,156 @@
+---
+/**
+ * Panel: przegląd książki rejestru pobytu (SPEC-005 US-9, AC-26…AC-29). Tylko admin.
+ * Filtry (data od–do, imię i nazwisko, prowadzący), kolumny książki z miniaturami podpisów (linki 60 s),
+ * adnotacje (także dodawanie do dowolnego wpisu — AC-21), eksport PDF i CSV. Dane obsługuje lib/range-review-ui.ts.
+ */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import AnnotationForm from '../../../../components/AnnotationForm.astro';
+import { t } from '../../../../i18n';
+import { COLUMN_KEYS } from '../../../../lib/range-review';
+---
+<PanelLayout title={t('rangeReview.title')}>
+  <div class="review" data-review>
+    <h1>{t('rangeReview.title')}</h1>
+    <p>{t('rangeReview.intro')}</p>
+
+    <form class="card" data-filters novalidate>
+      <h2>{t('rangeReview.filtersHeading')}</h2>
+      <div class="grid">
+        <div>
+          <label class="field-label" for="r-from">{t('rangeReview.from')}</label>
+          <input class="input" id="r-from" name="from" type="date" />
+        </div>
+        <div>
+          <label class="field-label" for="r-to">{t('rangeReview.to')}</label>
+          <input class="input" id="r-to" name="to" type="date" />
+        </div>
+        <div>
+          <label class="field-label" for="r-person">{t('rangeReview.person')}</label>
+          <input class="input" id="r-person" name="person" type="search" autocomplete="off" />
+        </div>
+        <div>
+          <label class="field-label" for="r-officer">{t('rangeReview.officer')}</label>
+          <select class="input" id="r-officer" name="officer" data-officer>
+            <option value="">{t('rangeReview.anyOfficer')}</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="button button-primary">{t('rangeReview.filter')}</button>
+        <button type="button" class="button" data-export="pdf">{t('rangeReview.exportPdf')}</button>
+        <button type="button" class="button" data-export="csv">{t('rangeReview.exportCsv')}</button>
+      </div>
+    </form>
+
+    <p class="status" role="status" data-status></p>
+    <p class="message-error" role="alert" data-error hidden></p>
+
+    <section class="card" aria-live="polite">
+      <p class="total" data-summary></p>
+      <p class="hint" data-empty hidden>{t('rangeReview.empty')}</p>
+      <div class="table-scroll" data-table hidden>
+        <table class="book">
+          <thead>
+            <tr>{COLUMN_KEYS.map((key) => <th scope="col">{t(key)}</th>)}</tr>
+          </thead>
+          <tbody data-rows></tbody>
+        </table>
+      </div>
+    </section>
+
+    <template data-annotation-template><AnnotationForm /></template>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountRangeReview } from '../../../../lib/range-review-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-review]');
+  if (root) void mountRangeReview(root);
+</script>
+
+<style>
+  .review {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .review > *,
+  h2 {
+    margin: 0;
+  }
+
+  h2 {
+    margin-bottom: var(--space-2);
+    font-size: var(--text-h3);
+  }
+
+  .grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .status:empty,
+  .total:empty {
+    display: none;
+  }
+
+  .total {
+    margin: 0 0 var(--space-2);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .book {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .book :global(th),
+  .book :global(td) {
+    padding: var(--space-2);
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .book :global(tr:has(+ .notes) td) {
+    border-bottom: 0;
+  }
+
+  .book :global(.notes ul) {
+    margin: 0 0 var(--space-2);
+    padding-left: var(--space-4);
+    color: var(--color-text-muted);
+  }
+
+  .book :global(.notes [data-annotation]) {
+    max-width: 32rem;
+  }
+
+  .book :global(.signature) {
+    display: block;
+    width: 160px;
+    height: 60px;
+    object-fit: contain;
+    background: var(--color-surface);
+  }
+</style>
