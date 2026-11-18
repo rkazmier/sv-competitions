@@ -106,7 +106,8 @@ test.describe('obsługa — /panel/ksiazka/', () => {
 
     await page.getByLabel(`${entries} — zostanie 4`).check();
     await page.getByRole('button', { name: 'Dalej' }).click();
-    await expect(page.getByText(`${person.fullName}: ${entries} — zostanie 4`)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Wpis do książki rejestru pobytu' })).toBeVisible();
+    await expect(page.locator('[data-sign-field="pass"]')).toHaveText(`${entries} — zostanie 4`);
   });
 
   test('AC-5: nieznany kod → „Nie znaleziono konta dla tego kodu.”', async ({ page }) => {
@@ -133,11 +134,11 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     await expect(page.getByText('Brakuje danych:')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Dalej' })).toBeDisabled();
     await page.getByRole('button', { name: 'Uzupełnij dane' }).click();
-    await page.getByLabel('Imię i nazwisko', { exact: true }).fill(person.fullName);
-    await page.getByLabel('Numer decyzji (pozwolenia na broń)').fill('AB 123');
+    await page.locator('[data-person]').getByLabel('Imię i nazwisko', { exact: true }).fill(person.fullName);
+    await page.locator('[data-person]').getByLabel('Numer decyzji (pozwolenia na broń)').fill('AB 123');
     await page.getByRole('button', { name: 'Zapisz dane' }).click();
     await expect(page.getByText('Podaj numer decyzji razem z organem wydającym.')).toBeVisible();
-    await page.getByLabel('Organ wydający').fill('KWP Katowice');
+    await page.locator('[data-person]').getByLabel('Organ wydający').fill('KWP Katowice');
     await page.getByRole('button', { name: 'Zapisz dane' }).click();
     await expect(page.getByText('Dane zapisane.')).toBeVisible();
     await expect(page.getByText('Gotowy do wpisu do książki')).toBeVisible();
@@ -156,7 +157,7 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     );
     await expect(page.getByRole('button', { name: 'Dalej' })).toBeDisabled();
     await page.getByRole('button', { name: 'Wpisz jako osobę towarzyszącą' }).click();
-    await expect(page.getByText(`${person.fullName}: osoba towarzysząca`)).toBeVisible();
+    await expect(page.locator('[data-sign-field="pass"]')).toHaveText('osoba towarzysząca (bez zużycia uprawnienia)');
   });
 
   test('AC-12: „Sprzedaj na miejscu” → sprzedaż → powrót do wpisu z nowym uprawnieniem', async ({ page }) => {
@@ -184,8 +185,7 @@ test.describe('obsługa — /panel/ksiazka/', () => {
 
   test('AC-9: osoba ma dziś wpis → ostrzeżenie z godziną, „Kontynuuj”', async ({ page }) => {
     const person = await seedPerson();
-    // Wpis do książki wymaga podpisu (#61); tu tylko godzina ostatniego wpisu z `staff_person_by_id`
-    // (wartość liczy baza — pgTAP 013).
+    // Tu tylko godzina ostatniego wpisu z `staff_person_by_id` (wartość liczy baza — pgTAP 013).
     await page.route('**/rest/v1/rpc/staff_person_by_id', async (route) => {
       const response = await route.fetch();
       const rows = (await response.json()) as Record<string, unknown>[];

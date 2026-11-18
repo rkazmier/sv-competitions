@@ -2,15 +2,21 @@
  * Wyspa wpisu osoby z kontem w `/panel/ksiazka/` (SPEC-005 US-3, US-4: AC-5…AC-12). Obsługa i admin.
  * Osoba: skan QR (`staff_find_by_qr`), wyszukanie (`staff_search_people`) albo `?osoba=` z karty użytkownika
  * lub po sprzedaży na miejscu (`staff_person_by_id`). Braki danych — `staff_complete_profile` (wpis w `audit_log`).
- * Uprawnienia w kolejności AC-10 — `passes_for_range_entry`. Podpis i zapis wpisu — zadanie #61.
+ * Uprawnienia w kolejności AC-10 — `passes_for_range_entry`. Osoba bez konta (AC-18, AC-19): dane i sprzedaż
+ * na miejscu (`create_on_site_order`), potem jej uprawnienie bez właściciela. Podpis i zapis (AC-13…AC-17) —
+ * lib/range-sign-ui.ts; osoba towarzysząca (AC-20) — ten sam przebieg bez kroku uprawnienia.
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */
 import { t } from '../i18n';
 import { todayInWarsaw } from './calendar';
-import { SEARCH_MIN_LENGTH, type PersonHit } from './on-site-sales';
+import { SALE_EVENT_COLUMNS, SEARCH_MIN_LENGTH, itemArgs, saleErrorKey, saleItems, type PersonHit, type TicketEvent } from './on-site-sales';
+import { PRODUCT_COLUMNS, formatPrice, type Product } from './products';
 import { requireStaff } from './panel';
 import { LIMITS } from './profile';
 import { scanQrCode } from './qr-scanner';
+import { currentShiftOfficerId } from './range-shift';
+import { entryDateTime, permitOrAddress, saveErrorKey, signaturePath, type EntryPerson } from './range-sign';
+import { mountSignaturePad, saveRangeEntry } from './range-sign-ui';
 import {
   completeErrorKey,
   entryTime,
@@ -47,23 +53,43 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   const passList = query(card, '[data-pass-list]');
   const noPass = query(card, '[data-no-pass]');
   const next = query<HTMLButtonElement>(card, '[data-next]');
-  const nextStep = query(root, '[data-next-step]');
+  const guestForm = query<HTMLFormElement>(root, '[data-guest]');
+  const saleForm = query<HTMLFormElement>(root, '[data-sale]');
+  const sign = query(root, '[data-sign]');
+  const save = query<HTMLButtonElement>(sign, '[data-save]');
+  const signError = query(sign, '[data-sign-error]');
+  const done = query(root, '[data-done]');
   const dialog = query<HTMLDialogElement>(document, '[data-scan-dialog]');
 
   const { supabase } = await requireStaff();
   let person: PersonSummary | null = null;
   let passes: EntryPass[] = [];
+  /** AC-20: kolejna osoba wpisywana jako towarzysząca (bez kroku uprawnienia). */
+  let companion = false;
+  /** Osoba bez konta (AC-18): dane z formularza, uprawnienie ze sprzedaży na miejscu (AC-19). */
+  let guest: EntryPerson | null = null;
+  let entryData: EntryPerson | null = null;
+  let entryPassId: string | null = null;
+  /** Identyfikator wpisu = nazwa pliku podpisu; ten sam przy ponowieniu, nowy po zmianie podpisu (AC-16). */
+  let entry: { id: string; path: string; version: number } | null = null;
+  let saving = false;
+  const pad = mountSignaturePad(query<HTMLCanvasElement>(sign, '[data-pad]'), () => {
+    save.disabled = saving || !pad.complete; // AC-14
+  });
 
   const name = () => person?.full_name ?? t('sales.noName');
   const chosenPass = () => passList.querySelector<HTMLInputElement>('input[name="pass"]:checked')?.value ?? null;
   const updateNext = () => {
-    next.disabled = !person?.is_range_ready || !warning.hidden || !chosenPass();
+    next.disabled = !person?.is_range_ready || !warning.hidden || (!companion && !chosenPass());
   };
 
-  function showStep(step: 'find' | 'person' | 'next'): void {
-    find.hidden = step !== 'find';
-    card.hidden = step !== 'person';
-    nextStep.hidden = step !== 'next';
+  type Step = 'find' | 'person' | 'guest' | 'sale' | 'sign' | 'done';
+  const steps: Record<Step, HTMLElement> = { find, person: card, guest: guestForm, sale: saleForm, sign, done };
+  function showStep(step: Step): void {
+    for (const [name, element] of Object.entries(steps)) element.hidden = name !== step;
+    query(find, '[data-companion-note]').hidden = !companion;
+    // §6: tryb „podaj urządzenie” — bez nawigacji panelu podczas podpisu.
+    document.body.classList.toggle('handover', step === 'sign');
   }
 
   function renderPasses(): void {
@@ -118,13 +144,14 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     if (current.is_range_ready) completeForm.hidden = true;
     passesBox.hidden = true;
     noPass.hidden = true;
-    if (current.is_range_ready) void loadPasses();
+    if (current.is_range_ready && !companion) void loadPasses();
     updateNext();
   }
 
   /** AC-9: dzisiejszy wpis → ostrzeżenie; reszta ekranu dopiero po „Kontynuuj”. */
   function selectPerson(summary: PersonSummary): void {
     person = summary;
+    guest = null;
     passes = [];
     results.replaceChildren();
     findStatus.textContent = '';
@@ -253,27 +280,169 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     renderPerson();
   });
 
-  function goNext(companion: boolean): void {
-    // Wybór (osoba, uprawnienie albo osoba towarzysząca) przejmie krok podpisu (#61).
-    const pass = companion ? undefined : passes.find((item) => item.id === chosenPass());
-    const effect = pass && passEffect(pass, todayInWarsaw());
-    query(nextStep, '[data-next-summary]').textContent = effect
-      ? t('rangeEntry.chosenPass', { name: name(), effect: t(effect.key, effect.params) })
-      : t('rangeEntry.chosenCompanion', { name: name() });
-    showStep('next');
+  /** AC-13: ekran podpisu z danymi wpisu, regulaminem i (osoba bez konta) klauzulą informacyjną. */
+  function openSign(passText: string): void {
+    const values: Record<string, string> = {
+      time: entryDateTime(new Date()),
+      name: entryData!.full_name ?? '',
+      permit: permitOrAddress(entryData!),
+      officer: query(root, '[data-officer-name]').textContent ?? '',
+      pass: passText,
+    };
+    for (const field of sign.querySelectorAll<HTMLElement>('[data-sign-field]')) {
+      field.textContent = values[field.dataset.signField!];
+    }
+    query(sign, '[data-guest-notice]').hidden = !guest;
+    query(sign, '[data-other-pass]').hidden = true;
+    signError.hidden = true;
+    showStep('sign');
+    query(sign, '#sign-heading').focus();
   }
-  next.addEventListener('click', () => goNext(false));
-  query(card, '[data-companion]').addEventListener('click', () => goNext(true));
 
-  const restart = () => {
+  async function goNext(asCompanion: boolean): Promise<void> {
+    companion ||= asCompanion;
+    const pass = companion ? undefined : passes.find((item) => item.id === chosenPass());
+    const { data } = await supabase.rpc('staff_person_entry_data', { p_id: person!.id });
+    entryData = ((data ?? []) as EntryPerson[])[0] ?? { full_name: person!.full_name, permit_number: null, permit_authority: null, address: null };
+    entryPassId = pass?.id ?? null;
+    const effect = pass && passEffect(pass, todayInWarsaw());
+    openSign(effect ? t(effect.key, effect.params) : t('rangeSign.companionPass'));
+  }
+  next.addEventListener('click', () => void goNext(false));
+  query(card, '[data-companion]').addEventListener('click', () => void goNext(true));
+
+  // AC-18: osoba bez konta — imię i nazwisko oraz decyzja z organem albo adres (walidacja SPEC-002).
+  query(find, '[data-guest-open]').addEventListener('click', () => {
+    guestForm.reset();
+    showStep('guest');
+    query(guestForm, '#guest-heading').focus();
+  });
+  guestForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = Object.fromEntries(new FormData(guestForm)) as Record<string, string>;
+    const { errors, complete, values } = validateCompletion(['full_name', 'permit_or_address'], input);
+    for (const output of guestForm.querySelectorAll<HTMLElement>('[data-error-for]')) {
+      const kind = errors[output.dataset.errorFor as keyof typeof LIMITS];
+      output.textContent = kind === 'permitPair' ? t('profile.errorPermitPair') : kind ? t('profile.errorLength', LIMITS[output.dataset.errorFor as keyof typeof LIMITS]) : '';
+      output.hidden = !kind;
+    }
+    const formError = query(guestForm, '[data-guest-error]');
+    formError.textContent = Object.keys(errors).length ? t('profile.saveError') : t('rangeEntry.completeHint');
+    formError.hidden = complete;
+    if (!complete) return;
     person = null;
+    guest = entryData = values as EntryPerson;
+    entryPassId = null;
+    if (companion) return openSign(t('rangeSign.companionPass'));
+    void openSale();
+  });
+
+  // AC-19: osoba bez konta płaci na miejscu — wejście jednorazowe na dziś albo wejściówka na dzisiejsze wydarzenie.
+  const itemSelect = query<HTMLSelectElement>(saleForm, '[data-item]');
+  const saleError = query(saleForm, '[data-sale-error]');
+  async function openSale(): Promise<void> {
+    saleForm.reset();
+    saleError.hidden = true;
+    showStep('sale');
+    query(saleForm, '#sale-heading').focus();
+    const today = todayInWarsaw();
+    const [products, events] = await Promise.all([
+      supabase.from('products').select(PRODUCT_COLUMNS).eq('is_active', true).order('kind').order('position'),
+      supabase.from('calendar_events').select(SALE_EVENT_COLUMNS).eq('status', 'published').eq('access_mode', 'paid')
+        .lte('starts_on', today).or(`ends_on.gte.${today},ends_on.is.null`),
+    ]);
+    const items = saleItems((products.data ?? []) as Product[], (events.data ?? []) as TicketEvent[], today, true,
+      (name) => t('offer.ticketName', { name }));
+    itemSelect.replaceChildren(itemSelect.options[0]);
+    for (const item of items) {
+      itemSelect.add(new Option(t('sales.itemOption', { name: item.name, price: formatPrice(item.price) }), item.value));
+    }
+    saleError.textContent = products.error || events.error ? t('panel.loadError') : t('rangeSign.saleItemsEmpty');
+    saleError.hidden = items.length > 0 && !products.error && !events.error;
+  }
+  saleForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const args = itemArgs(itemSelect.value);
+    const method = saleForm.querySelector<HTMLInputElement>('input[name="method"]:checked')?.value;
+    saleError.textContent = !args ? t('sales.itemRequired') : t('sales.methodRequired');
+    saleError.hidden = Boolean(args && method);
+    if (!args || !method) return;
+    const submit = query<HTMLButtonElement>(saleForm, '[data-sale-submit]');
+    submit.disabled = true;
+    const order = await supabase.rpc('create_on_site_order', { p_user_id: null, p_on_site_method: method, ...args });
+    const pass = order.error ? null : await supabase.from('user_passes').select('id').eq('order_id', order.data as string).single();
+    submit.disabled = false;
+    if (order.error || !pass?.data) {
+      saleError.textContent = order.error ? t(saleErrorKey(order.error)) : t('rangeSign.salePassError');
+      saleError.hidden = false;
+      return;
+    }
+    entryPassId = (pass.data as { id: string }).id;
+    openSign(itemSelect.selectedOptions[0]?.text ?? '');
+  });
+
+  // AC-15, AC-16: podpis do bucketu, wpis i zużycie w jednej transakcji; po błędzie podpis zostaje na ekranie.
+  save.addEventListener('click', async () => {
+    const officerId = currentShiftOfficerId(window.localStorage);
+    signError.hidden = true;
+    if (!officerId) {
+      signError.textContent = t('rangeSign.errorOfficer');
+      signError.hidden = false;
+      return;
+    }
+    if (!entry || entry.version !== pad.version) {
+      const id = crypto.randomUUID();
+      entry = { id, path: signaturePath(id), version: pad.version };
+    }
+    saving = save.disabled = true;
+    save.textContent = t('rangeSign.saving');
+    const png = await pad.toPng();
+    const result = png
+      ? await saveRangeEntry(supabase, {
+          ...entry, png, officerId, profileId: person?.id ?? null, passId: entryPassId, companion, guest,
+        })
+      : { error: {} };
+    saving = false;
+    save.disabled = !pad.complete;
+    save.textContent = t('rangeSign.save');
+    if ('error' in result) {
+      const key = saveErrorKey(result.error);
+      signError.textContent = t(key);
+      signError.hidden = false;
+      query(sign, '[data-other-pass]').hidden = key !== 'rangeSign.errorPassUsed' || !person;
+      return;
+    }
+    // AC-17: potwierdzenie; dalej osoba towarzysząca albo następna osoba.
+    query(done, '[data-done-text]').textContent = t('rangeSign.done', { name: entryData!.full_name ?? '', time: entryTime(result.entered_at) });
+    entry = null;
+    pad.clear();
+    showStep('done');
+    query(done, '[data-done-text]').focus();
+  });
+  query(sign, '[data-clear]').addEventListener('click', () => pad.clear());
+  query(sign, '[data-other-pass]').addEventListener('click', () => {
+    showStep('person');
+    void loadPasses();
+  });
+
+  const restart = (asCompanion = false) => {
+    person = guest = entryData = null;
+    entryPassId = null;
+    entry = null;
+    companion = asCompanion;
+    pad.clear();
     queryInput.value = '';
+    results.replaceChildren();
+    findStatus.textContent = '';
     history.replaceState(null, '', window.location.pathname);
     showStep('find');
     queryInput.focus();
   };
-  query(card, '[data-other]').addEventListener('click', restart);
-  query(nextStep, '[data-restart]').addEventListener('click', restart);
+  query(card, '[data-other]').addEventListener('click', () => restart(companion));
+  for (const back of root.querySelectorAll<HTMLButtonElement>('[data-back]')) {
+    back.addEventListener('click', () => restart(companion && guestForm.contains(back)));
+  }
+  query(done, '[data-add-companion]').addEventListener('click', () => restart(true));
 
   // AC-8 (karta użytkownika) i AC-12 (powrót ze sprzedaży na miejscu): od razu ta osoba.
   const personId = personIdFromSearch(window.location.search);

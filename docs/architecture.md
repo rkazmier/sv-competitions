@@ -136,7 +136,16 @@
   Karta osoby: ostrzeżenie o dzisiejszym wpisie z „Kontynuuj” (AC-9), braki i „Uzupełnij dane” tylko z brakującymi polami
   (`rpc/staff_complete_profile`, AC-7), uprawnienia `rpc/passes_for_range_entry` jako lista wyboru z opisem skutku (AC-10, AC-11),
   bez uprawnienia — „Sprzedaj na miejscu” i „Wpisz jako osobę towarzyszącą” (AC-12). „Dalej” aktywny tylko przy komplecie
-  danych i wybranym uprawnieniu; krok podpisu i zapis wpisu — #61. Logika `src/lib/range-entry.ts`, wyspa `src/lib/range-entry-ui.ts`.
+  danych i wybranym uprawnieniu. Logika `src/lib/range-entry.ts`, wyspa `src/lib/range-entry-ui.ts`.
+- Książka — podpis i zapis (SPEC-005 AC-13…AC-20): ekran podpisu w trybie „podaj urządzenie” (`body.handover` ukrywa
+  nawigację): dane wpisu (osoba z kontem — `rpc/staff_person_entry_data`), regulamin strzelnicy i — dla osoby bez konta —
+  klauzula informacyjna (teksty zastępcze `rangeSign.*Placeholder` do czasu #39), pole podpisu `<canvas>` (`touch-action: none`,
+  „Zapisz wpis” od 20 punktów ścieżki). Zapis: klient nadaje `id` wpisu, PNG (białe tło, ≤ 200 KB) → `signatures/<RRRR>/<MM>/<id>.png`,
+  potem `rpc/create_range_log_entry`; ponowienie z tym samym podpisem używa tego samego `id` (plik „już istnieje” = OK),
+  po zmianie podpisu — nowe `id` (stary plik usuwa retencja po 24 h, AC-31). „Osoba bez konta”: formularz (walidacja SPEC-002),
+  potem sprzedaż na miejscu w tym samym ekranie (`rpc/create_on_site_order` z `p_user_id = null`) i jej uprawnienie
+  (`user_passes` po `order_id`) do zużycia. Po wpisie „Dodaj osobę towarzyszącą” — ten sam przebieg bez kroku uprawnienia
+  (`is_companion`). Logika `src/lib/range-sign.ts`, pole podpisu i zapis `src/lib/range-sign-ui.ts`.
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
@@ -221,6 +230,7 @@
     uzupełnia tylko brakujące pola (imię i nazwisko; decyzja z organem lub adres, gdy brak obu), nie nadpisuje istniejących;
     `permit_pair` przy niepełnej parze, długości — `check` w `profiles`; wpis `profile_update` w `audit_log` robi wyzwalacz
     `audit_profile_changes` (aktor = obsługa). Zwraca nowe podsumowanie osoby.
+  - `staff_person_entry_data(id)` — obsługa; imię i nazwisko, decyzja z organem, adres — dane, które wpis skopiuje (AC-13).
   - `my_range_entries()` — własne wpisy bez podpisu i kolumn technicznych, z nazwą wykorzystanego uprawnienia.
 - Retencja (ADR-0006, SPEC-005 AC-30, AC-31, SPEC-002 §9): okresy jako funkcje `range_log_retention()` i `audit_log_retention()`
   (`1 year`), `orphan_signature_grace()` (`24 hours`) — zmiana przez PR i migrację. Tylko `service_role`:
