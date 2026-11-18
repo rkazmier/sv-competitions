@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { isUniqueViolation, nameKey, sortItems, validateName, type DictionaryItem } from './dictionary';
+import {
+  DICTIONARIES,
+  dictionaryText,
+  isUniqueViolation,
+  nameKey,
+  sortItems,
+  validateName,
+  type DictionaryItem,
+} from './dictionary';
 
 const items: DictionaryItem[] = [
   { id: '1', name: 'Long Range', is_active: true },
@@ -49,5 +57,34 @@ describe('lista słownikowa — walidacja nazwy', () => {
       { id: 'd', name: 'Biathlon', is_active: false },
     ]);
     expect(sorted.map((item) => item.name)).toEqual(['Action Air', 'Żelazo', 'Biathlon', 'Zielone']);
+  });
+});
+
+describe('prowadzący strzelanie (SPEC-005 US-1)', () => {
+  const officers = DICTIONARIES.officers;
+  const list: DictionaryItem[] = [{ id: '1', name: 'Anna Nowak', is_active: true }];
+
+  it('AC-1: tabela range_officers, kolumna full_name, bez przebudowy strony publicznej', () => {
+    expect(officers).toMatchObject({ table: 'range_officers', column: 'full_name', rebuild: false });
+  });
+
+  it('AC-1: imię i nazwisko 2–150 znaków (po trim)', () => {
+    expect(validateName('  ', list, undefined, officers)).toBe('required');
+    expect(validateName(' A ', list, undefined, officers)).toBe('tooShort');
+    expect(validateName('Al', list, undefined, officers)).toBeNull();
+    expect(validateName('ż'.repeat(150), list, undefined, officers)).toBeNull();
+    expect(validateName('ż'.repeat(151), list, undefined, officers)).toBe('tooLong');
+  });
+
+  it('AC-1: ta sama osoba może wystąpić dwa razy (brak wymogu unikalności)', () => {
+    expect(validateName('anna nowak', list, undefined, officers)).toBeNull();
+  });
+
+  it('AC-1: teksty listy prowadzących — „Aktywny” / „Ukryty”, etykieta „Imię i nazwisko”', () => {
+    expect(dictionaryText('officers', 'active')).toBe('Aktywny');
+    expect(dictionaryText('officers', 'hidden')).toBe('Ukryty');
+    expect(dictionaryText('officers', 'nameLabel')).toBe('Imię i nazwisko');
+    expect(dictionaryText('officers', 'tooShort', { min: 2 })).toBe('Imię i nazwisko musi mieć co najmniej 2 znaki.');
+    expect(dictionaryText('disciplines', 'active')).toBe('Aktywna');
   });
 });

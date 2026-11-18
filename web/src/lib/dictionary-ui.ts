@@ -1,29 +1,29 @@
 /**
- * Wyspa listy słownikowej (DictionaryList.astro) — dyscypliny i kategorie wydarzeń.
+ * Wyspa listy słownikowej (DictionaryList.astro) — dyscypliny, kategorie wydarzeń, prowadzący strzelanie.
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` (bez HTML).
- * Zmiana nazwy i ukrycie/przywrócenie uruchamiają przebudowę strony publicznej (AC-29).
+ * Zmiana nazwy i ukrycie/przywrócenie dyscypliny lub kategorii uruchamiają przebudowę strony publicznej (AC-29).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import {
-  DICTIONARY_NAME_MAX,
+  DICTIONARIES,
+  dictionaryText,
   isUniqueViolation,
   sortItems,
   validateName,
+  type DictionaryConfig,
   type DictionaryItem,
-  type DictionaryTable,
+  type DictionaryKind,
   type NameError,
 } from './dictionary';
 import { requireAdmin, showLoadError } from './panel';
 import { rebuildAndDescribe } from './site-rebuild';
 
-type Kind = 'disciplines' | 'categories';
-const COLUMNS = 'id, name, is_active';
-
-function errorText(kind: Kind, error: NameError | 'save'): string {
-  if (error === 'duplicate') return t(`dictionary.${kind}.duplicate`);
-  if (error === 'required') return t('dictionary.required');
-  if (error === 'tooLong') return t('dictionary.tooLong', { max: DICTIONARY_NAME_MAX });
+function errorText(kind: DictionaryKind, config: DictionaryConfig, error: NameError | 'save'): string {
+  if (error === 'duplicate' && kind !== 'officers') return t(`dictionary.${kind}.duplicate`);
+  if (error === 'required') return dictionaryText(kind, 'required');
+  if (error === 'tooShort') return dictionaryText(kind, 'tooShort', { min: config.min });
+  if (error === 'tooLong') return dictionaryText(kind, 'tooLong', { max: config.max });
   return t('panel.saveError');
 }
 
@@ -41,8 +41,13 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
 }
 
 export async function mountDictionary(root: HTMLElement): Promise<void> {
-  const table = root.dataset.dictionary as DictionaryTable;
-  const kind = root.dataset.kind as Kind;
+  const kind = root.dataset.kind as DictionaryKind;
+  const config = DICTIONARIES[kind];
+  const { table, column } = config;
+  // Kolumna nazwy jako `name` (alias PostgREST) — ten sam kształt wiersza dla wszystkich list.
+  const columns = `id, name:${column}, is_active` as 'id, name, is_active';
+  const nameRow = (value: string) => ({ [column]: value }) as Partial<Record<DictionaryConfig['column'], string>>;
+  const message = (error: NameError | 'save') => errorText(kind, config, error);
   const addForm = query<HTMLFormElement>(root, '[data-add-form]');
   const addInput = query<HTMLInputElement>(addForm, 'input[name="name"]');
   const addError = query<HTMLElement>(addForm, '[data-error]');
@@ -75,7 +80,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
   async function upsertLocal(saved: DictionaryItem, rebuild = false): Promise<void> {
     items = [...items.filter((item) => item.id !== saved.id), saved];
     render();
-    announce(rebuild ? await rebuildAndDescribe(supabase, t('panel.saved')) : t('panel.saved'));
+    announce(rebuild && config.rebuild ? await rebuildAndDescribe(supabase, t('panel.saved')) : t('panel.saved'));
   }
 
   function renderItem(item: DictionaryItem): HTMLLIElement {
@@ -92,7 +97,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
     query<HTMLElement>(li, '[data-name]').textContent = item.name;
     for (const span of li.querySelectorAll<HTMLElement>('[data-sr-name]')) span.textContent = `: ${item.name}`;
     state.dataset.state = item.is_active ? 'active' : 'hidden';
-    state.textContent = item.is_active ? t('dictionary.active') : t('dictionary.hidden');
+    state.textContent = dictionaryText(kind, item.is_active ? 'active' : 'hidden');
     query<HTMLElement>(toggle, '[data-toggle-text]').textContent = item.is_active
       ? t('dictionary.hide')
       : t('dictionary.restore');
@@ -115,18 +120,18 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
     });
     editForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const invalid = validateName(editInput.value, items, item.id);
-      if (invalid) return setError(editInput, editError, errorText(kind, invalid));
+      const invalid = validateName(editInput.value, items, item.id, config);
+      if (invalid) return setError(editInput, editError, message(invalid));
       const result = await save(
-        supabase.from(table).update({ name: editInput.value.trim() }).eq('id', item.id).select(COLUMNS).single(),
+        supabase.from(table).update(nameRow(editInput.value.trim())).eq('id', item.id).select(columns).single(),
       );
-      if (typeof result === 'string') return setError(editInput, editError, errorText(kind, result));
+      if (typeof result === 'string') return setError(editInput, editError, message(result));
       await upsertLocal(result, true);
     });
     toggle.addEventListener('click', async () => {
       toggle.disabled = true;
       const result = await save(
-        supabase.from(table).update({ is_active: !item.is_active }).eq('id', item.id).select(COLUMNS).single(),
+        supabase.from(table).update({ is_active: !item.is_active }).eq('id', item.id).select(columns).single(),
       );
       toggle.disabled = false;
       if (typeof result === 'string') return announce(t('panel.saveError'));
@@ -143,16 +148,18 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
   addForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     announce('');
-    const invalid = validateName(addInput.value, items);
-    if (invalid) return setError(addInput, addError, errorText(kind, invalid));
+    const invalid = validateName(addInput.value, items, undefined, config);
+    if (invalid) return setError(addInput, addError, message(invalid));
     setError(addInput, addError, null);
-    const result = await save(supabase.from(table).insert({ name: addInput.value.trim() }).select(COLUMNS).single());
-    if (typeof result === 'string') return setError(addInput, addError, errorText(kind, result));
+    const result = await save(
+      supabase.from(table).insert(nameRow(addInput.value.trim())).select(columns).single(),
+    );
+    if (typeof result === 'string') return setError(addInput, addError, message(result));
     addInput.value = '';
     await upsertLocal(result);
   });
 
-  const { data, error } = await supabase.from(table).select(COLUMNS).order('name');
+  const { data, error } = await supabase.from(table).select(columns).order(column);
   if (error) return showLoadError();
   items = (data ?? []) as DictionaryItem[];
   render();

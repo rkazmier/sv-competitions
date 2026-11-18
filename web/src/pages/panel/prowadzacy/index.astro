@@ -1,0 +1,9 @@
+---
+/** Panel: prowadzący strzelanie (SPEC-005 US-1, AC-1, AC-2) — tylko admin. */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import DictionaryList from '../../../components/DictionaryList.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('dictionary.officers.title')}>
+  <DictionaryList kind="officers" />
+</PanelLayout>
