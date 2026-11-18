@@ -28,6 +28,7 @@ const adminMenu = [
   { href: '/panel/oferta/', label: t('panel.menu.offer') },
   salesItem,
   { href: '/panel/zamowienia/', label: t('panel.menu.orders') },
+  { href: '/panel/faktury/', label: t('panel.menu.invoices'), invoiceCount: true },
   { href: '/panel/uzytkownicy/', label: t('panel.menu.users') },
   rangeLogItem,
   { href: '/panel/ksiazka/przeglad/', label: t('panel.menu.rangeReview') },
@@ -39,7 +40,16 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
 <BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>
   <Fragment slot="nav">
     <ul data-panel-menu="admin" hidden>
-      {adminMenu.map((item) => <li><a href={item.href} aria-current={isCurrent(item.href)}>{item.label}</a></li>)}
+      {
+        adminMenu.map((item) => (
+          <li>
+            <a href={item.href} aria-current={isCurrent(item.href)}>
+              {item.label}
+              {'invoiceCount' in item && <span class="menu-count" data-invoice-count hidden />}
+            </a>
+          </li>
+        ))
+      }
       <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
     </ul>
     <ul data-panel-menu="staff" hidden>
@@ -85,7 +95,21 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
 </BaseLayout>
 
 <script>
+  import { t } from '../i18n';
   import { requireAdmin } from '../lib/panel';
 
-  void requireAdmin();
+  // SPEC-004 §6: „Faktury” w menu admina z liczbą pozycji „Do wystawienia” (AC-10).
+  void requireAdmin().then(async (supabase) => {
+    const { count } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('invoice_requested', true)
+      .is('invoice_number', null)
+      .eq('status', 'paid');
+    const badge = document.querySelector<HTMLElement>('[data-invoice-count]');
+    if (!badge || !count) return;
+    badge.textContent = ` (${count})`;
+    badge.closest('a')?.setAttribute('aria-label', `${t('panel.menu.invoices')}, ${t('panel.menu.invoicesCount', { count })}`);
+    badge.hidden = false;
+  });
 </script>

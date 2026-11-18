@@ -2,8 +2,10 @@
 /**
  * Panel: zamówienia (SPEC-003 US-6, AC-24…AC-27). Tylko admin.
  * Filtry (zakres dat, status, metoda, produkt lub wejściówka, osoba), suma, eksport CSV bieżącego widoku,
- * „Anuluj i zwróć” dla opłaconych zamówień bez zużycia uprawnienia. Dane obsługuje lib/orders-admin-ui.ts.
+ * „Anuluj i zwróć” dla opłaconych zamówień bez zużycia uprawnienia, „Dodaj dane do faktury” (SPEC-004 AC-14).
+ * Dane obsługuje lib/orders-admin-ui.ts.
  */
+import InvoiceFields from '../../../components/InvoiceFields.astro';
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import { t } from '../../../i18n';
 import { ORDER_STATUS_TEXT, PAYMENT_METHOD_TEXT } from '../../../lib/offer';
@@ -94,6 +96,19 @@ import { ORDER_STATUSES, PAYMENT_METHODS } from '../../../lib/orders-admin';
           <button type="submit" class="button" value="cancel" formnovalidate>{t('orders.back')}</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="card confirm" aria-labelledby="invoice-heading" data-invoice-dialog>
+      <div class="stack">
+        <h2 id="invoice-heading">{t('orders.invoiceHeading')}</h2>
+        <p data-invoice-item></p>
+        <InvoiceFields id="o-invoice" toggle={false} />
+        <p class="message-error" role="alert" data-invoice-error hidden></p>
+        <div class="actions">
+          <button type="button" class="button button-primary" data-invoice-save disabled>{t('orders.invoiceSave')}</button>
+          <button type="button" class="button" data-invoice-close>{t('orders.back')}</button>
+        </div>
+      </div>
     </dialog>
   </div>
 </PanelLayout>
