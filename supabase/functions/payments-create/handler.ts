@@ -6,8 +6,8 @@
  *    limit miejsc wejściówki z blokadą wiersza wydarzenia, ten sam `request_key` → 409 `duplicate_request`;
  *    z `invoice` (SPEC-004 AC-5) — `rpc/set_order_invoice_details`: kopia danych faktury w zamówieniu i nadpisanie
  *    `billing_details`; dane odrzucone przez bazę → zamówienie usunięte, 400 `invalid_invoice`;
- * 3. Tpay Open API: token OAuth (client credentials), transakcja z kwotą, opisem „SV <id zamówienia>”,
- *    `hiddenDescription` = id zamówienia (wraca jako `tr_crc`), e-mailem i imieniem płatnika, powiadomieniem
+ * 3. Tpay Open API: token OAuth (client credentials), transakcja z kwotą, opisem „<numer zamówienia> — <nazwa>”
+ *    (SPEC-006 AC-14), `hiddenDescription` = id zamówienia (wraca jako `tr_crc`), e-mailem i imieniem płatnika, powiadomieniem
  *    na `payments-notify` i powrotem na `/konto/platnosc/?order=`;
  * 4. `rpc/attach_tpay_transaction` — id i tytuł transakcji w zamówieniu; odpowiedź `{ order_id, payment_url }`.
  * Błąd Tpay → `rpc/discard_tpay_order` i 502 (zamówienie nie powstaje, §7). Sekrety i dane płatnika nie trafiają do logów.
@@ -42,6 +42,21 @@ const CORS = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Odmowy `create_tpay_order` → 409 z tym samym kodem (komunikaty w UI, #50/#51). */
 const REFUSALS = new Set(['product_unavailable', 'event_unavailable', 'sales_closed', 'sold_out']);
+
+/** Limit pola `description` w `POST /transactions` (Tpay Open API, schemat `CreateTransaction`: maxLength 128). */
+export const TPAY_DESCRIPTION_MAX = 128;
+
+/**
+ * SPEC-006 AC-14: `SV-2026-000123 — <item_name>`; za długi opis skraca nazwę (końcówka `…`), numeru nigdy.
+ * Długość liczona w znakach (punktach kodowych), nie w bajtach.
+ */
+export function tpayDescription(orderNumber: string, itemName: string): string {
+  const prefix = `${orderNumber} — `;
+  const name = Array.from(itemName);
+  if (Array.from(prefix).length + name.length <= TPAY_DESCRIPTION_MAX) return prefix + itemName;
+  const room = Math.max(TPAY_DESCRIPTION_MAX - Array.from(prefix).length - 1, 0);
+  return `${prefix}${name.slice(0, room).join('').trimEnd()}…`;
+}
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
@@ -144,9 +159,18 @@ async function rpc(name: string, args: Record<string, unknown>, deps: Deps): Pro
   return { ok: response.ok, body: text ? JSON.parse(text) : null };
 }
 
+/** Odpowiedź `create_tpay_order` (SPEC-006: z `order_number`, także przy `duplicate`). */
+interface Order {
+  order_id: string;
+  order_number: string;
+  amount: number;
+  item_name: string;
+  duplicate: boolean;
+}
+
 /** Transakcja Tpay; `null` — Tpay niedostępny lub odmówił. */
 async function tpayTransaction(
-  order: { order_id: string; amount: number },
+  order: Order,
   who: { email: string; name: string },
   deps: Deps,
 ): Promise<{ id: string; title: string; url: string } | null> {
@@ -164,7 +188,7 @@ async function tpayTransaction(
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       amount: order.amount / 100,
-      description: `SV ${order.order_id}`,
+      description: tpayDescription(order.order_number, order.item_name),
       hiddenDescription: order.order_id,
       lang: 'pl',
       payer: { email: who.email, name: who.name },
@@ -198,7 +222,7 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   if (!item) return json(400, { error: 'invalid_request' });
 
   let who: Awaited<ReturnType<typeof payer>>;
-  let order: { order_id: string; amount: number; duplicate: boolean };
+  let order: Order;
   try {
     who = await payer(authorization, deps);
     if (!who) return json(401, { error: 'unauthorized' });

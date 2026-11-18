@@ -1,5 +1,5 @@
 // Testy Deno: `deno test supabase/functions/` (SPEC-003 AC-8, AC-18, §7).
-import { type Config, handle } from './handler.ts';
+import { type Config, handle, TPAY_DESCRIPTION_MAX, tpayDescription } from './handler.ts';
 
 const SECRET = 'sb_secret_SECRET_VALUE';
 const TPAY_SECRET = 'TPAY_CLIENT_SECRET_VALUE';
@@ -36,7 +36,13 @@ interface Mock {
   invoice?: { status: number; body: unknown };
 }
 
-const ORDER_OK = { order_id: ORDER, amount: 12000, item_name: 'Karnet 10 wejść', duplicate: false };
+const ORDER_OK = {
+  order_id: ORDER,
+  order_number: 'SV-2026-000123',
+  amount: 12000,
+  item_name: 'Karnet 10 wejść',
+  duplicate: false,
+};
 const TX_OK = {
   result: 'success',
   transactionId: '01TPAYTXID',
@@ -101,7 +107,8 @@ Deno.test('AC-8: zamówienie pending z ceną z bazy, transakcja Tpay i adres bra
 
   const tx = bodyOf(callTo(calls, '/transactions'));
   assert(tx.amount === 120, `kwota ${tx.amount}`);
-  assert(tx.description === `SV ${ORDER}` && tx.hiddenDescription === ORDER, JSON.stringify(tx));
+  assert(tx.description === 'SV-2026-000123 — Karnet 10 wejść', `SPEC-006 AC-14: opis ${tx.description}`);
+  assert(tx.hiddenDescription === ORDER, 'hiddenDescription = id zamówienia (tr_crc)');
   assert(tx.payer.email === 'jan@example.test' && tx.payer.name === 'Jan Kowalski', JSON.stringify(tx.payer));
   assert(tx.callbacks.notification.url === CONFIG.tpayNotificationUrl, 'powiadomienie na payments-notify');
   const back = `https://events.steel-valley.pl/konto/platnosc/?order=${ORDER}`;
@@ -260,4 +267,30 @@ Deno.test('CORS: OPTIONS — 204, GET — 405', async () => {
   assert(options.status === 204 && options.headers.get('Access-Control-Allow-Origin') === '*', 'CORS');
   const get = await handle(new Request('http://localhost/'), { fetch, config: CONFIG });
   assert(get.status === 405, `status ${get.status}`);
+});
+
+Deno.test('SPEC-006 AC-14: opis transakcji Tpay — numer zamówienia, półpauza i nazwa', () => {
+  assert(tpayDescription('SV-2026-000123', 'Wejściówka: Puchar') === 'SV-2026-000123 — Wejściówka: Puchar', 'krótki opis');
+  const exact = 'x'.repeat(TPAY_DESCRIPTION_MAX - 'SV-2026-000123 — '.length);
+  assert(tpayDescription('SV-2026-000123', exact) === `SV-2026-000123 — ${exact}`, 'dokładnie 128 znaków — bez skracania');
+});
+
+Deno.test('SPEC-006 AC-14: za długa nazwa skrócona do 128 znaków z „…”, numer nigdy', () => {
+  const name = 'Wejściówka: ' + 'Zawody strzeleckie ąęś '.repeat(10);
+  for (const number of ['SV-2026-000123', 'SV-2031-1000000']) {
+    const description = tpayDescription(number, name);
+    assert(Array.from(description).length <= TPAY_DESCRIPTION_MAX, `długość ${Array.from(description).length}`);
+    assert(description.startsWith(`${number} — Wejściówka: Zawody`), description);
+    assert(description.endsWith('…') && !description.endsWith(' …'), description);
+  }
+});
+
+Deno.test('SPEC-006 AC-14: długi opis w żądaniu do Tpay jest skrócony', async () => {
+  const long = { ...ORDER_OK, item_name: 'Wejściówka: ' + 'a'.repeat(188) };
+  const { calls, fetch } = mockFetch({ order: { status: 200, body: long } });
+  const response = await handle(post({ product_id: PRODUCT, request_key: KEY }), { fetch, config: CONFIG });
+  assert(response.status === 200, `status ${response.status}`);
+  const tx = bodyOf(callTo(calls, '/transactions'));
+  assert(tx.description.length === TPAY_DESCRIPTION_MAX && tx.description.startsWith('SV-2026-000123 — '), tx.description);
+  assert(tx.hiddenDescription === ORDER, 'hiddenDescription bez zmian');
 });

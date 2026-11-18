@@ -68,7 +68,9 @@ select results_eq(
   'AC-8: zamówienie `pending` z ceną i nazwą z bazy');
 select is(pg_temp.product_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f001',
   '00000000-0000-0000-0000-00000000aaa1'),
-  jsonb_build_object('order_id', (select id from t where name = 'o1'), 'amount', 120000,
+  jsonb_build_object('order_id', (select id from t where name = 'o1'),
+                     'order_number', (select order_number from public.orders where id = (select id from t where name = 'o1')),
+                     'amount', 120000,
                      'item_name', 'Karnet 10 wejść', 'duplicate', true),
   '§7: ten sam klucz żądania → to samo zamówienie (`duplicate`)');
 select is((select count(*) from public.orders where user_id = '00000000-0000-0000-0000-0000000000c1')::int, 1,

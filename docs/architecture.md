@@ -208,18 +208,19 @@
     dokładnie jedno z produktu i wejściówki; wejściówka jak w `create_tpay_order` (opublikowane płatne wydarzenie, do ostatniego dnia,
     limit z blokadą wiersza); bez konta tylko wejście jednorazowe pasujące do dziś albo wejściówka na wydarzenie trwające dziś.
   - `staff_on_site_sales_today()` — obsługa (AC-23): dzisiejsze (Europe/Warsaw) zamówienia `on_site` od najnowszych — godzina,
-    pozycja, kwota, gotówka/terminal, stan, imię i nazwisko sprzedającego (bez danych kupującego).
+    pozycja, kwota, gotówka/terminal, stan, imię i nazwisko sprzedającego (bez danych kupującego); `order_number` (SPEC-006).
   - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`: stan uprawnienia + niewycofane `pass_usages`);
     Tpay → `refund_pending`, na miejscu → `refunded`; wpis `order_refund` w `audit_log`.
   - `admin_list_orders(from, to, status, method, product_id, event_id, person)` — admin (AC-24): zamówienia z filtrami (dni
-    w Europe/Warsaw, osoba — fragment imienia i nazwiska lub e-maila z `auth.users`), osoba, sprzedający, `pass_used` (AC-26), `invoice_requested` (SPEC-004 AC-14).
+    w Europe/Warsaw, osoba — fragment imienia i nazwiska lub e-maila z `auth.users`), osoba, sprzedający, `pass_used` (AC-26), `invoice_requested` (SPEC-004 AC-14),
+    `order_number`; `person` w formie numeru zamówienia → tylko to zamówienie, pozostałe filtry pominięte (SPEC-006 AC-10).
   - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
     `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
   - Płatności Tpay (tylko `service_role`, ADR-0002): `create_tpay_order(user_id, product_id | event_id, request_key)` — `pending`
-    z ceną z bazy; ten sam `request_key` konta → istniejące zamówienie (`duplicate`, unikalny indeks `(user_id, request_key)`);
+    z ceną z bazy, wynik z `order_number`; ten sam `request_key` konta → istniejące zamówienie (`duplicate`, unikalny indeks `(user_id, request_key)`);
     wejściówka z blokadą wiersza wydarzenia, limit `capacity` liczy `paid` + `pending` młodsze niż `ticket_reservation()` (30 min).
     `attach_tpay_transaction` (id i tytuł transakcji), `discard_tpay_order` (Tpay niedostępny — usuwa `pending` bez transakcji).
     `process_tpay_notification(hash, tytuł, order_id, kwota, wpłata, czy_wpłata, czy_zwrot)` — w jednej transakcji: idempotencja po
@@ -260,7 +261,8 @@
   `set_order_invoice_details` z `save_billing_details = false`, AC-14). Numer zamówienia na fakturze = `orders.order_number` (SPEC-006).
 - Numer zamówienia (SPEC-006 §5): `orders.order_number` (`SV-RRRR-NNNNNN`, `unique`, `not null`) z sekwencji
   `order_number_seq` (ciągła, rok utworzenia w Europe/Warsaw); nadaje wyzwalacz `orders_before_insert_number`, zmianę blokuje
-  `orders_before_update_number` (`order_number_immutable`). `orders.id` (UUID) zostaje kluczem, w adresach i w `tr_crc` Tpay;
+  `orders_before_update_number` (`order_number_immutable`, także `service_role`); `normalize_order_number(text)` — forma
+  numeru z pola wyszukiwania (wielkość liter, spacje, zera wiodące) albo `null`. `orders.id` (UUID) zostaje kluczem, w adresach i w `tr_crc` Tpay;
   `order_number` — w UI, CSV, wyszukiwaniu `admin_list_orders` i `description` transakcji Tpay.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
   `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
@@ -336,7 +338,8 @@
   imię i nazwisko z `profiles` (brak → e-mail), `rpc/create_tpay_order` kluczem secret; z `invoice` (SPEC-004 AC-5:
   `nip`, `company_name`, `company_address`, `data_source`, `fetched_at`) — `rpc/set_order_invoice_details` z
   `save_billing_details = true` (odrzucone przez bazę → zamówienie usuwane, 400 `invalid_invoice`), potem Tpay: `POST /oauth/auth`
-  (client credentials) i `POST /transactions` (kwota, opis „SV <id zamówienia>”, `hiddenDescription` = id zamówienia,
+  (client credentials) i `POST /transactions` (kwota, opis `<order_number> — <item_name>` skrócony do 128 znaków
+  limitu Tpay — skraca się nazwa z `…`, SPEC-006 AC-14, `hiddenDescription` = id zamówienia,
   powiadomienie na `TPAY_NOTIFICATION_URL`, powrót na `SITE_URL/konto/platnosc/?order=`), na końcu `rpc/attach_tpay_transaction`.
   Odpowiedzi: 200 `{ order_id, payment_url }`, 400, 401, 409 (`sold_out`, `product_unavailable`, `event_unavailable`,
   `sales_closed`, `duplicate_request`), 500, 502 (Tpay niedostępny — zamówienie usuwane). Sekrety: `TPAY_API_URL`,
