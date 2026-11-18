@@ -4,7 +4,8 @@
  * Stany (elementy `[data-panel-state]` w PanelLayout):
  * - `signedOut` — przycisk „Zaloguj się przez Google”, powrót do `/panel/` (AC-4),
  * - `forbidden` — rola `user`: „Nie masz uprawnień do panelu.”, link do konta, bez pobierania danych (AC-27),
- * - `staff` — obsługa strzelnicy: menu obsługi, bez kalendarza i słowników (AC-26),
+ * - `staff` — obsługa strzelnicy: menu obsługi, bez kalendarza i słowników (AC-26); treść tylko stron
+ *   dostępnych dla obsługi (`PanelLayout access="staff"`, np. książka — SPEC-005),
  * - `admin` — treść strony i pełne menu panelu,
  * - `error` — błąd sieci przy sprawdzaniu roli.
  *
@@ -36,8 +37,9 @@ export async function resolvePanelState(supabase: SupabaseClient): Promise<Panel
 }
 
 function show(state: PanelState): void {
+  // `data-panel-state` może zawierać kilka stanów, np. „admin staff” — strona dostępna dla obsługi (SPEC-005).
   for (const element of document.querySelectorAll<HTMLElement>('[data-panel-state]')) {
-    element.hidden = element.dataset.panelState !== state;
+    element.hidden = !(element.dataset.panelState ?? '').split(' ').includes(state);
   }
   for (const menu of document.querySelectorAll<HTMLElement>('[data-panel-menu]')) {
     menu.hidden = menu.dataset.panelMenu !== state;
@@ -67,13 +69,10 @@ function bindButtons(supabase: SupabaseClient): void {
   }
 }
 
-let ready: Promise<SupabaseClient> | undefined;
+let ready: Promise<{ supabase: SupabaseClient; state: PanelState }> | undefined;
 
-/**
- * Uruchamia bramkę (raz na stronę) i zwraca klienta tylko adminowi (strony kalendarza i słowników).
- * Dla pozostałych stanów obietnica się nie spełnia — strona nie pobiera danych.
- */
-export function requireAdmin(): Promise<SupabaseClient> {
+/** Uruchamia bramkę (raz na stronę): ustala stan, pokazuje odpowiednią część układu. */
+function startPanel(): Promise<{ supabase: SupabaseClient; state: PanelState }> {
   ready ??= (async () => {
     let supabase: SupabaseClient;
     try {
@@ -85,10 +84,26 @@ export function requireAdmin(): Promise<SupabaseClient> {
     bindButtons(supabase);
     const state = await resolvePanelState(supabase).catch((): PanelState => 'error');
     show(state);
-    if (state !== 'admin') return new Promise<never>(() => {});
-    return supabase;
+    return { supabase, state };
   })();
   return ready;
+}
+
+/**
+ * Zwraca klienta tylko adminowi (strony kalendarza, słowników, prowadzących).
+ * Dla pozostałych stanów obietnica się nie spełnia — strona nie pobiera danych.
+ */
+export async function requireAdmin(): Promise<SupabaseClient> {
+  const { supabase, state } = await startPanel();
+  if (state !== 'admin') return new Promise<never>(() => {});
+  return supabase;
+}
+
+/** Jak `requireAdmin`, ale wpuszcza też obsługę strzelnicy (książka — SPEC-005). Zwraca rolę. */
+export async function requireStaff(): Promise<{ supabase: SupabaseClient; role: 'staff' | 'admin' }> {
+  const { supabase, state } = await startPanel();
+  if (state !== 'admin' && state !== 'staff') return new Promise<never>(() => {});
+  return { supabase, role: state };
 }
 
 /** Pokazuje stan błędu wczytywania (np. gdy zapytanie strony się nie powiodło). */
