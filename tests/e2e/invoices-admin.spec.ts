@@ -135,7 +135,9 @@ test.describe('admin', () => {
     await page.goto('/panel/zamowienia/');
     await page.getByLabel('Osoba (imię i nazwisko lub e-mail)').fill(seeded.person);
     await page.getByRole('button', { name: 'Pokaż' }).click();
-    await page.getByRole('button', { name: /^Dodaj dane do faktury:/ }).click();
+    // „Pokaż” przeładowuje listę asynchronicznie — do tego czasu widać zamówienia z innych testów, więc szukamy w wierszu tej osoby.
+    await page.getByRole('row').filter({ hasText: seeded.person })
+      .getByRole('button', { name: /^Dodaj dane do faktury:/ }).click();
 
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('NIP *').fill('526-025-02-75');
