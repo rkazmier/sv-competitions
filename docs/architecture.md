@@ -112,6 +112,12 @@
   „Osoba bez konta”; lista pozycji (aktywne produkty i wejściówki na trwające płatne wydarzenia, dla osoby bez konta zawężona
   do dziś), „Gotówka” / „Terminal”, zapis `rpc/create_on_site_order`. Poniżej `rpc/staff_on_site_sales_today` z sumami
   gotówki i terminala (tylko `paid`). Logika bez DOM: `src/lib/on-site-sales.ts`, wyspa `src/lib/on-site-sales-ui.ts`.
+- Zamówienia (SPEC-003 AC-24…AC-27, tylko admin): `/panel/zamowienia/` (`requireAdmin`, pozycja „Zamówienia” w menu admina).
+  Filtry (zakres dat — domyślnie bieżący miesiąc, status, metoda, produkt lub wejściówka, osoba) → `rpc/admin_list_orders`,
+  suma kwot widoku, „Eksportuj CSV” (generowany w przeglądarce: BOM, `;`, kwota `120,00`, formuły arkusza neutralizowane).
+  „Anuluj i zwróć” (okno `<dialog>` z opcjonalną notatką) przy `paid` bez zużycia uprawnienia; Tpay → Edge Function
+  `payments-refund`, na miejscu → `rpc/cancel_order`. Używany karnet: „Karnet był używany — zwrot poza systemem.”.
+  Logika bez DOM: `src/lib/orders-admin.ts`, wyspa `src/lib/orders-admin-ui.ts`.
 - `src/lib/site.ts` — adres produkcyjny: `link rel=canonical`, `og:url` i `og:image` (`public/og-default.png`) zawsze na produkcję.
 - Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie,
@@ -165,6 +171,10 @@
     pozycja, kwota, gotówka/terminal, stan, imię i nazwisko sprzedającego (bez danych kupującego).
   - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`: stan uprawnienia + niewycofane `pass_usages`);
     Tpay → `refund_pending`, na miejscu → `refunded`; wpis `order_refund` w `audit_log`.
+  - `admin_list_orders(from, to, status, method, product_id, event_id, person)` — admin (AC-24): zamówienia z filtrami (dni
+    w Europe/Warsaw, osoba — fragment imienia i nazwiska lub e-maila z `auth.users`), osoba, sprzedający, `pass_used` (AC-26).
+  - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
+    `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
@@ -172,9 +182,9 @@
     z ceną z bazy; ten sam `request_key` konta → istniejące zamówienie (`duplicate`, unikalny indeks `(user_id, request_key)`);
     wejściówka z blokadą wiersza wydarzenia, limit `capacity` liczy `paid` + `pending` młodsze niż `ticket_reservation()` (30 min).
     `attach_tpay_transaction` (id i tytuł transakcji), `discard_tpay_order` (Tpay niedostępny — usuwa `pending` bez transakcji).
-    `process_tpay_notification(hash, tytuł, order_id, kwota, wpłata, czy_wpłata)` — w jednej transakcji: idempotencja po
-    `payload_hash`, zgodność `tpay_title` i kwot, `fulfil_order`, wpis do `payment_notifications`; wynik `paid` / `already_paid` /
-    `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
+    `process_tpay_notification(hash, tytuł, order_id, kwota, wpłata, czy_wpłata, czy_zwrot)` — w jednej transakcji: idempotencja po
+    `payload_hash`, zgodność `tpay_title` i kwot, `fulfil_order` albo zwrot, wpis do `payment_notifications`; wynik `paid` /
+    `already_paid` / `refunded` / `already_refunded` / `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
   Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`,
   `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
@@ -241,9 +251,15 @@
 - `payments-notify` (SPEC-003 AC-9, `verify_jwt = false` w `config.toml`): podpis JWS z `X-JWS-Signature` (RS256, payload odłączony),
   `x5u` musi być certyfikatem Tpay dla środowiska z `TPAY_API_URL` (sandbox: `secure.sandbox.tpay.com`, produkcja: `secure.tpay.com`);
   klucz publiczny z certyfikatu (`jws.ts`, bez bibliotek), pamiętany w instancji. Pola `tr_id`, `tr_crc` (= id zamówienia),
-  `tr_amount`, `tr_paid` (→ grosze), `tr_status` (`TRUE`/`PAID` = wpłata), potem `rpc/process_tpay_notification`.
-  Odpowiedzi: `TRUE` (przyjęte, powtórzone, inny stan), 400 `FALSE` (odrzucone), 401 (podpis), 500 (Tpay ponowi).
-  E-mail płatnika z powiadomienia nie jest zapisywany ani logowany.
+  `tr_amount`, `tr_paid` (→ grosze), `tr_status` (`TRUE`/`PAID` = wpłata, `CHARGEBACK` = zwrot), potem
+  `rpc/process_tpay_notification` (zwrot: `refund_pending` lub `paid` → `refunded`, uprawnienie `cancelled`; dla `paid` —
+  zwrot spoza panelu — wpis `order_refund` bez autora). Odpowiedzi: `TRUE` (przyjęte, powtórzone, inny stan), 400 `FALSE`
+  (odrzucone), 401 (podpis), 500 (Tpay ponowi). E-mail płatnika z powiadomienia nie jest zapisywany ani logowany.
+- `payments-refund` (SPEC-003 AC-25, AC-27): POST `{ order_id, refund_note? }` z JWT admina. `rpc/cancel_order` z JWT
+  wywołującego (rola, stan i brak zużycia sprawdza baza), dla `refund_pending` — Tpay `POST /transactions/{id}/refunds`
+  bez kwoty (zwrot pełnej kwoty); `refunded` ustawia `payments-notify`. Tpay odrzucił / brak odpowiedzi →
+  `rpc/revert_order_refund` i 502 `refund_failed`. Odpowiedzi: 200 `{ status }`, 400, 401, 403, 404, 409 (`pass_used`,
+  `order_not_paid`), 500, 502. Sekrety: `TPAY_API_URL`, `TPAY_CLIENT_ID`, `TPAY_CLIENT_SECRET`.
 - `retention` (SPEC-005 AC-30, AC-31, ADR-0006, `verify_jwt = false`): POST z `Authorization: Bearer RETENTION_INVOKE_SECRET`
   (porównanie w stałym czasie, inaczej 401). Kluczem secret: `rpc/retention_signatures` partiami po 1000 (maks. 20),
   `DELETE /storage/v1/object/signatures` po 100 plików, na końcu `rpc/purge_range_log`. Nieudane usunięcie pliku zostawia
