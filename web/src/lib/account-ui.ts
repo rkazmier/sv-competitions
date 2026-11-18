@@ -16,6 +16,8 @@ import {
   type ProfileData,
   type ProfileErrors,
 } from './profile';
+import { BILLING_COLUMNS, type InvoiceDetails } from './invoice';
+import { bindInvoiceFields, renderInvoiceSummary } from './invoice-ui';
 import { renderPassesAndPayments } from './offer-ui';
 import { qrSvg } from './qr';
 import { getSupabase } from './supabase';
@@ -140,6 +142,54 @@ function showProfileErrors(form: HTMLFormElement, errors: ProfileErrors): boolea
   return Boolean(first);
 }
 
+/**
+ * SPEC-004 AC-8: „Dane do faktury” — zmiana (NIP → rejestr / ręcznie, potem „Zapisz”) albo usunięcie własnego
+ * `billing_details` (RLS: własny wiersz). Zamówienia mają własną kopię, więc zmiana ich nie dotyczy.
+ */
+async function mountBillingDetails(supabase: SupabaseClient, userId: string): Promise<void> {
+  const section = el(document, '[data-billing]');
+  const current = el(section, '[data-billing-current]');
+  const save = el<HTMLButtonElement>(section, '[data-billing-save]');
+  const remove = el<HTMLButtonElement>(section, '[data-billing-delete]');
+  const status = el(section, '[data-billing-status]');
+  const fields = bindInvoiceFields(section, supabase, (control) => {
+    save.disabled = !control.value();
+  });
+  const show = (saved: InvoiceDetails | null) => {
+    if (saved) renderInvoiceSummary(current, saved);
+    current.hidden = remove.hidden = !saved;
+    el(section, '[data-billing-none]').hidden = Boolean(saved);
+    fields.setSaved(null);
+  };
+  const done = (error: unknown, message: MessageKey) => {
+    status.className = error ? 'message-error' : '';
+    status.textContent = t(error ? 'invoice.profileError' : message);
+  };
+
+  const { data, error } = await supabase.from('billing_details').select(BILLING_COLUMNS).eq('user_id', userId).maybeSingle<InvoiceDetails>();
+  if (error) return;
+  show(data);
+  section.hidden = false;
+
+  save.addEventListener('click', async () => {
+    const details = fields.value();
+    if (!details) return;
+    save.disabled = true;
+    const result = await supabase.from('billing_details').upsert({ user_id: userId, ...details }).select(BILLING_COLUMNS).single<InvoiceDetails>();
+    done(result.error, 'invoice.profileSaved');
+    if (result.error) save.disabled = false;
+    else show(result.data);
+  });
+  remove.addEventListener('click', async () => {
+    if (!window.confirm(t('invoice.profileDeleteConfirm'))) return;
+    remove.disabled = true;
+    const result = await supabase.from('billing_details').delete().eq('user_id', userId);
+    remove.disabled = false;
+    done(result.error, 'invoice.profileDeleted');
+    if (!result.error) show(null);
+  });
+}
+
 /** `/konto/dane/` — AC-7, AC-8, AC-11. Zapis tylko własnego wiersza (RLS); bez wpisu w `audit_log` (AC-22). */
 export async function mountProfileForm(): Promise<void> {
   const loading = el(document, '[data-loading]');
@@ -168,6 +218,7 @@ export async function mountProfileForm(): Promise<void> {
   const form = el<HTMLFormElement>(document, 'form[data-profile]');
   fillProfileForm(form, profile, user.email ?? null);
   form.hidden = false;
+  void mountBillingDetails(supabase, user.id);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();

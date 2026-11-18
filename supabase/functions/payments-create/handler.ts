@@ -4,6 +4,8 @@
  * 1. konto z `GET /auth/v1/user` (JWT wywołującego), imię i nazwisko z `profiles` (RLS: własny wiersz);
  * 2. `rpc/create_tpay_order` kluczem secret — zamówienie `pending` z ceną z bazy (nie z przeglądarki),
  *    limit miejsc wejściówki z blokadą wiersza wydarzenia, ten sam `request_key` → 409 `duplicate_request`;
+ *    z `invoice` (SPEC-004 AC-5) — `rpc/set_order_invoice_details`: kopia danych faktury w zamówieniu i nadpisanie
+ *    `billing_details`; dane odrzucone przez bazę → zamówienie usunięte, 400 `invalid_invoice`;
  * 3. Tpay Open API: token OAuth (client credentials), transakcja z kwotą, opisem „SV <id zamówienia>”,
  *    `hiddenDescription` = id zamówienia (wraca jako `tr_crc`), e-mailem i imieniem płatnika, powiadomieniem
  *    na `payments-notify` i powrotem na `/konto/platnosc/?order=`;
@@ -45,22 +47,69 @@ function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
 
+/** SPEC-004 AC-5: dane do faktury potwierdzone w przeglądarce; NIP, długości i źródło sprawdza `set_order_invoice_details`. */
+interface Invoice {
+  nip: string;
+  company_name: string;
+  company_address: string;
+  data_source: string;
+  fetched_at: string | null;
+}
+
 interface Item {
   product_id: string | null;
   event_id: string | null;
   request_key: string;
+  invoice: Invoice | null;
+}
+
+function readInvoice(value: unknown): Invoice | null | undefined {
+  if (value === undefined || value === null) return null;
+  const v = value as Record<string, unknown>;
+  const text = (field: unknown, max: number) => typeof field === 'string' && field.length <= max;
+  if (!text(v.nip, 32) || !text(v.company_name, 400) || !text(v.company_address, 400) || !text(v.data_source, 20)) {
+    return undefined;
+  }
+  const fetched = v.fetched_at ?? null;
+  if (fetched !== null && !(typeof fetched === 'string' && !Number.isNaN(Date.parse(fetched)))) return undefined;
+  return {
+    nip: v.nip as string,
+    company_name: v.company_name as string,
+    company_address: v.company_address as string,
+    data_source: v.data_source as string,
+    fetched_at: fetched,
+  };
 }
 
 async function readItem(request: Request): Promise<Item | null> {
   try {
     const body = await request.json();
     const id = (value: unknown) => (typeof value === 'string' && UUID.test(value) ? value.toLowerCase() : null);
-    const item = { product_id: id(body?.product_id), event_id: id(body?.event_id), request_key: id(body?.request_key) };
-    if (!item.request_key || Boolean(item.product_id) === Boolean(item.event_id)) return null;
+    const invoice = readInvoice(body?.invoice);
+    const item = { product_id: id(body?.product_id), event_id: id(body?.event_id), request_key: id(body?.request_key), invoice };
+    if (!item.request_key || Boolean(item.product_id) === Boolean(item.event_id) || invoice === undefined) return null;
     return item as Item;
   } catch {
     return null;
   }
+}
+
+/**
+ * AC-5: kopia danych faktury w zamówieniu i nadpisanie `billing_details` płatnika.
+ * `invalid` — baza odrzuciła dane (kod 22023: NIP, długości, źródło), `error` — inny błąd.
+ */
+async function saveInvoice(orderId: string, invoice: Invoice, deps: Deps): Promise<'ok' | 'invalid' | 'error'> {
+  const saved = await rpc('set_order_invoice_details', {
+    p_order_id: orderId,
+    p_nip: invoice.nip,
+    p_company_name: invoice.company_name,
+    p_company_address: invoice.company_address,
+    p_data_source: invoice.data_source,
+    p_fetched_at: invoice.fetched_at,
+    p_save_billing_details: true,
+  }, deps);
+  if (saved.ok) return 'ok';
+  return saved.body?.code === '22023' ? 'invalid' : 'error';
 }
 
 /** Konto i imię płatnika z JWT wywołującego; `null` — brak sesji. */
@@ -172,6 +221,29 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   }
   if (order.duplicate) return json(409, { error: 'duplicate_request', order_id: order.order_id });
 
+  const discard = async () => {
+    try {
+      await rpc('discard_tpay_order', { p_order_id: order.order_id }, deps);
+    } catch {
+      log(`payments-create: nie usunięto zamówienia ${order.order_id}`);
+    }
+  };
+
+  if (item.invoice) {
+    let saved: Awaited<ReturnType<typeof saveInvoice>> = 'error';
+    try {
+      saved = await saveInvoice(order.order_id, item.invoice, deps);
+    } catch {
+      // jak błąd bazy niżej
+    }
+    if (saved !== 'ok') {
+      // Bez NIP-u i danych firmy w logach (§8).
+      log(`payments-create: nie zapisano danych faktury w zamówieniu ${order.order_id} (${saved})`);
+      await discard();
+      return saved === 'invalid' ? json(400, { error: 'invalid_invoice' }) : json(500, { error: 'order_failed' });
+    }
+  }
+
   try {
     const tx = await tpayTransaction(order, who, deps);
     if (tx) {
@@ -188,10 +260,6 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   } catch {
     log(`payments-create: błąd połączenia z Tpay (zamówienie ${order.order_id})`);
   }
-  try {
-    await rpc('discard_tpay_order', { p_order_id: order.order_id }, deps);
-  } catch {
-    log(`payments-create: nie usunięto zamówienia ${order.order_id}`);
-  }
+  await discard();
   return json(502, { error: 'payment_failed' });
 }

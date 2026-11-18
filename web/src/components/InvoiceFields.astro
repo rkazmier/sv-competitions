@@ -1,0 +1,118 @@
+---
+/**
+ * Dane do faktury (SPEC-004 AC-1…AC-4, AC-8, AC-9): NIP → „Pobierz dane firmy” → potwierdzenie danych z rejestru
+ * albo wpis ręczny; zapisane `billing_details` — „Użyj zapisanych danych” / „Inna firma”.
+ * `toggle` — checkbox „Potrzebuję faktury” (zakup, sprzedaż na miejscu); bez niego pola są zawsze widoczne (`/konto/dane/`).
+ * Logika: lib/invoice-ui.ts (`bindInvoiceFields`), lib/invoice.ts.
+ */
+import { t } from '../i18n';
+import { ADDRESS_LIMITS, NAME_LIMITS } from '../lib/invoice';
+
+interface Props {
+  id: string;
+  toggle?: boolean;
+}
+
+const { id, toggle = true } = Astro.props;
+---
+<div class="invoice" data-invoice>
+  {
+    toggle && (
+      <div class="check">
+        <input type="checkbox" id={`${id}-wanted`} data-invoice-wanted />
+        <label for={`${id}-wanted`}>{t('invoice.wanted')}</label>
+      </div>
+    )
+  }
+  <div class="invoice-body" data-invoice-body hidden={toggle}>
+    <dl class="invoice-summary" data-invoice-summary hidden></dl>
+    <p class="invoice-done" data-invoice-done hidden>{t('invoice.confirmed')}</p>
+
+    <div class="button-row" data-invoice-saved hidden>
+      <button type="button" class="button button-primary" data-use-saved>{t('invoice.useSaved')}</button>
+      <button type="button" class="button" data-other-company>{t('invoice.otherCompany')}</button>
+    </div>
+
+    <div class="invoice-nip" data-invoice-nip>
+      <label class="field-label" for={`${id}-nip`}>{t('invoice.nip')} *</label>
+      <div class="invoice-row">
+        <input class="input" id={`${id}-nip`} inputmode="numeric" autocomplete="off" maxlength="20"
+          aria-describedby={`${id}-nip-error`} data-nip />
+        <button type="button" class="button" data-lookup>{t('invoice.lookup')}</button>
+      </div>
+      <p class="message-error" id={`${id}-nip-error`} role="alert" data-nip-error hidden></p>
+      <p class="hint" role="status" data-lookup-status></p>
+    </div>
+
+    <div class="invoice-manual" data-invoice-manual hidden>
+      <p>{t('invoice.notFound')}</p>
+      <label class="field-label" for={`${id}-name`}>{t('invoice.name')} *</label>
+      <input class="input" id={`${id}-name`} maxlength={NAME_LIMITS.max} aria-describedby={`${id}-name-error`} data-manual-name />
+      <p class="message-error" id={`${id}-name-error`} data-name-error hidden>
+        {t('invoice.lengthError', NAME_LIMITS)}
+      </p>
+      <label class="field-label" for={`${id}-address`}>{t('invoice.address')} *</label>
+      <textarea class="input" id={`${id}-address`} rows="2" maxlength={ADDRESS_LIMITS.max}
+        aria-describedby={`${id}-address-error`} data-manual-address></textarea>
+      <p class="message-error" id={`${id}-address-error`} data-address-error hidden>
+        {t('invoice.lengthError', ADDRESS_LIMITS)}
+      </p>
+    </div>
+
+    <div class="button-row">
+      <button type="button" class="button button-primary" data-confirm hidden>{t('invoice.confirm')}</button>
+      <button type="button" class="button" data-edit hidden>{t('invoice.edit')}</button>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .invoice,
+  .invoice-body,
+  .invoice-nip,
+  .invoice-manual {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .invoice .check {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .invoice p,
+  .invoice-summary,
+  .invoice-summary dd {
+    margin: 0;
+  }
+
+  .invoice-summary dt {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .invoice-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .invoice-row .input {
+    flex: 1 1 10rem;
+  }
+
+  .invoice .button {
+    min-height: 44px;
+  }
+
+  .invoice .hint:empty,
+  .invoice .button-row:not(:has(:not([hidden]))) {
+    display: none;
+  }
+
+  .invoice-done {
+    font-weight: var(--font-weight-strong);
+  }
+</style>

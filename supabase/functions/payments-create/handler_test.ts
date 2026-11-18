@@ -33,6 +33,7 @@ interface Mock {
   order?: { status: number; body: unknown };
   token?: number;
   transaction?: { status: number; body: unknown } | 'network';
+  invoice?: { status: number; body: unknown };
 }
 
 const ORDER_OK = { order_id: ORDER, amount: 12000, item_name: 'Karnet 10 wejść', duplicate: false };
@@ -45,7 +46,7 @@ const TX_OK = {
 
 /** Zamockowany fetch: Auth, profil, funkcje zamówień, OAuth i transakcje Tpay. */
 function mockFetch(
-  { user = 200, fullName = 'Jan Kowalski', order = { status: 200, body: ORDER_OK }, token = 200, transaction }: Mock = {},
+  { user = 200, fullName = 'Jan Kowalski', order = { status: 200, body: ORDER_OK }, token = 200, transaction, invoice }: Mock = {},
 ) {
   const calls: Call[] = [];
   const tx = transaction ?? { status: 200, body: TX_OK };
@@ -56,6 +57,9 @@ function mockFetch(
     if (url.endsWith('/auth/v1/user')) return reply(user, user === 200 ? { id: USER, email: 'jan@example.test' } : {});
     if (url.includes('/rest/v1/profiles')) return reply(200, [{ full_name: fullName }]);
     if (url.endsWith('/rpc/create_tpay_order')) return reply(order.status, order.body);
+    if (url.endsWith('/rpc/set_order_invoice_details')) {
+      return invoice ? reply(invoice.status, invoice.body) : Promise.resolve(new Response(null, { status: 204 }));
+    }
     if (url.endsWith('/rpc/attach_tpay_transaction') || url.endsWith('/rpc/discard_tpay_order')) {
       return Promise.resolve(new Response(null, { status: 204 }));
     }
@@ -179,6 +183,65 @@ Deno.test('§7: Tpay niedostępny — 502, zamówienie usunięte, sekrety nie tr
     assert(!callTo(calls, '/rpc/attach_tpay_transaction'), 'bez zapisu transakcji');
     const text = (await response.text()) + logs.join();
     assert(!text.includes(SECRET) && !text.includes(TPAY_SECRET) && !text.includes('jan@example.test'), text);
+  }
+});
+
+// ===== SPEC-004 AC-5: dane do faktury =====
+
+const INVOICE = {
+  nip: 'PL 526-025-09-95',
+  company_name: 'Firma Testowa sp. z o.o.',
+  company_address: 'ul. Prosta 1, 00-001 Warszawa',
+  data_source: 'vat_whitelist',
+  fetched_at: '2026-11-18T10:00:00.000Z',
+};
+
+Deno.test('SPEC-004 AC-5: dane faktury zapisane w zamówieniu i w billing_details przed transakcją Tpay', async () => {
+  const { calls, fetch } = mockFetch();
+  const response = await handle(post({ product_id: PRODUCT, request_key: KEY, invoice: INVOICE }), { fetch, config: CONFIG });
+  assert(response.status === 200, `status ${response.status}`);
+  const call = callTo(calls, '/rpc/set_order_invoice_details');
+  const args = bodyOf(call);
+  assert(args.p_order_id === ORDER && args.p_nip === INVOICE.nip && args.p_company_name === INVOICE.company_name, JSON.stringify(args));
+  assert(args.p_company_address === INVOICE.company_address && args.p_data_source === 'vat_whitelist', JSON.stringify(args));
+  assert(args.p_fetched_at === INVOICE.fetched_at && args.p_save_billing_details === true, 'kopia + billing_details');
+  assert(new Headers(call!.init.headers).get('Authorization') === `Bearer ${SECRET}`, 'kluczem secret');
+  assert(calls.indexOf(call!) < calls.indexOf(callTo(calls, '/transactions')!), 'przed transakcją Tpay');
+});
+
+Deno.test('SPEC-004 AC-5: bez faktury — set_order_invoice_details nie jest wołane', async () => {
+  const { calls, fetch } = mockFetch();
+  const response = await handle(post({ product_id: PRODUCT, request_key: KEY, invoice: null }), { fetch, config: CONFIG });
+  assert(response.status === 200, `status ${response.status}`);
+  assert(!callTo(calls, '/rpc/set_order_invoice_details'), 'bez danych faktury');
+});
+
+Deno.test('SPEC-004 AC-5: niepoprawny kształt danych faktury — 400 bez zamówienia', async () => {
+  for (const invoice of [{ ...INVOICE, nip: 123 }, { ...INVOICE, company_name: 'x'.repeat(401) }, { ...INVOICE, fetched_at: 'wczoraj' }, 'NIP']) {
+    const { calls, fetch } = mockFetch();
+    const response = await handle(post({ product_id: PRODUCT, request_key: KEY, invoice }), { fetch, config: CONFIG });
+    assert(response.status === 400, `status ${response.status} dla ${JSON.stringify(invoice)}`);
+    assert(calls.length === 0, 'bez wywołań');
+  }
+});
+
+Deno.test('SPEC-004 AC-5: baza odrzuca dane faktury — 400 invalid_invoice, zamówienie usunięte, NIP nie w logach', async () => {
+  for (const [mock, status, error] of [
+    [{ status: 400, body: { code: '22023', message: 'invalid_nip' } }, 400, 'invalid_invoice'],
+    [{ status: 500, body: { code: 'XX000', message: 'boom' } }, 500, 'order_failed'],
+  ] as const) {
+    const logs: string[] = [];
+    const { calls, fetch } = mockFetch({ invoice: mock });
+    const response = await handle(post({ product_id: PRODUCT, request_key: KEY, invoice: { ...INVOICE, nip: '5260250996' } }), {
+      fetch,
+      config: CONFIG,
+      log: (m) => logs.push(m),
+    });
+    assert(response.status === status, `status ${response.status}`);
+    assert((await response.json()).error === error, error);
+    assert(bodyOf(callTo(calls, '/rpc/discard_tpay_order')).p_order_id === ORDER, 'zamówienie usunięte');
+    assert(!callTo(calls, '/transactions'), 'bez transakcji Tpay');
+    assert(!logs.join().includes('5260250996') && !logs.join().includes('Firma Testowa'), logs.join());
   }
 });
 

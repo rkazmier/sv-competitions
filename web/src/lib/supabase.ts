@@ -11,6 +11,17 @@ export { AUTH_STORAGE_KEY };
 
 let client: SupabaseClient | undefined;
 
+/** Kod błędu z odpowiedzi Edge Function `{ error }` (FunctionsHttpError ma `context: Response`). */
+export async function functionErrorCode(error: unknown): Promise<string | null> {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (!(context instanceof Response)) return null;
+  try {
+    return ((await context.json()) as { error?: string })?.error ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function getSupabase(): SupabaseClient {
   if (!client) {
     const url = import.meta.env.PUBLIC_SUPABASE_URL;

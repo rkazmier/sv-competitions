@@ -34,7 +34,9 @@ import {
 } from './offer';
 import { PRODUCT_KINDS, formatPrice, groupProducts, type Product } from './products';
 import { entryPassText, usageHistory, type MyRangeEntry } from './range-history';
-import { getSupabase } from './supabase';
+import { BILLING_COLUMNS, invoiceStatus, type InvoiceDetails } from './invoice';
+import { bindInvoiceFields } from './invoice-ui';
+import { functionErrorCode, getSupabase } from './supabase';
 
 const el = <T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string) => root.querySelector<T>(selector)!;
 
@@ -98,17 +100,6 @@ export async function mountOffer(root: HTMLElement): Promise<void> {
 
 // ===== /oferta/zamowienie/ =====
 
-/** Kod błędu z odpowiedzi `payments-create` (FunctionsHttpError ma `context: Response`). */
-async function errorCode(error: unknown): Promise<string | null> {
-  const context = (error as { context?: unknown } | null)?.context;
-  if (!(context instanceof Response)) return null;
-  try {
-    return ((await context.json()) as { error?: string })?.error ?? null;
-  } catch {
-    return null;
-  }
-}
-
 interface OrderItem {
   name: string;
   price: number;
@@ -143,6 +134,7 @@ const PAY_ERRORS: Record<string, MessageKey> = {
   event_unavailable: 'offer.unavailable',
   sold_out: 'offer.soldOut',
   sales_closed: 'calendarCard.salesClosed',
+  invalid_invoice: 'invoice.invalidDetails',
 };
 
 /** AC-7: podsumowanie produktu albo wejściówki (AC-17); AC-8: „Zapłać” → `payments-create` → bramka Tpay. */
@@ -180,6 +172,17 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
   const form = el<HTMLFormElement>(root, 'form[data-order]');
   const pay = el<HTMLButtonElement>(form, '[data-pay]');
   pay.textContent = t('offer.pay', { amount: formatPrice(data.price) });
+
+  // SPEC-004 AC-1: zapisane `billing_details` jako podpowiedź (RLS: własny wiersz). AC-6: „Zapłać” nieaktywny,
+  // dopóki zaznaczona faktura nie ma potwierdzonych danych.
+  const payHint = el(form, '[data-pay-hint]');
+  const invoice = bindInvoiceFields(form, supabase, (control) => {
+    const blocked = control.wanted() && !control.value();
+    pay.disabled = blocked;
+    payHint.hidden = !blocked;
+  });
+  const billing = await supabase.from('billing_details').select(BILLING_COLUMNS).eq('user_id', session.session.user.id).maybeSingle<InvoiceDetails>();
+  invoice.setSaved(billing.data ?? null);
   loading.hidden = true;
   form.hidden = false;
 
@@ -192,6 +195,8 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
     termsError.hidden = terms.checked;
     terms.setAttribute('aria-invalid', String(!terms.checked));
     if (!terms.checked) return terms.focus();
+    const details = invoice.wanted() ? invoice.value() : null;
+    if (invoice.wanted() && !details) return;
 
     // §7: blokada przycisku + klucz idempotencji żądania — podwójne kliknięcie = jedno zamówienie.
     pay.disabled = true;
@@ -199,10 +204,15 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
     let code: string | null = null;
     try {
       const result = await supabase.functions.invoke<{ order_id: string; payment_url: string }>('payments-create', {
-        body: { ...(productId ? { product_id: productId } : { event_id: eventId }), request_key: crypto.randomUUID() },
+        body: {
+          ...(productId ? { product_id: productId } : { event_id: eventId }),
+          request_key: crypto.randomUUID(),
+          // AC-5: kopia danych w zamówieniu i nadpisanie `billing_details` (zapis po stronie `payments-create`).
+          ...(details ? { invoice: details } : {}),
+        },
       });
       if (!result.error && result.data?.payment_url) return window.location.assign(result.data.payment_url);
-      code = await errorCode(result.error);
+      code = await functionErrorCode(result.error);
     } catch {
       // błąd sieci — komunikat ogólny
     }
@@ -289,12 +299,16 @@ function entryRow(entry: MyRangeEntry): HTMLTableRowElement {
 
 function orderRow(order: UserOrder): HTMLTableRowElement {
   const row = node('tr');
+  const status = node('td', t(ORDER_STATUS_TEXT[order.status]));
+  // SPEC-004 AC-7: „Faktura: w przygotowaniu” / „Faktura: <numer>” (bez pliku — faktura przez KSeF).
+  const invoice = invoiceStatus(order);
+  if (invoice) status.append(node('span', t(invoice.key, 'number' in invoice ? { number: invoice.number } : {}), 'invoice-status'));
   row.append(
     node('td', formatDay(order.created_at)),
     node('td', order.item_name),
     node('td', formatPrice(order.amount)),
     node('td', t(PAYMENT_METHOD_TEXT[order.payment_method])),
-    node('td', t(ORDER_STATUS_TEXT[order.status])),
+    status,
   );
   return row;
 }

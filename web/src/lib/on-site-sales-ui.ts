@@ -18,6 +18,8 @@ import {
   type SaleItem,
   type TicketEvent,
 } from './on-site-sales';
+import { BILLING_COLUMNS, invoiceArgs, type InvoiceDetails } from './invoice';
+import { bindInvoiceFields } from './invoice-ui';
 import { PRODUCT_COLUMNS, formatPrice, type Product } from './products';
 import { requireStaff } from './panel';
 import { scanQrCode } from './qr-scanner';
@@ -29,7 +31,7 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
   return element;
 }
 
-type ErrorField = 'person' | 'item' | 'method';
+type ErrorField = 'person' | 'item' | 'method' | 'invoice';
 
 export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
   const form = query<HTMLFormElement>(root, '[data-form]');
@@ -75,7 +77,21 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
     itemsEmpty.hidden = items.length > 0;
   }
 
+  // SPEC-004 AC-9: dla osoby z kontem podpowiadają się jej `billing_details` (RLS: odczyt dla obsługi);
+  // dla osoby bez konta — puste pola, dane firmy trafiają tylko do zamówienia.
+  const invoice = bindInvoiceFields(form, supabase, () => setError('invoice', null));
+  let invoiceFor: string | null | undefined;
+  async function syncInvoice(): Promise<void> {
+    const id = isGuest() ? null : (person?.id ?? null);
+    if (id === invoiceFor) return;
+    invoiceFor = id;
+    if (!id) return invoice.setSaved(null);
+    const { data } = await supabase.from('billing_details').select(BILLING_COLUMNS).eq('user_id', id).maybeSingle<InvoiceDetails>();
+    if (invoiceFor === id) invoice.setSaved(data ?? null);
+  }
+
   function renderPerson(): void {
+    void syncInvoice();
     const guest = isGuest();
     accountBox.hidden = guest;
     guestHint.hidden = !guest;
@@ -221,16 +237,23 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
     setError('person', !guest && !person ? t('sales.personRequired') : null);
     setError('item', args ? null : t('sales.itemRequired'));
     setError('method', chosenMethod ? null : t('sales.methodRequired'));
-    if ((!guest && !person) || !args || !chosenMethod) return;
+    const details = invoice.wanted() ? invoice.value() : null;
+    const invoiceMissing = invoice.wanted() && !details;
+    setError('invoice', invoiceMissing ? t('invoice.confirmRequired') : null);
+    if ((!guest && !person) || !args || !chosenMethod || invoiceMissing) return;
 
     const item = items.find((candidate) => candidate.value === itemSelect.value);
     submit.disabled = true;
     submit.textContent = t('sales.saving');
-    const { error } = await supabase.rpc('create_on_site_order', {
+    const { data: orderId, error } = await supabase.rpc('create_on_site_order', {
       p_user_id: guest ? null : person!.id,
       p_on_site_method: chosenMethod,
       ...args,
     });
+    // AC-9: kopia danych firmy w zamówieniu (obsługa — tylko własna sprzedaż „na miejscu”), bez zmiany `billing_details`.
+    const invoiceError = !error && details
+      ? (await supabase.rpc('set_order_invoice_details', invoiceArgs(orderId as string, details, false))).error
+      : null;
     submit.disabled = false;
     submit.textContent = t('sales.submit');
     if (error) {
@@ -238,11 +261,16 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
       formError.hidden = false;
       return;
     }
+    if (invoiceError) {
+      formError.textContent = t('invoice.saleInvoiceError');
+      formError.hidden = false;
+    }
     status.textContent = t('sales.saved', { name: item?.name ?? '', amount: formatPrice(item?.price ?? 0) });
     // SPEC-005 AC-12: sprzedaż z książki → powrót do wpisu tej osoby z nowym uprawnieniem.
-    if (returnUrl && !guest && person?.id === presetId) return window.location.assign(returnUrl);
+    if (returnUrl && !guest && person?.id === presetId && !invoiceError) return window.location.assign(returnUrl);
     person = null;
     form.reset();
+    invoiceFor = undefined;
     renderPerson();
     await loadToday();
   });
