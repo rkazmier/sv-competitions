@@ -11,6 +11,7 @@ interface Seeded {
   item: string;
   person: string;
   orderId: string;
+  orderNumber: string;
 }
 
 /** Opłacone zamówienie z uprawnieniem (`fulfil_order` kluczem secret) dla nowej osoby. */
@@ -35,16 +36,16 @@ async function seedOrder(method: 'tpay' | 'on_site', amount: number): Promise<Se
     payment_method: method,
     on_site_method: method === 'on_site' ? 'cash' : null,
     tpay_transaction_id: method === 'tpay' ? unique('TX').replace(/\s/g, '') : null,
-  }).select('id').single();
+  }).select('id, order_number').single();
   expect(error).toBeNull();
   expect((await db.rpc('fulfil_order', { p_order_id: order!.id })).error).toBeNull();
-  return { item, person, orderId: order!.id };
+  return { item, person, orderId: order!.id, orderNumber: order!.order_number };
 }
 
 const rowOf = (page: Page, item: string) => page.getByRole('row').filter({ hasText: item });
 
 async function filterByPerson(page: Page, person: string): Promise<void> {
-  await page.getByLabel('Osoba (imię i nazwisko lub e-mail)').fill(person);
+  await page.getByLabel('Osoba lub nr zamówienia').fill(person);
   await page.getByRole('button', { name: 'Pokaż' }).click();
 }
 
@@ -79,9 +80,41 @@ test.describe('admin', () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/^zamowienia-\d{4}-\d{2}-01-\d{4}-\d{2}-\d{2}\.csv$/);
     const csv = readFileSync((await download.path())!, 'utf8');
-    expect(csv).toContain('"Data";"Produkt";"Kwota"');
+    expect(csv).toContain('"Numer zamówienia";"Data";"Produkt";"Kwota"');
     expect(csv).toContain(`"${first.item}";"43,21"`);
+    expect(csv).toMatch(new RegExp(`"${first.orderNumber}";"[^"]+";"${first.item}"`));
     expect(csv).not.toContain(other.item);
+  });
+
+  test('SPEC-006 AC-9, AC-10, AC-11: kolumna „Nr zamówienia” i wyszukiwanie po numerze', async ({ page }) => {
+    const sale = await seedOrder('on_site', 3100);
+    const other = await seedOrder('tpay', 3200);
+    await page.goto('/panel/zamowienia/');
+    await expect(page.getByRole('columnheader', { name: 'Nr zamówienia' })).toBeVisible();
+    await expect(rowOf(page, sale.item)).toContainText(sale.orderNumber);
+
+    // AC-10: mała litera, spacje, bez zer wiodących; zakres dat i metoda pomijane.
+    const [, year, counter] = /^SV-(\d{4})-(\d+)$/.exec(sale.orderNumber)!;
+    await page.getByLabel('Od dnia').fill('2099-01-01');
+    await page.getByLabel('Metoda').selectOption({ label: 'Online' });
+    await filterByPerson(page, `  sv-${year}-${Number(counter)}  `);
+    await expect(page.getByText('Wynik wyszukiwania po numerze zamówienia — pozostałe filtry pominięte.')).toBeVisible();
+    await expect(rowOf(page, sale.item)).toBeVisible();
+    await expect(rowOf(page, other.item)).toHaveCount(0);
+
+    await filterByPerson(page, 'SV-1999-999999');
+    await expect(page.getByText('Brak zamówienia o tym numerze.')).toBeVisible();
+    await expect(page.getByText('Brak zamówień dla wybranych filtrów.')).toBeHidden();
+
+    // AC-11: tekst bez formy numeru — wyszukiwanie po osobie (z pozostałymi filtrami).
+    await page.getByLabel('Od dnia').fill('');
+    await page.getByLabel('Metoda').selectOption({ label: 'Wszystkie' });
+    await filterByPerson(page, sale.person);
+    await expect(rowOf(page, sale.item)).toBeVisible();
+    await expect(page.getByText('Wynik wyszukiwania po numerze zamówienia', { exact: false })).toBeHidden();
+
+    await rowOf(page, sale.item).getByRole('button', { name: /^Anuluj i zwróć/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Anuluj i zwróć' })).toContainText(`Zamówienie ${sale.orderNumber}:`);
   });
 
   test('AC-25, AC-27: „Anuluj i zwróć” na miejscu — od razu zwrócone, wpis w audit_log', async ({ page }) => {

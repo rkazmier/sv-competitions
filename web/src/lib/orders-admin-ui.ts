@@ -12,6 +12,7 @@ import {
   filterArgs,
   invoiceAction,
   methodKeys,
+  numberSearchKey,
   orderDateTime,
   ordersCsv,
   ordersTotal,
@@ -88,6 +89,7 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     rows.replaceChildren();
     for (const order of orders) {
       const row = document.createElement('tr');
+      cell(row, order.order_number).className = 'order-number';
       cell(row, orderDateTime(order.created_at));
       cell(row, order.item_name);
       cell(row, formatPrice(order.amount));
@@ -126,7 +128,12 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
       rows.append(row);
     }
     query<HTMLElement>(root, '[data-table]').hidden = orders.length === 0;
-    query<HTMLElement>(root, '[data-empty]').hidden = orders.length > 0;
+    // SPEC-006 AC-10: wyszukiwanie po numerze — komunikat zamiast zwykłego „Brak zamówień…”.
+    const numberKey = numberSearchKey(shownFilters.person, orders.length);
+    const notice = query<HTMLElement>(root, '[data-number-notice]');
+    notice.textContent = numberKey ? t(numberKey) : '';
+    notice.hidden = !numberKey;
+    query<HTMLElement>(root, '[data-empty]').hidden = orders.length > 0 || numberKey !== null;
     summary.textContent = t('orders.summary', { count: orders.length, amount: formatPrice(ordersTotal(orders)) });
     exportButton.disabled = orders.length === 0;
   }
@@ -166,6 +173,7 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     note.value = '';
     const amount = formatPrice(order.amount);
     query<HTMLElement>(dialog, '[data-confirm-item]').textContent = t('orders.confirmItem', {
+      number: order.order_number,
       item: order.item_name,
       person: personLabel(order) ?? t('orders.noAccount'),
       date: orderDateTime(order.created_at),
@@ -223,6 +231,7 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     invoiceError.hidden = true;
     invoiceFields.setSaved(null);
     query<HTMLElement>(invoiceDialog, '[data-invoice-item]').textContent = t('orders.confirmItem', {
+      number: order.order_number,
       item: order.item_name,
       person: personLabel(order) ?? t('orders.noAccount'),
       date: orderDateTime(order.created_at),

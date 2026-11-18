@@ -92,6 +92,8 @@ export function saleErrorKey(error: { message?: string } | null | undefined): Me
 /** Wiersz `staff_on_site_sales_today` (AC-23). */
 export interface OnSiteSale {
   id: string;
+  /** SPEC-006 AC-15. */
+  order_number: string;
   created_at: string;
   item_name: string;
   amount: number;

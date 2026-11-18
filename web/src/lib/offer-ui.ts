@@ -228,6 +228,7 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
 /** AC-10: stan zamówienia co 3 s przez maks. 60 s. */
 export async function mountPaymentStatus(root: HTMLElement): Promise<void> {
   const status = el(root, '[data-payment-status]');
+  const number = el(root, '[data-payment-order]');
   const show = (text: string, done = false) => {
     status.textContent = text;
     el(root, '[data-account-link]').hidden = !done;
@@ -242,8 +243,12 @@ export async function mountPaymentStatus(root: HTMLElement): Promise<void> {
 
   const started = Date.now();
   const check = async (): Promise<void> => {
-    const { data, error } = await supabase.from('orders').select('status').eq('id', orderId).maybeSingle<{ status: string }>();
+    const { data, error } = await supabase.from('orders').select('status, order_number').eq('id', orderId)
+      .maybeSingle<{ status: string; order_number: string }>();
     if (!error && !data) return show(t('offer.paymentNotFound'), true);
+    // SPEC-006 AC-13: „Zamówienie SV-2026-000123”.
+    if (data) number.textContent = t('offer.paymentOrder', { number: data.order_number });
+    number.hidden = !data;
     const view = paymentView(error ? 'pending' : data!.status, Date.now() - started);
     if (view === 'waiting') {
       show(t('offer.paymentWaiting'));
@@ -303,9 +308,12 @@ function orderRow(order: UserOrder): HTMLTableRowElement {
   // SPEC-004 AC-7: „Faktura: w przygotowaniu” / „Faktura: <numer>” (bez pliku — faktura przez KSeF).
   const invoice = invoiceStatus(order);
   if (invoice) status.append(node('span', t(invoice.key, 'number' in invoice ? { number: invoice.number } : {}), 'invoice-status'));
+  // SPEC-006 AC-12: „Nr: SV-2026-000123” przy pozycji.
+  const item = node('td', order.item_name);
+  item.append(node('span', t('offer.orderNumber', { number: order.order_number }), 'order-number order-ref'));
   row.append(
     node('td', formatDay(order.created_at)),
-    node('td', order.item_name),
+    item,
     node('td', formatPrice(order.amount)),
     node('td', t(PAYMENT_METHOD_TEXT[order.payment_method])),
     status,

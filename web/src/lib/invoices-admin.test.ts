@@ -15,6 +15,7 @@ import {
 
 const invoice = (fields: Partial<AdminInvoice> = {}): AdminInvoice => ({
   id: '00000000-0000-0000-0000-0000000000d1',
+  order_number: 'SV-2026-000123',
   paid_at: '2026-11-10T23:30:00Z',
   item_name: 'Karnet 10 wejść',
   amount: 12000,
@@ -35,13 +36,13 @@ const invoice = (fields: Partial<AdminInvoice> = {}): AdminInvoice => ({
 const text = (key: Parameters<typeof t>[0]) => t(key);
 
 describe('AC-11: dane do skopiowania do e-mikrofirmy', () => {
-  it('NIP, nabywca, adres, pozycja, kwota brutto, data sprzedaży (Europe/Warsaw), sposób zapłaty, numer zamówienia', () => {
+  it('SPEC-006 AC-7: NIP, nabywca, adres, pozycja, kwota brutto, data sprzedaży (Europe/Warsaw), sposób zapłaty, numer zamówienia (order_number)', () => {
     expect(FIELD_KEYS.map(text)).toEqual([
       'NIP', 'Nazwa nabywcy', 'Adres', 'Nazwa pozycji', 'Kwota brutto', 'Data sprzedaży', 'Sposób zapłaty', 'Numer zamówienia',
     ]);
     expect(invoiceValues(invoice(), text)).toEqual([
       '5260250274', 'Firma "Test" sp. z o.o.', 'ul. Prosta 1, 00-001 Warszawa', 'Karnet 10 wejść', '120,00', '11.11.2026',
-      'przelew/płatność online — Tpay', '00000000-0000-0000-0000-0000000000d1',
+      'przelew/płatność online — Tpay', 'SV-2026-000123',
     ]);
   });
 
@@ -79,14 +80,14 @@ describe('AC-12: numer faktury i numer KSeF', () => {
 });
 
 describe('AC-15: eksport CSV', () => {
-  it('kolumny z AC-11 + numer faktury i KSeF; BOM, separator „;”, cudzysłowy', () => {
+  it('kolumny z AC-11 + numer faktury i KSeF; BOM, separator „;”, cudzysłowy; SPEC-006 AC-8: numer zamówienia = order_number', () => {
     const csv = invoicesCsv([invoice({ invoice_number: 'FV 1/11/2026', ksef_number: '5260250274-20261118-0100A0B1C2D3-E4' })], text);
     expect(csv.startsWith('﻿"NIP";"Nazwa nabywcy";')).toBe(true);
     const [header, row] = csv.slice(1).trim().split('\r\n');
     expect(header!.endsWith('"Numer zamówienia";"Numer faktury";"Numer KSeF"')).toBe(true);
     expect(row).toBe(
       '"5260250274";"Firma ""Test"" sp. z o.o.";"ul. Prosta 1, 00-001 Warszawa";"Karnet 10 wejść";"120,00";"11.11.2026";' +
-        '"przelew/płatność online — Tpay";"00000000-0000-0000-0000-0000000000d1";"FV 1/11/2026";"5260250274-20261118-0100A0B1C2D3-E4"',
+        '"przelew/płatność online — Tpay";"SV-2026-000123";"FV 1/11/2026";"5260250274-20261118-0100A0B1C2D3-E4"',
     );
   });
 

@@ -150,10 +150,13 @@ export async function mountInvoicesAdmin(root: HTMLElement): Promise<void> {
   function item(invoice: AdminInvoice): HTMLElement {
     const li = make('li', '', 'card');
     const details = make('details', '', 'invoice-item');
-    const summaryLine = [saleDate(invoice.paid_at), invoice.invoice_nip, invoice.invoice_company_name,
-      formatPrice(invoice.amount), invoice.invoice_number ?? ''].filter(Boolean).join(' · ');
+    const rest = [invoice.invoice_nip, invoice.invoice_company_name, formatPrice(invoice.amount), invoice.invoice_number ?? '']
+      .filter(Boolean).join(' · ');
     const head = make('summary');
-    head.append(make('span', summaryLine));
+    // SPEC-006 AC-7: numer zamówienia obok daty zapłaty.
+    const line = make('span');
+    line.append(`${saleDate(invoice.paid_at)} · `, make('span', invoice.order_number, 'order-number'), ` · ${rest}`);
+    head.append(line);
     // AC-10: dane wpisane ręcznie; AC-16: zwrot zamówienia z fakturą — widoczne także po zwinięciu.
     if (invoice.invoice_data_source === 'manual') head.append(make('span', t('invoices.unverified'), 'badge'));
     if (isRefunded(invoice)) head.append(make('span', t('invoices.refunded'), 'badge message-error'));

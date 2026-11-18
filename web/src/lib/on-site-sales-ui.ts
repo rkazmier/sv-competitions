@@ -149,6 +149,10 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
     for (const sale of sales) {
       const row = document.createElement('tr');
       const amount = formatPrice(sale.amount) + (sale.status === 'paid' ? '' : ` ${t('sales.refunded')}`);
+      const number = document.createElement('td');
+      number.className = 'order-number';
+      number.textContent = sale.order_number;
+      row.append(number);
       for (const text of [saleTime(sale.created_at), sale.item_name, amount, t(`sales.${sale.on_site_method}`), sale.seller_name ?? '—']) {
         const cell = document.createElement('td');
         cell.textContent = text;
@@ -242,7 +246,6 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
     setError('invoice', invoiceMissing ? t('invoice.confirmRequired') : null);
     if ((!guest && !person) || !args || !chosenMethod || invoiceMissing) return;
 
-    const item = items.find((candidate) => candidate.value === itemSelect.value);
     submit.disabled = true;
     submit.textContent = t('sales.saving');
     const { data: orderId, error } = await supabase.rpc('create_on_site_order', {
@@ -265,7 +268,12 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
       formError.textContent = t('invoice.saleInvoiceError');
       formError.hidden = false;
     }
-    status.textContent = t('sales.saved', { name: item?.name ?? '', amount: formatPrice(item?.price ?? 0) });
+    // SPEC-006 AC-15: numer nadaje baza — odczyt z `orders` (obsługa ma odczyt, RLS).
+    const { data: saved } = await supabase.from('orders').select('order_number').eq('id', orderId as string)
+      .maybeSingle<{ order_number: string }>();
+    status.textContent = saved?.order_number
+      ? t('sales.saved', { number: saved.order_number })
+      : t('sales.savedNoNumber');
     // SPEC-005 AC-12: sprzedaż z książki → powrót do wpisu tej osoby z nowym uprawnieniem.
     if (returnUrl && !guest && person?.id === presetId && !invoiceError) return window.location.assign(returnUrl);
     person = null;

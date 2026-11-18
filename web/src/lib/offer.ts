@@ -139,6 +139,8 @@ export type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refund_pending' | 
 
 export interface UserOrder {
   id: string;
+  /** SPEC-006 AC-12. */
+  order_number: string;
   item_name: string;
   amount: number;
   payment_method: 'tpay' | 'on_site';
@@ -149,7 +151,7 @@ export interface UserOrder {
   invoice_number: string | null;
 }
 
-export const ORDER_COLUMNS = 'id, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number';
+export const ORDER_COLUMNS = 'id, order_number, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number';
 
 export const ORDER_STATUS_TEXT: Record<OrderStatus, MessageKey> = {
   paid: 'offer.statusPaid',

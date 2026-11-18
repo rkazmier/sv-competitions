@@ -126,6 +126,11 @@ a:hover {
   border: 0;
 }
 
+/* SPEC-006 §6: numer zamówienia nie łamie się na telefonie. */
+.order-number {
+  white-space: nowrap;
+}
+
 .skip-link {
   position: absolute;
   top: var(--space-2);

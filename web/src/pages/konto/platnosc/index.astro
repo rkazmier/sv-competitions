@@ -1,7 +1,7 @@
 ---
 /**
  * Powrót z bramki Tpay (SPEC-003 AC-10): stan zamówienia `?order=` odświeżany co 3 s przez maks. 60 s.
- * Status ustawia wyłącznie `payments-notify` — strona tylko odczytuje `orders` (RLS: własne).
+ * Numer zamówienia nad statusem (SPEC-006 AC-13). Status ustawia wyłącznie `payments-notify` — strona tylko odczytuje `orders` (RLS: własne).
  */
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { t } from '../../../i18n';
@@ -11,6 +11,7 @@ import { ACCOUNT_HOME } from '../../../lib/auth';
   <section class="section">
     <div class="container auth payment" data-payment>
       <h1>{t('offer.paymentTitle')}</h1>
+      <p class="order-number" data-payment-order hidden></p>
       <p role="status" aria-live="polite" data-payment-status>{t('panel.loading')}</p>
       <a class="button button-primary" href={ACCOUNT_HOME} data-account-link hidden>{t('offer.goToAccount')}</a>
     </div>

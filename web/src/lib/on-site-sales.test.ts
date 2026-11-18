@@ -64,6 +64,7 @@ describe('sprzedaż na miejscu (SPEC-003 US-5)', () => {
   it('AC-23: sumy gotówki i terminala tylko z opłaconych, godzina w Europe/Warsaw', () => {
     const sale = (amount: number, on_site_method: 'cash' | 'terminal', status = 'paid'): OnSiteSale => ({
       id: String(amount),
+      order_number: 'SV-2026-000001',
       created_at: '2026-11-18T08:05:00Z',
       item_name: 'X',
       amount,
