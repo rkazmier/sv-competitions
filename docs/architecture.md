@@ -337,6 +337,18 @@
   `DELETE /storage/v1/object/signatures` po 100 plików, na końcu `rpc/purge_range_log`. Nieudane usunięcie pliku zostawia
   wpis do następnego uruchomienia. W logu i odpowiedzi tylko liczby (`signatures_deleted`, `orphans_deleted`,
   `signatures_failed`, `entries_deleted`). Odpowiedzi: 200, 401, 405, 500.
+- `company-lookup` (SPEC-004 AC-2…AC-4, §7, §8): POST `{ nip }` z JWT osoby. NIP normalizowany jak `normalize_nip`
+  (spacje, myślniki, prefiks `PL`) i sprawdzany sumą kontrolną przed jakimkolwiek zapytaniem (400 `invalid_nip`;
+  prefiks innego kraju — 400 `foreign_nip`). Potem `rpc/company_lookup_take_quota` z JWT wywołującego (limit 20 zapytań
+  na konto na godzinę, tabela `company_lookup_requests` bez NIP-u, wiersze starsze niż godzina usuwane przy każdym
+  wywołaniu; 429 `rate_limited`). Rejestry, każde zapytanie z limitem 5 s: Biała lista MF
+  (`GET wl-api.mf.gov.pl/api/search/nip/{nip}?date=` — data w Europe/Warsaw; pierwszy podmiot „Czynny”, inaczej pierwszy;
+  `workingAddress`, inaczej `residenceAddress`), a gdy brak podmiotu lub błąd — GUS REGON BIR1.1 (SOAP: `Zaloguj` kluczem
+  `GUS_BIR_KEY`, `DaneSzukajPodmioty` po NIP z nagłówkiem `sid`, `Wyloguj`; podmiot bez daty zakończenia działalności),
+  tylko gdy ustawiono `GUS_BIR_KEY` (opcjonalnie `GUS_BIR_URL` — np. środowisko testowe BIR). Odpowiedź 200
+  `{ found, name, address, source }` (`vat_whitelist` / `regon`; brak lub brak odpowiedzi → `found: false`, wpis ręczny).
+  Nic nie zapisuje w bazie; do rejestrów trafia tylko NIP; w logach tylko nazwa rejestru i status (bez NIP-u i klucza).
+  Odpowiedzi: 200, 400, 401, 405, 429, 500.
 - Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);
   osobne `concurrency` z `cancel-in-progress` dla każdego środowiska; nocny harmonogram przebudowuje oba.
 
@@ -367,6 +379,7 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
 | `user_passes`, `pass_usages` | uprawnienia i ich zużycie | tak (powiązanie z kontem) | nie (własne; obsługa, admin) |
 | `billing_details` | dane do faktury | tak | nie (własne; obsługa, admin) |
+| `company_lookup_requests` | limit zapytań `company-lookup` (konto, czas; bez NIP-u; ostatnia godzina) | powiązanie z kontem | nie (tylko funkcja `company_lookup_take_quota`) |
 | `range_officers` | prowadzący strzelanie | tak | nie (obsługa, admin) |
 | `range_log`, `range_log_annotations` | książka rejestru pobytu (tylko `insert`, retencja 1 rok) | tak | nie (admin; obsługa — dzisiejsze; osoba — własne przez funkcję) |
 | `disciplines` | lista dyscyplin | nie | tak |
