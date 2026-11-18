@@ -103,7 +103,7 @@
 - Oferta i zakup (SPEC-003 AC-5…AC-7, AC-10, AC-12…AC-15): `/oferta/` (link „Oferta” w nagłówku) — aktywne produkty w grupach
   rodzaju, pobierane w przeglądarce; „Kup” prowadzi do `/oferta/zamowienie/?product=` (gość — przez `/logowanie/?next=`).
   Podsumowanie pobiera cenę z bazy, wymaga akceptacji regulaminu sprzedaży (`/regulamin-sprzedazy/`, tekst zastępczy do czasu #39),
-  ma pusty `data-invoice-slot` na fakturę (SPEC-004) i wywołuje `payments-create` z `{ product_id, request_key }` (nowy klucz na kliknięcie,
+  ma sekcję „Faktura” (SPEC-004, niżej) i wywołuje `payments-create` z `{ product_id, request_key, invoice? }` (nowy klucz na kliknięcie,
   przycisk zablokowany do odpowiedzi), potem przekierowanie na bramkę Tpay. `/konto/platnosc/?order=` czyta `orders.status`
   co 3 s przez maks. 60 s. `/konto/` — „Twoje karnety” (aktywne: `status = 'active'` i dziś ≤ „Ważny do”), „Historia karnetów”
   (`<details>`), „Historia płatności” (tabela od najnowszych), „Przedłuż karnet” → `/oferta/`. Zapytania z kluczem publishable
@@ -243,6 +243,13 @@
   Błędy: `forbidden`, `order_not_found`, `invalid_nip`, `invalid_company_name`, `invalid_company_address`, `invalid_data_source`,
   `invalid_invoice_number`, `invalid_ksef_number`, `invoice_not_requested`, `invoice_already_issued`, `invoice_not_issued`,
   `order_not_paid`, `order_refunded`.
+  Interfejs (AC-1…AC-9): wspólny komponent `InvoiceFields.astro` + wyspa `src/lib/invoice-ui.ts` (logika bez DOM:
+  `src/lib/invoice.ts` — normalizacja i suma kontrolna NIP jak w bazie): NIP → `company-lookup` → potwierdzenie danych
+  z rejestru albo wpis ręczny (`manual`); zapisane `billing_details` → „Użyj zapisanych danych” / „Inna firma”. Nic nie zapisuje
+  sama — zapis robi strona: `/oferta/zamowienie/` przekazuje `invoice` do `payments-create` („Zapłać” nieaktywny do potwierdzenia),
+  `/konto/dane/` — `upsert`/`delete` własnego `billing_details` (RLS), `/panel/sprzedaz/` — `rpc/set_order_invoice_details`
+  po `create_on_site_order` (bez `save_billing_details`; błąd → sprzedaż zostaje, komunikat „poproś admina”).
+  `/konto/` — „Faktura: w przygotowaniu” / „Faktura: <numer>” w „Historii płatności”.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
   `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
   wyzwalacz `range_log_immutable` (`23514 range_log_immutable`) przepuszcza tylko `on delete set null` kluczy obcych,
@@ -313,8 +320,10 @@
   albo `default` z `SUPABASE_SECRET_KEYS`). Gdy usunięcie się nie uda, wpis jest wycofywany. Skutki w bazie przez klucze obce:
   `profiles` i `user_passes` — kaskada, `orders.user_id`, `created_by`, `audit_log.actor_id` — `null`; `audit_log.target_user_id`
   bez FK, więc wpis zostaje. Odpowiedzi: 204, 403, 404, 409 (własne konto), 500.
-- `payments-create` (SPEC-003 AC-8, AC-18): POST `{ product_id | event_id, request_key }` z JWT osoby. Konto z `/auth/v1/user`,
-  imię i nazwisko z `profiles` (brak → e-mail), `rpc/create_tpay_order` kluczem secret, potem Tpay: `POST /oauth/auth`
+- `payments-create` (SPEC-003 AC-8, AC-18): POST `{ product_id | event_id, request_key, invoice? }` z JWT osoby. Konto z `/auth/v1/user`,
+  imię i nazwisko z `profiles` (brak → e-mail), `rpc/create_tpay_order` kluczem secret; z `invoice` (SPEC-004 AC-5:
+  `nip`, `company_name`, `company_address`, `data_source`, `fetched_at`) — `rpc/set_order_invoice_details` z
+  `save_billing_details = true` (odrzucone przez bazę → zamówienie usuwane, 400 `invalid_invoice`), potem Tpay: `POST /oauth/auth`
   (client credentials) i `POST /transactions` (kwota, opis „SV <id zamówienia>”, `hiddenDescription` = id zamówienia,
   powiadomienie na `TPAY_NOTIFICATION_URL`, powrót na `SITE_URL/konto/platnosc/?order=`), na końcu `rpc/attach_tpay_transaction`.
   Odpowiedzi: 200 `{ order_id, payment_url }`, 400, 401, 409 (`sold_out`, `product_unavailable`, `event_unavailable`,

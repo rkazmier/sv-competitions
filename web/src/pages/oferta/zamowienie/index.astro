@@ -1,9 +1,10 @@
 ---
 /**
  * Podsumowanie zamówienia (SPEC-003 AC-7): produkt, cena, ważność, akceptacja regulaminu sprzedaży,
- * miejsce na „Potrzebuję faktury” (SPEC-004) i „Zapłać” (AC-8, `payments-create`). Wymaga logowania (AC-6).
+ * „Potrzebuję faktury” (SPEC-004 AC-1…AC-6) i „Zapłać” (AC-8, `payments-create`). Wymaga logowania (AC-6).
  */
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import InvoiceFields from '../../../components/InvoiceFields.astro';
 import { t } from '../../../i18n';
 import { OFFER_PAGE, SALES_TERMS_PAGE } from '../../../lib/offer';
 ---
@@ -38,11 +39,14 @@ import { OFFER_PAGE, SALES_TERMS_PAGE } from '../../../lib/offer';
         </div>
         <p class="message-error" id="o-terms-error" data-terms-error hidden>{t('offer.termsRequired')}</p>
 
-        <!-- SPEC-004: miejsce na „Potrzebuję faktury” -->
-        <div data-invoice-slot></div>
+        <fieldset class="order-invoice">
+          <legend>{t('invoice.heading')}</legend>
+          <InvoiceFields id="o-invoice" />
+        </fieldset>
 
         <p class="message-error" role="alert" data-form-error hidden></p>
-        <button type="submit" class="button button-primary" data-pay></button>
+        <button type="submit" class="button button-primary" aria-describedby="o-pay-hint" data-pay></button>
+        <p class="hint" id="o-pay-hint" data-pay-hint hidden>{t('invoice.confirmRequired')}</p>
         <p role="status" data-paying hidden>{t('offer.paying')}</p>
       </form>
 
@@ -81,6 +85,17 @@ import { OFFER_PAGE, SALES_TERMS_PAGE } from '../../../lib/offer';
 
   .order-form .button {
     justify-self: start;
+  }
+
+  .order-invoice {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .order-invoice legend {
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-weight-strong);
   }
 </style>
 

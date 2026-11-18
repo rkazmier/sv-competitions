@@ -2,9 +2,11 @@
 /**
  * Formularz danych użytkownika (SPEC-002 AC-7, AC-8, AC-11, §6): Imię i nazwisko*, Telefon, Numer decyzji,
  * Organ wydający, Adres zamieszkania; e-mail tylko do odczytu. Logika: lib/account-ui.ts, walidacja: lib/profile.ts.
+ * „Dane do faktury” (SPEC-004 AC-8): zmiana lub usunięcie `billing_details` — lib/account-ui.ts, lib/invoice-ui.ts.
  */
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import ProfileFields from '../../../components/ProfileFields.astro';
+import InvoiceFields from '../../../components/InvoiceFields.astro';
 import { t } from '../../../i18n';
 ---
 <BaseLayout title={t('profile.title')} indexable={false}>
@@ -24,6 +26,19 @@ import { t } from '../../../i18n';
           <a class="button" href="/konto/">{t('profile.cancel')}</a>
         </div>
       </form>
+
+      <section class="card auth-form" aria-labelledby="billing-heading" data-billing hidden>
+        <h2 id="billing-heading">{t('invoice.profileHeading')}</h2>
+        <p class="hint">{t('invoice.profileIntro')}</p>
+        <p data-billing-none hidden>{t('invoice.profileNone')}</p>
+        <dl class="invoice-summary" data-billing-current hidden></dl>
+        <InvoiceFields id="b-invoice" toggle={false} />
+        <div class="button-row">
+          <button type="button" class="button button-primary" data-billing-save disabled>{t('invoice.profileSave')}</button>
+          <button type="button" class="button" data-billing-delete hidden>{t('invoice.profileDelete')}</button>
+        </div>
+        <p role="status" data-billing-status></p>
+      </section>
     </div>
   </section>
 </BaseLayout>

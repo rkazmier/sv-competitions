@@ -144,9 +144,12 @@ export interface UserOrder {
   payment_method: 'tpay' | 'on_site';
   status: OrderStatus;
   created_at: string;
+  /** SPEC-004 AC-7: status faktury (`invoice.ts`, `invoiceStatus`). */
+  invoice_requested: boolean;
+  invoice_number: string | null;
 }
 
-export const ORDER_COLUMNS = 'id, item_name, amount, payment_method, status, created_at';
+export const ORDER_COLUMNS = 'id, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number';
 
 export const ORDER_STATUS_TEXT: Record<OrderStatus, MessageKey> = {
   paid: 'offer.statusPaid',
