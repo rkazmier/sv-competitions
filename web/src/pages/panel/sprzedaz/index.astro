@@ -1,0 +1,180 @@
+---
+/**
+ * Panel: sprzedaż na miejscu (SPEC-003 US-5, AC-21…AC-23). Obsługa i admin (`access="staff"`).
+ * Osoba (wyszukiwanie; skan kodu QR dojdzie z SPEC-005) albo „Osoba bez konta”, produkt lub wejściówka,
+ * gotówka / terminal; poniżej dzisiejsza sprzedaż z sumami. Dane obsługuje lib/on-site-sales-ui.ts.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
+---
+<PanelLayout title={t('sales.title')} access="staff">
+  <div class="sales" data-sales>
+    <h1>{t('sales.title')}</h1>
+    <p>{t('sales.intro')}</p>
+
+    <form class="card stack" data-form novalidate>
+      <fieldset>
+        <legend>{t('sales.personHeading')}</legend>
+        <label class="choice"><input type="radio" name="who" value="account" checked /> {t('sales.personWithAccount')}</label>
+        <label class="choice"><input type="radio" name="who" value="guest" /> {t('sales.personGuest')}</label>
+
+        <div data-account>
+          <div data-search-box>
+            <label class="field-label" for="s-query">{t('sales.searchLabel')}</label>
+            <div class="search-row">
+              <input class="input" id="s-query" type="search" autocomplete="off" minlength={SEARCH_MIN_LENGTH} aria-describedby="s-query-hint" data-query />
+              <button type="button" class="button" data-search>{t('sales.search')}</button>
+            </div>
+            <p class="hint" id="s-query-hint">{t('sales.searchHint', { min: SEARCH_MIN_LENGTH })}</p>
+            <p class="hint" role="status" data-search-status></p>
+            <ul class="card-list" data-results></ul>
+          </div>
+          <div data-selected hidden>
+            <p class="selected" data-selected-name></p>
+            <button type="button" class="button" data-change>{t('sales.change')}</button>
+          </div>
+        </div>
+        <p class="hint" data-guest-hint hidden>{t('sales.guestHint')}</p>
+        <p class="message-error field-error" data-error-for="person" hidden></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>{t('sales.itemHeading')}</legend>
+        <label class="field-label" for="s-item">{t('sales.itemLabel')}</label>
+        <select class="input" id="s-item" name="item" required data-item>
+          <option value="">{t('sales.itemChoose')}</option>
+        </select>
+        <p class="hint" data-items-empty hidden>{t('sales.itemsEmpty')}</p>
+        <p class="message-error field-error" data-error-for="item" hidden></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>{t('sales.methodHeading')}</legend>
+        {
+          ON_SITE_METHODS.map((method) => (
+            <label class="choice"><input type="radio" name="method" value={method} /> {t(`sales.${method}`)}</label>
+          ))
+        }
+        <p class="message-error field-error" data-error-for="method" hidden></p>
+      </fieldset>
+
+      <p class="message-error" role="alert" data-form-error hidden></p>
+      <button type="submit" class="button button-primary" data-submit>{t('sales.submit')}</button>
+      <p class="status" role="status" data-status></p>
+    </form>
+
+    <section class="card" aria-labelledby="today-heading">
+      <h2 id="today-heading">{t('sales.todayHeading')}</h2>
+      <p class="message-error" role="alert" data-today-error hidden>{t('sales.todayError')}</p>
+      <p class="hint" data-today-empty hidden>{t('sales.todayEmpty')}</p>
+      <div class="table-scroll" data-today-table hidden>
+        <table class="sales-table">
+          <thead>
+            <tr>
+              <th scope="col">{t('sales.colTime')}</th>
+              <th scope="col">{t('sales.colItem')}</th>
+              <th scope="col">{t('sales.colAmount')}</th>
+              <th scope="col">{t('sales.colMethod')}</th>
+              <th scope="col">{t('sales.colSeller')}</th>
+            </tr>
+          </thead>
+          <tbody data-today></tbody>
+        </table>
+      </div>
+      <p class="total" data-total="cash"></p>
+      <p class="total" data-total="terminal"></p>
+    </section>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountOnSiteSales } from '../../../lib/on-site-sales-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-sales]');
+  if (root) void mountOnSiteSales(root);
+</script>
+
+<style>
+  .sales {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .sales > * {
+    margin: 0;
+  }
+
+  h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-h3);
+  }
+
+  fieldset {
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    border: 0;
+  }
+
+  legend {
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .search-row .input {
+    flex: 1;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .hint:empty,
+  .status:empty {
+    display: none;
+  }
+
+  .field-error {
+    display: block;
+  }
+
+  .selected {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .sales-table th,
+  .sales-table td {
+    padding: var(--space-2);
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+  }
+
+  .total {
+    margin: var(--space-2) 0 0;
+    font-weight: var(--font-weight-strong);
+  }
+</style>

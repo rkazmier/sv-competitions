@@ -38,4 +38,5 @@ describe('bramka panelu (SPEC-002 US-7, ADR-0004)', () => {
     expect(await resolvePanelState(client({ session: false }))).toBe('signedOut');
     expect(await resolvePanelState(client({ role: 'admin', error: true }))).toBe('error');
   });
+
 });

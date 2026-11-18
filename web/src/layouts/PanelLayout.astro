@@ -5,9 +5,8 @@
  * Bramka logowania (lib/panel.ts, ADR-0004): treść strony (slot) i pełne menu widzi tylko admin;
  * obsługa — własne menu, bez kalendarza i słowników (SPEC-002 AC-26); użytkownik — brak uprawnień
  * i link do konta (AC-27); niezalogowany — logowanie Google (SPEC-001 AC-4).
- * Skrypt strony pobiera dane po `await requireAdmin()`; strony z `access="staff"` (książka, SPEC-005)
- * pokazują treść także obsłudze i pobierają dane po `await requireStaff()`.
- * Pozycja Sprzedaż (SPEC-003) dochodzi do `staffMenu` (i `adminMenu`) z tym modułem.
+ * Skrypt strony pobiera dane po `await requireAdmin()`; strony z `access="staff"` (książka — SPEC-005,
+ * sprzedaż — SPEC-003 US-5) pokazują treść także obsłudze i pobierają dane po `await requireStaff()`.
  */
 import BaseLayout from './BaseLayout.astro';
 import { t } from '../i18n';
@@ -19,17 +18,20 @@ interface Props {
 }
 
 const { title, access = 'admin' } = Astro.props;
+const salesItem = { href: '/panel/sprzedaz/', label: t('panel.menu.sales') };
+const rangeLogItem = { href: '/panel/ksiazka/', label: t('panel.menu.rangeLog') };
 const adminMenu = [
   { href: '/panel/', label: t('panel.menu.calendar') },
   { href: '/panel/regulaminy/', label: t('panel.menu.rulebooks') },
   { href: '/panel/dyscypliny/', label: t('panel.menu.disciplines') },
   { href: '/panel/kategorie/', label: t('panel.menu.categories') },
   { href: '/panel/oferta/', label: t('panel.menu.offer') },
+  salesItem,
   { href: '/panel/uzytkownicy/', label: t('panel.menu.users') },
-  { href: '/panel/ksiazka/', label: t('panel.menu.rangeLog') },
+  rangeLogItem,
   { href: '/panel/prowadzacy/', label: t('panel.menu.rangeOfficers') },
 ];
-const staffMenu = [{ href: '/panel/ksiazka/', label: t('panel.menu.rangeLog') }];
+const staffMenu = [rangeLogItem, salesItem];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
 ---
 <BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>
