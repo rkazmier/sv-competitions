@@ -1,0 +1,37 @@
+---
+/**
+ * Okno skanera kodu QR (SPEC-005 AC-5): podgląd kamery, komunikat stanu, „Zamknij”.
+ * Obsługa: `scanQrCode` w lib/qr-scanner.ts. Strony: `/panel/ksiazka/`, `/panel/sprzedaz/`.
+ */
+import { t } from '../i18n';
+---
+<dialog class="scan-dialog" aria-labelledby="scan-title" data-scan-dialog>
+  <h2 id="scan-title">{t('scan.title')}</h2>
+  <video class="scan-video" muted playsinline aria-hidden="true"></video>
+  <p role="status" data-scan-status></p>
+  <form method="dialog">
+    <button class="button" type="submit">{t('scan.close')}</button>
+  </form>
+</dialog>
+
+<style>
+  .scan-dialog {
+    width: min(100% - 2 * var(--space-4), 32rem);
+    padding: var(--space-4);
+    border: 0;
+    border-radius: var(--radius-lg);
+  }
+
+  .scan-dialog h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-h3);
+  }
+
+  .scan-video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    background: #000;
+  }
+</style>

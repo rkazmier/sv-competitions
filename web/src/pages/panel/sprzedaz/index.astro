@@ -1,10 +1,12 @@
 ---
 /**
  * Panel: sprzedaż na miejscu (SPEC-003 US-5, AC-21…AC-23). Obsługa i admin (`access="staff"`).
- * Osoba (wyszukiwanie; skan kodu QR dojdzie z SPEC-005) albo „Osoba bez konta”, produkt lub wejściówka,
+ * Osoba (skan kodu QR — SPEC-005 AC-5, wyszukiwanie) albo „Osoba bez konta”, produkt lub wejściówka,
  * gotówka / terminal; poniżej dzisiejsza sprzedaż z sumami. Dane obsługuje lib/on-site-sales-ui.ts.
+ * Z książki (`?osoba=…&powrot=ksiazka`, SPEC-005 AC-12): osoba wybrana od razu, po sprzedaży powrót do wpisu.
  */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
+import QrScanDialog from '../../../components/QrScanDialog.astro';
 import { t } from '../../../i18n';
 import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
 ---
@@ -12,6 +14,7 @@ import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
   <div class="sales" data-sales>
     <h1>{t('sales.title')}</h1>
     <p>{t('sales.intro')}</p>
+    <p data-back-to-entry hidden><a data-back-link>{t('sales.backToEntry')}</a></p>
 
     <form class="card stack" data-form novalidate>
       <fieldset>
@@ -21,6 +24,7 @@ import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
 
         <div data-account>
           <div data-search-box>
+            <p><button type="button" class="button button-primary" data-scan>{t('rangeEntry.scan')}</button></p>
             <label class="field-label" for="s-query">{t('sales.searchLabel')}</label>
             <div class="search-row">
               <input class="input" id="s-query" type="search" autocomplete="off" minlength={SEARCH_MIN_LENGTH} aria-describedby="s-query-hint" data-query />
@@ -86,6 +90,7 @@ import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
       <p class="total" data-total="terminal"></p>
     </section>
   </div>
+  <QrScanDialog />
 </PanelLayout>
 
 <script>
