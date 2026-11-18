@@ -2,7 +2,8 @@
 /**
  * Panel: karta użytkownika `/panel/uzytkownicy/profil/?id=` (SPEC-002 AC-17, AC-18, AC-20, AC-21, AC-23…AC-25, §6).
  * Tylko admin. Dane (te same pola i walidacja co `/konto/dane/`), rola (`rpc/set_user_role`), „Historia zmian” (`audit_log`),
- * „Usuń konto” (Edge Function `admin-delete-user`), „Rozpocznij wpis do książki” (SPEC-005 AC-8).
+ * „Usuń konto” (Edge Function `admin-delete-user`), „Rozpocznij wpis do książki” (SPEC-005 AC-8),
+ * „Karnety i zużycie” z „Cofnij zużycie” (SPEC-005 AC-23).
  * Dane obsługuje lib/admin-users-ui.ts po potwierdzeniu roli admina.
  */
 import PanelLayout from '../../../../layouts/PanelLayout.astro';
@@ -45,6 +46,14 @@ import { ROLES } from '../../../../lib/admin-users';
           <button type="submit" class="button button-primary" data-role-submit>{t('users.changeRole')}</button>
         </div>
       </form>
+
+      <section class="card stack" aria-labelledby="u-passes" data-pass-usages>
+        <h2 id="u-passes">{t('rangeHistory.passesTitle')}</h2>
+        <p data-pass-empty hidden>{t('rangeHistory.passesEmpty')}</p>
+        <p class="message-error" role="alert" data-revert-error hidden></p>
+        <p role="status" data-revert-status></p>
+        <ul class="users-passes" data-pass-list></ul>
+      </section>
 
       <section class="card stack" aria-labelledby="u-history">
         <h2 id="u-history">{t('users.historyTitle')}</h2>

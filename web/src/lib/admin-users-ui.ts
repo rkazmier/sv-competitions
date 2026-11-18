@@ -1,7 +1,8 @@
 /**
  * Wyspy panelu admina — konta użytkowników (SPEC-002 US-4, US-5). Tylko admin (`requireAdmin`).
  * `/panel/uzytkownicy/` — lista z wyszukiwarką (AC-16); `/panel/uzytkownicy/profil/?id=` — dane (AC-20),
- * rola (AC-17, AC-18), „Historia zmian” (AC-21), „Usuń konto” (AC-23…AC-25, Edge Function `admin-delete-user`).
+ * rola (AC-17, AC-18), „Historia zmian” (AC-21), „Usuń konto” (AC-23…AC-25, Edge Function `admin-delete-user`),
+ * „Karnety i zużycie” z „Cofnij zużycie” (SPEC-005 AC-23, lib/range-revert-ui.ts).
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  * Wpisy w `audit_log` tworzy baza (wyzwalacz `audit_profile_changes`, `set_user_role`), nie ten kod.
  */
@@ -9,6 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { ACCOUNT_COLUMNS, fillProfileForm, readProfileForm } from './account-ui';
 import { entryUrlFor } from './range-entry';
+import { mountPassUsages } from './range-revert-ui';
 import {
   DELETE_USER_FUNCTION,
   HISTORY_LIMIT,
@@ -222,7 +224,11 @@ export async function mountUserCard(root: HTMLElement): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   mountDelete(supabase, root, userId, canDeleteAccount(sessionData.session?.user.id, userId));
 
-  await loadHistory(supabase, root, userId);
+  // SPEC-005 AC-23: „Karnety i zużycie” z „Cofnij zużycie”; po cofnięciu nowy wpis w „Historii zmian”.
+  await Promise.all([
+    loadHistory(supabase, root, userId),
+    mountPassUsages(supabase, root, userId, () => loadHistory(supabase, root, userId)),
+  ]);
   loading.hidden = true;
   el(root, '[data-content]').hidden = false;
 }

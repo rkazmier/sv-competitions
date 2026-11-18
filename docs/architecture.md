@@ -38,7 +38,7 @@
 - Zmiany danych użytkownika dokonane przez inne osoby, role, zwroty, faktury i eksporty książki → `audit_log` (SPEC-002).
   Zapis do `audit_log` tylko funkcjami `security definer`: wyzwalacz `audit_profile_changes` (zmiana danych profilu, gdy
   `auth.uid() <> id`), `set_user_role()` (`role_change`), `admin_log_account_delete()` (`account_delete`, bez danych
-  osobowych — tylko identyfikator konta). Odczyt — tylko admin.
+  osobowych — tylko identyfikator konta), `revert_pass_usage()` (`pass_usage_revert`, SPEC-005 AC-23). Odczyt — tylko admin.
 - `profiles` (SPEC-002 §5): klient zmienia wyłącznie kolumny danych (`full_name`, `phone`, `permit_number`, `permit_authority`,
   `address`, `privacy_notice_ack_at` — uprawnienia kolumnowe; własny wiersz, admin — każdy). Wyzwalacz `profiles_normalize`
   przycina tekst i zamienia puste ciągi na `null`. `is_range_ready` liczone w bazie (kolumna generowana).
@@ -146,6 +146,15 @@
   potem sprzedaż na miejscu w tym samym ekranie (`rpc/create_on_site_order` z `p_user_id = null`) i jej uprawnienie
   (`user_passes` po `order_id`) do zużycia. Po wpisie „Dodaj osobę towarzyszącą” — ten sam przebieg bez kroku uprawnienia
   (`is_companion`). Logika `src/lib/range-sign.ts`, pole podpisu i zapis `src/lib/range-sign-ui.ts`.
+- Książka — adnotacje, cofnięcie zużycia, historia (SPEC-005 AC-21…AC-25): w `/panel/ksiazka/` lista „Dzisiejsze wpisy”
+  (godzina, imię i nazwisko; `range_log` z dzisiejszego dnia Europe/Warsaw, odświeżana po zapisie — zdarzenie `range-entry-saved`),
+  ukryta w trybie „podaj urządzenie”; przy wpisie adnotacje (autor przez `profiles!range_log_annotations_created_by_fkey`, czas,
+  treść) i „Dodaj adnotację” (5–500 znaków, `insert` do `range_log_annotations`; odrzucenie RLS `42501` → komunikat AC-22).
+  Adnotacje do starszych wpisów — admin w przeglądzie książki (#63). Karta użytkownika (admin) — „Karnety i zużycie”:
+  `user_passes` osoby z niecofniętymi `pass_usages` i „Cofnij zużycie” → `rpc/revert_pass_usage` (AC-23), potem odświeżenie
+  „Historii zmian”. `/konto/` — „Historia wejść” (`rpc/my_range_entries`, od najnowszych, bez podpisów; osoba towarzysząca —
+  „osoba towarzysząca”) i w każdym karnecie zwinięta „Historia zużycia” (data i godzina niecofniętych zużyć, AC-25).
+  Logika `src/lib/range-history.ts`, wyspy `src/lib/range-today-ui.ts`, `src/lib/range-revert-ui.ts`, `src/lib/offer-ui.ts`.
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
@@ -232,6 +241,11 @@
     `audit_profile_changes` (aktor = obsługa). Zwraca nowe podsumowanie osoby.
   - `staff_person_entry_data(id)` — obsługa; imię i nazwisko, decyzja z organem, adres — dane, które wpis skopiuje (AC-13).
   - `my_range_entries()` — własne wpisy bez podpisu i kolumn technicznych, z nazwą wykorzystanego uprawnienia.
+  - `revert_pass_usage(usage_id)` — admin (AC-23); blokada uprawnienia `for update`, `reverted_at`/`reverted_by`; skutek:
+    `decremented` — licznik +1 (`used_up` → `active`), `consumed` — `used_up` → `active`, karnet czasowy bez innych niecofniętych
+    zużyć — `first_used_on = null` (zdjęcie aktywacji). Anulowane uprawnienie zostaje anulowane. Adnotacja „Cofnięto zużycie
+    karnetu” do wpisu (jeśli nie usunięty retencją) i `audit_log` `pass_usage_revert` (`changes`: zużycie, karnet, `used_on`,
+    `effect`, wpis). Błędy: `forbidden`, `usage_not_found`, `usage_already_reverted`.
 - Retencja (ADR-0006, SPEC-005 AC-30, AC-31, SPEC-002 §9): okresy jako funkcje `range_log_retention()` i `audit_log_retention()`
   (`1 year`), `orphan_signature_grace()` (`24 hours`) — zmiana przez PR i migrację. Tylko `service_role`:
   `retention_signatures(limit)` — ścieżki podpisów wpisów starszych niż retencja (`orphan = false`) i plików bez wpisu starszych

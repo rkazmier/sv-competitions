@@ -8,7 +8,7 @@ import { t, type MessageKey } from '../i18n';
 import { LOGIN_PAGE, withNext } from './auth';
 import { todayInWarsaw } from './calendar';
 import { formatDate, formatDateRange } from './dates';
-import { formatDay } from './admin-users';
+import { formatDateTime, formatDay } from './admin-users';
 import {
   OFFER_COLUMNS,
   ORDER_COLUMNS,
@@ -33,6 +33,7 @@ import {
   type UserPass,
 } from './offer';
 import { PRODUCT_KINDS, formatPrice, groupProducts, type Product } from './products';
+import { entryPassText, usageHistory, type MyRangeEntry } from './range-history';
 import { getSupabase } from './supabase';
 
 const el = <T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string) => root.querySelector<T>(selector)!;
@@ -262,7 +263,28 @@ function passItem(pass: UserPass, active: boolean): HTMLLIElement {
   item.append(node('h3', pass.orders?.item_name ?? ''));
   if (!active) item.append(node('p', t(passHistoryState(pass)), 'tag'));
   item.append(...lines.map((line) => node('p', line)));
+  // SPEC-005 AC-25: historia zużycia (data, godzina) po rozwinięciu karnetu.
+  const usages = usageHistory(pass.pass_usages);
+  if (usages.length > 0) {
+    const details = node('details', undefined, 'pass-history');
+    const list = node('ul');
+    list.append(...usages.map((usage) => node('li', formatDateTime(usage.created_at))));
+    details.append(node('summary', t('rangeHistory.usageTitle')), list);
+    item.append(details);
+  }
   return item;
+}
+
+/** SPEC-005 AC-24: „Historia wejść” — własne wpisy (`my_range_entries`, bez podpisu), od najnowszych. */
+function entryRow(entry: MyRangeEntry): HTMLTableRowElement {
+  const row = node('tr');
+  const pass = entryPassText(entry);
+  row.append(
+    node('td', formatDateTime(entry.entered_at)),
+    node('td', entry.range_officer_name),
+    node('td', 'text' in pass ? pass.text : t(pass.key)),
+  );
+  return row;
 }
 
 function orderRow(order: UserOrder): HTMLTableRowElement {
@@ -277,15 +299,16 @@ function orderRow(order: UserOrder): HTMLTableRowElement {
   return row;
 }
 
-/** AC-12…AC-15: „Twoje karnety”, „Historia karnetów” (zwinięta), „Historia płatności”. RLS: tylko własne. */
+/** AC-12…AC-15: „Twoje karnety”, „Historia karnetów” (zwinięta), „Historia płatności”; SPEC-005 AC-24 „Historia wejść”. RLS: tylko własne. */
 export async function renderPassesAndPayments(supabase: SupabaseClient, userId: string): Promise<void> {
   const root = document.querySelector<HTMLElement>('[data-passes-root]');
   if (!root) return;
-  const [passes, orders] = await Promise.all([
+  const [passes, orders, entries] = await Promise.all([
     supabase.from('user_passes').select(PASS_COLUMNS).eq('user_id', userId),
     supabase.from('orders').select(ORDER_COLUMNS).eq('user_id', userId).order('created_at', { ascending: false }),
+    supabase.rpc('my_range_entries'),
   ]);
-  if (passes.error || orders.error) {
+  if (passes.error || orders.error || entries.error) {
     el(root, '[data-passes-error]').hidden = false;
     return;
   }
@@ -299,4 +322,9 @@ export async function renderPassesAndPayments(supabase: SupabaseClient, userId: 
   el(root, '[data-orders]').replaceChildren(...sorted.map(orderRow));
   el(root, '[data-orders-table]').hidden = sorted.length === 0;
   el(root, '[data-orders-empty]').hidden = sorted.length > 0;
+
+  const visits = (entries.data ?? []) as MyRangeEntry[];
+  el(root, '[data-entries]').replaceChildren(...visits.map(entryRow));
+  el(root, '[data-entries-table]').hidden = visits.length === 0;
+  el(root, '[data-entries-empty]').hidden = visits.length > 0;
 }

@@ -3,7 +3,8 @@
  * Panel: książka rejestru pobytu (SPEC-005 §6) — obsługa i admin.
  * Najpierw prowadzący zmiany (AC-3, AC-4), potem osoba z kontem: skan QR / wyszukanie, uzupełnienie danych,
  * wybór uprawnienia (AC-5…AC-12, lib/range-entry-ui.ts); osoba bez konta ze sprzedażą na miejscu, podpis,
- * zapis wpisu i osoba towarzysząca (AC-13…AC-20).
+ * zapis wpisu i osoba towarzysząca (AC-13…AC-20); lista dzisiejszych wpisów z adnotacjami (AC-21, AC-22,
+ * lib/range-today-ui.ts).
  */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import QrScanDialog from '../../../components/QrScanDialog.astro';
@@ -172,8 +173,35 @@ const completeFields = [
           <button type="button" class="button" data-back>{t('rangeEntry.nextPerson')}</button>
         </div>
       </section>
+
+      <section class="card stack today" aria-labelledby="today-heading" data-today>
+        <h2 id="today-heading">{t('rangeHistory.todayTitle')}</h2>
+        <p class="hint" data-today-empty hidden>{t('rangeHistory.todayEmpty')}</p>
+        <p class="message-error" role="alert" data-today-error hidden>{t('rangeHistory.loadError')}</p>
+        <ol class="today-list" data-today-list></ol>
+      </section>
     </div>
     <QrScanDialog />
+
+    <template data-today-template>
+      <li class="today-entry stack">
+        <p><strong data-entry-time></strong> <span data-entry-name></span> <span class="tag" data-entry-companion hidden>{t('rangeHistory.companionTag')}</span></p>
+        <div data-annotations hidden>
+          <p class="hint">{t('rangeHistory.annotationsLabel')}</p>
+          <ul></ul>
+        </div>
+        <button type="button" class="button" data-annotate>{t('rangeHistory.addAnnotation')}<span class="visually-hidden" data-annotate-sr></span></button>
+        <form class="stack" hidden novalidate>
+          <label class="field-label">{t('rangeHistory.annotationLabel')}</label>
+          <textarea class="input" rows="3" maxlength="500"></textarea>
+          <p class="message-error" role="alert" data-annotation-error hidden></p>
+          <div class="button-row">
+            <button type="submit" class="button button-primary" data-annotation-save>{t('rangeHistory.annotationSave')}</button>
+            <button type="button" class="button" data-annotation-cancel>{t('rangeHistory.annotationCancel')}</button>
+          </div>
+        </form>
+      </li>
+    </template>
 
     <template data-officer-template>
       <li><button type="button" class="button officer" data-officer></button></li>
@@ -184,11 +212,13 @@ const completeFields = [
 <script>
   import { mountRangeLog } from '../../../lib/range-log-ui';
   import { mountRangeEntry } from '../../../lib/range-entry-ui';
+  import { mountRangeToday } from '../../../lib/range-today-ui';
 
   const root = document.querySelector<HTMLElement>('[data-range-log]');
   if (root) {
     void mountRangeLog(root);
     void mountRangeEntry(root);
+    void mountRangeToday(root);
   }
 </script>
 
@@ -315,8 +345,27 @@ const completeFields = [
   /* §6: tryb „podaj urządzenie” — osoba wpisywana nie widzi nawigacji panelu. */
   :global(body.handover .site-header),
   :global(body.handover .site-footer),
-  :global(body.handover .shift-bar) {
+  :global(body.handover .shift-bar),
+  :global(body.handover .today) {
     display: none;
+  }
+
+  .today-list {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .today-entry {
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .today-entry ul {
+    margin: 0;
+    padding-left: var(--space-5);
   }
 
   [role='status']:empty {

@@ -7,6 +7,7 @@ import type { MessageKey } from '../i18n';
 import { LOGIN_PAGE, withNext } from './auth';
 import { todayInWarsaw } from './calendar';
 import type { Product } from './products';
+import type { PassUsage } from './range-history';
 
 export const OFFER_PAGE = '/oferta/';
 export const ORDER_PAGE = '/oferta/zamowienie/';
@@ -87,12 +88,12 @@ export interface UserPass {
   expires_on: string;
   created_at: string;
   orders: { item_name: string } | null;
-  pass_usages: { used_on: string; reverted_at: string | null }[];
+  pass_usages: PassUsage[];
 }
 
 export const PASS_COLUMNS =
   'id, kind, status, entries_total, entries_left, first_used_on, valid_until, expires_on, created_at, ' +
-  'orders(item_name), pass_usages(used_on, reverted_at)';
+  'orders(item_name), pass_usages(id, used_on, created_at, reverted_at)';
 
 /** Data pierwszego użycia: aktywacja karnetu czasowego albo najwcześniejsze niecofnięte zużycie. */
 export function firstUsedOn(pass: UserPass): string | null {
