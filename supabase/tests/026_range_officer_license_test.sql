@@ -9,15 +9,15 @@ update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 set local role authenticated;
 
-select lives_ok($$insert into public.range_officers (id, full_name, license_number, institution)
-  values ('00000000-0000-0000-0000-0000000000d1', 'Anna Nowak', '123/2024', 'PZSS')$$, 'AC-1: admin dodaje prowadzącego z nr legitymacji i instytucją');
+select lives_ok($$insert into public.range_officers (full_name, license_number, institution)
+  values ('Anna Nowak', '123/2024', 'PZSS')$$, 'AC-1: admin dodaje prowadzącego z nr legitymacji i instytucją');
 select lives_ok($$insert into public.range_officers (full_name, license_number, institution, institution_other)
   values ('Jan Inny', '77', 'OTHER', 'Klub ABC')$$, 'AC-1: „Inne” z nazwą instytucji');
-select lives_ok($$insert into public.range_officers (id, full_name) values ('00000000-0000-0000-0000-0000000000d2', 'Stary Prowadzący')$$,
+select lives_ok($$insert into public.range_officers (full_name) values ('Stary Prowadzący')$$,
   'AC-1a: prowadzący bez danych (sprzed #104) dopuszczony w bazie');
-select lives_ok($$update public.range_officers set license_number = '9', institution = 'LOK' where id = '00000000-0000-0000-0000-0000000000d2'$$,
+select lives_ok($$update public.range_officers set license_number = '9', institution = 'LOK' where full_name = 'Stary Prowadzący'$$,
   'AC-1a: admin uzupełnia nr legitymacji i instytucję');
-select is((select institution from public.range_officers where id = '00000000-0000-0000-0000-0000000000d2'), 'LOK', 'AC-1a: zapisana instytucja');
+select is((select institution from public.range_officers where full_name = 'Stary Prowadzący'), 'LOK', 'AC-1a: zapisana instytucja');
 
 select throws_ok($$insert into public.range_officers (full_name, license_number, institution) values ('X Y', '1', 'PZŁ')$$,
   '23514', null, 'AC-1: tylko kody PZSS, LOK, PZL, OTHER');
