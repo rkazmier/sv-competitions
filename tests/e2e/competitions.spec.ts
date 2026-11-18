@@ -104,7 +104,10 @@ test.describe('organizator', () => {
     }));
     for (const row of rows) expect((await db.from('rulebooks').insert(row)).error).toBeNull();
     await page.goto(NEW);
-    const options = await page.getByLabel('Regulamin').locator('option').allTextContents();
+    const select = page.getByLabel('Regulamin');
+    // Opcje dochodzą asynchronicznie z Supabase — czekamy na nie, zanim odczytamy listę.
+    await expect(select.locator('option', { hasText: titles[1] })).toHaveCount(1);
+    const options = await select.locator('option').allTextContents();
     const ours = options.filter((text) => titles.some((title) => text.startsWith(title)));
     expect(ours).toHaveLength(2);
     expect(ours[0]).toMatch(new RegExp(`^${titles[1]} \\(wczytano \\d{1,2} \\p{L}+ \\d{4}\\)$`, 'u'));
