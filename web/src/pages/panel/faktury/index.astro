@@ -1,0 +1,139 @@
+---
+/**
+ * Panel: faktury (SPEC-004 US-3, AC-10…AC-16; ADR-0005). Tylko admin.
+ * Zakładki „Do wystawienia” / „Wystawione”, rozwijane pozycje z danymi do skopiowania do e-mikrofirmy,
+ * oznaczanie i cofanie, eksport CSV (zakres dat zapłaty). Dane obsługuje lib/invoices-admin-ui.ts.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('invoices.title')}>
+  <div class="invoices" data-invoices>
+    <h1>{t('invoices.title')}</h1>
+    <p>{t('invoices.intro')}</p>
+
+    <div class="tabs" data-tabs>
+      <button type="button" class="button" data-tab="todo" aria-pressed="true">{t('invoices.tabTodo')}</button>
+      <button type="button" class="button" data-tab="issued" aria-pressed="false">{t('invoices.tabIssued')}</button>
+    </div>
+
+    <form class="card filters" data-filters novalidate>
+      <div class="grid">
+        <div>
+          <label class="field-label" for="i-from">{t('invoices.from')}</label>
+          <input class="input" id="i-from" name="from" type="date" />
+        </div>
+        <div>
+          <label class="field-label" for="i-to">{t('invoices.to')}</label>
+          <input class="input" id="i-to" name="to" type="date" />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="button button-primary">{t('invoices.filter')}</button>
+        <button type="button" class="button" data-export disabled>{t('invoices.exportCsv')}</button>
+      </div>
+    </form>
+
+    <p class="status" role="status" data-status></p>
+    <p class="message-error" role="alert" data-error hidden></p>
+
+    <section aria-live="polite">
+      <p class="total" data-summary></p>
+      <p class="hint" data-empty hidden></p>
+      <ul class="list" data-list></ul>
+    </section>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountInvoicesAdmin } from '../../../lib/invoices-admin-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-invoices]');
+  if (root) void mountInvoicesAdmin(root);
+</script>
+
+<style is:global>
+  .invoices {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .invoices > *,
+  .invoices p,
+  .invoices dl,
+  .invoices dd {
+    margin: 0;
+  }
+
+  .invoices .tabs,
+  .invoices .actions,
+  .invoices .copy-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .invoices .tabs [aria-pressed='true'] {
+    font-weight: var(--font-weight-strong);
+    border-color: currentcolor;
+  }
+
+  .invoices .grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+
+  .invoices .actions {
+    margin-top: var(--space-3);
+  }
+
+  .invoices .button {
+    min-height: 44px;
+  }
+
+  .invoices .hint,
+  .invoices dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .invoices .status:empty,
+  .invoices .total:empty {
+    display: none;
+  }
+
+  .invoices .list {
+    display: grid;
+    gap: var(--space-3);
+    padding: 0;
+    list-style: none;
+  }
+
+  .invoices summary {
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .invoices .invoice-item,
+  .invoices .invoice-item form {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .invoices .badge {
+    display: block;
+    font-weight: var(--font-weight-strong);
+  }
+
+  .invoices .copy-row {
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .invoices .copy-row dd {
+    overflow-wrap: anywhere;
+  }
+</style>

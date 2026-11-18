@@ -10,6 +10,7 @@ import {
   csvFileName,
   defaultFilters,
   filterArgs,
+  invoiceAction,
   methodKeys,
   orderDateTime,
   ordersCsv,
@@ -21,6 +22,9 @@ import {
   type AdminOrder,
   type OrderFilters,
 } from './orders-admin';
+import { invoiceArgs } from './invoice';
+import { bindInvoiceFields } from './invoice-ui';
+import { invoiceErrorKey } from './invoices-admin';
 import { requireAdmin } from './panel';
 import { formatPrice } from './products';
 
@@ -105,6 +109,20 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
       } else if (action === 'used') {
         actions.textContent = t('orders.passUsed');
       }
+      const invoice = invoiceAction(order);
+      if (invoice === 'add') {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button';
+        button.textContent = t('orders.addInvoice');
+        button.setAttribute('aria-label', t('orders.addInvoiceLabel', { item: order.item_name, amount: formatPrice(order.amount) }));
+        button.addEventListener('click', () => openInvoice(order));
+        actions.append(button);
+      } else if (invoice === 'requested') {
+        const note = document.createElement('p');
+        note.textContent = t('orders.invoiceRequested');
+        actions.append(note);
+      }
       rows.append(row);
     }
     query<HTMLElement>(root, '[data-table]').hidden = orders.length === 0;
@@ -188,6 +206,46 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     pending = null;
     if (order && dialog.returnValue === 'confirm') void refund(order, note.value.trim());
   });
+
+  // SPEC-004 AC-14: dane do faktury po zakupie — kroki AC-2…AC-5 bez nadpisywania `billing_details` klienta.
+  const invoiceDialog = query<HTMLDialogElement>(root, '[data-invoice-dialog]');
+  const invoiceSave = query<HTMLButtonElement>(invoiceDialog, '[data-invoice-save]');
+  const invoiceError = query<HTMLElement>(invoiceDialog, '[data-invoice-error]');
+  const invoiceFields = bindInvoiceFields(invoiceDialog, supabase, (control) => {
+    invoiceSave.disabled = !control.value();
+  });
+  let invoiceOrder: AdminOrder | null = null;
+
+  function openInvoice(order: AdminOrder): void {
+    invoiceOrder = order;
+    status.textContent = '';
+    showError(null);
+    invoiceError.hidden = true;
+    invoiceFields.setSaved(null);
+    query<HTMLElement>(invoiceDialog, '[data-invoice-item]').textContent = t('orders.confirmItem', {
+      item: order.item_name,
+      person: personLabel(order) ?? t('orders.noAccount'),
+      date: orderDateTime(order.created_at),
+    });
+    invoiceDialog.showModal();
+  }
+
+  invoiceSave.addEventListener('click', async () => {
+    const details = invoiceFields.value();
+    if (!invoiceOrder || !details) return;
+    invoiceSave.disabled = true;
+    const { error } = await supabase.rpc('set_order_invoice_details', invoiceArgs(invoiceOrder.id, details, false));
+    invoiceSave.disabled = false;
+    if (error) {
+      invoiceError.textContent = t(invoiceErrorKey(error.message));
+      invoiceError.hidden = false;
+      return;
+    }
+    invoiceDialog.close();
+    status.textContent = t('orders.invoiceSaved');
+    await load();
+  });
+  query<HTMLButtonElement>(invoiceDialog, '[data-invoice-close]').addEventListener('click', () => invoiceDialog.close());
 
   filtersForm.addEventListener('submit', (event) => {
     event.preventDefault();

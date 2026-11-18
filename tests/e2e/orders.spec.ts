@@ -139,7 +139,7 @@ test.describe('admin', () => {
     await filterByPerson(page, sale.person);
 
     await expect(rowOf(page, sale.item)).toContainText('Karnet był używany — zwrot poza systemem.');
-    await expect(rowOf(page, sale.item).getByRole('button')).toHaveCount(0);
+    await expect(rowOf(page, sale.item).getByRole('button', { name: /Anuluj i zwróć/ })).toHaveCount(0);
   });
 
 });

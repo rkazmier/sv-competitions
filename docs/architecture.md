@@ -212,7 +212,7 @@
   - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`: stan uprawnienia + niewycofane `pass_usages`);
     Tpay → `refund_pending`, na miejscu → `refunded`; wpis `order_refund` w `audit_log`.
   - `admin_list_orders(from, to, status, method, product_id, event_id, person)` — admin (AC-24): zamówienia z filtrami (dni
-    w Europe/Warsaw, osoba — fragment imienia i nazwiska lub e-maila z `auth.users`), osoba, sprzedający, `pass_used` (AC-26).
+    w Europe/Warsaw, osoba — fragment imienia i nazwiska lub e-maila z `auth.users`), osoba, sprzedający, `pass_used` (AC-26), `invoice_requested` (SPEC-004 AC-14).
   - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
     `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
@@ -250,6 +250,14 @@
   `/konto/dane/` — `upsert`/`delete` własnego `billing_details` (RLS), `/panel/sprzedaz/` — `rpc/set_order_invoice_details`
   po `create_on_site_order` (bez `save_billing_details`; błąd → sprzedaż zostaje, komunikat „poproś admina”).
   `/konto/` — „Faktura: w przygotowaniu” / „Faktura: <numer>” w „Historii płatności”.
+  Panel faktur (AC-10…AC-16, admin): `admin_list_invoices(tab, from, to)` — `todo` (opłacone z żądaniem faktury bez numeru,
+  od najstarszej płatności; zwrócone znikają) albo `issued` (z numerem, także zwrócone, od najnowszego oznaczenia; `issued_by_name`
+  — imię i nazwisko albo e-mail oznaczającego); zakres dat zapłaty w Europe/Warsaw; błąd `invalid_tab`. `/panel/faktury/`
+  (`src/lib/invoices-admin-ui.ts`, logika bez DOM `src/lib/invoices-admin.ts`): zakładki, rozwijane pozycje z „Kopiuj”
+  (Clipboard API), `mark_invoice_issued` / `unmark_invoice`, eksport CSV bieżącej zakładki (BOM, `;`), ostrzeżenie o korekcie
+  przy zwrocie. Menu admina: „Faktury (n)” — liczba „Do wystawienia” (`count` z `orders`, RLS). `admin_list_orders` zwraca też
+  `invoice_requested`; `/panel/zamowienia/` — „Dodaj dane do faktury” przy opłaconych bez faktury (`InvoiceFields` w oknie,
+  `set_order_invoice_details` z `save_billing_details = false`, AC-14). Numer zamówienia na fakturze = `orders.id`.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
   `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
   wyzwalacz `range_log_immutable` (`23514 range_log_immutable`) przepuszcza tylko `on delete set null` kluczy obcych,

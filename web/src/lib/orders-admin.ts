@@ -24,6 +24,7 @@ export interface AdminOrder {
   person_email: string | null;
   seller_name: string | null;
   pass_used: boolean;
+  invoice_requested: boolean;
 }
 
 export const ORDER_STATUSES: readonly OrderStatus[] = ['paid', 'pending', 'cancelled', 'refund_pending', 'refunded'];
@@ -70,6 +71,12 @@ export function ordersTotal(orders: readonly AdminOrder[]): number {
 export function refundAction(order: AdminOrder): 'refund' | 'used' | null {
   if (order.status !== 'paid') return null;
   return order.pass_used ? 'used' : 'refund';
+}
+
+/** SPEC-004 AC-14: opłacone bez faktury — „Dodaj dane do faktury”; z fakturą — informacja; pozostałe — nic. */
+export function invoiceAction(order: AdminOrder): 'add' | 'requested' | null {
+  if (order.invoice_requested) return 'requested';
+  return order.status === 'paid' ? 'add' : null;
 }
 
 /** Osoba w liście i CSV: imię i nazwisko, inaczej e-mail; bez konta — `null`. */

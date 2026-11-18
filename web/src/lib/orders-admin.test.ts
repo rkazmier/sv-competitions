@@ -5,6 +5,7 @@ import {
   csvFileName,
   defaultFilters,
   filterArgs,
+  invoiceAction,
   ordersCsv,
   ordersTotal,
   personLabel,
@@ -29,6 +30,7 @@ const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   person_email: 'jan@example.test',
   seller_name: null,
   pass_used: false,
+  invoice_requested: false,
   ...fields,
 });
 
@@ -118,5 +120,14 @@ describe('AC-25, AC-26: „Anuluj i zwróć”', () => {
     expect(refundErrorKey('pass_used')).toBe('orders.passUsed');
     expect(refundErrorKey('refund_failed')).toBe('orders.errorTpay');
     expect(refundErrorKey(undefined)).toBe('orders.errorGeneric');
+  });
+});
+
+describe('SPEC-004 AC-14: dane do faktury po zakupie', () => {
+  it('„Dodaj dane do faktury” tylko przy opłaconym zamówieniu bez faktury', () => {
+    expect(invoiceAction(order())).toBe('add');
+    expect(invoiceAction(order({ invoice_requested: true }))).toBe('requested');
+    expect(invoiceAction(order({ status: 'refunded' }))).toBeNull();
+    expect(invoiceAction(order({ status: 'pending' }))).toBeNull();
   });
 });
