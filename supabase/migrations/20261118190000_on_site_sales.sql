@@ -6,7 +6,7 @@
 drop function public.create_on_site_order(uuid, uuid, text);
 
 -- Tylko obsługa. Zamówienie `on_site` opłacone od razu, `created_by` = sprzedający; zwraca id zamówienia.
--- Dokładnie jedno z `p_product_id`, `p_event_id`.
+-- Dokładnie jedno z `p_product_id`, `p_event_id`. Produkt tylko aktywny (jak `create_tpay_order`).
 -- Wejściówka (jak `create_tpay_order`): wydarzenie opublikowane, płatne, sprzedaż do ostatniego dnia (Europe/Warsaw),
 -- limit miejsc liczony z blokadą wiersza wydarzenia (`paid` + świeże `pending`).
 -- Osoba bez konta (`p_user_id` null, AC-22): wejście jednorazowe pasujące do dzisiejszego dnia albo wejściówka
@@ -43,7 +43,7 @@ begin
   end if;
 
   if p_product_id is not null then
-    select * into prod from public.products where id = p_product_id;
+    select * into prod from public.products where id = p_product_id and is_active;
     if not found then
       raise exception 'product_not_found' using errcode = 'P0002';
     end if;
