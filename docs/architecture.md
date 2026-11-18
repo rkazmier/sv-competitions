@@ -62,6 +62,7 @@
 - `src/lib/panel.ts` — bramka panelu (ADR-0004): stan z roli w `profiles` (jak w RLS) — logowanie Google / brak uprawnień
   z linkiem do `/konto/` (`user`) / menu obsługi (`staff`) / treść i pełne menu (`admin`). `requireAdmin()` zwraca klienta
   tylko adminowi; skrypty stron kalendarza i słowników pobierają dane dopiero po niej. Menu obsługi i admina — `PanelLayout.astro`.
+  Strony obsługi (`<PanelLayout access="staff">`, np. `/panel/sprzedaz/`) pokazują treść także roli `staff` — `requireStaff()`.
 - Konta (SPEC-002 AC-1…AC-6): `/rejestracja/`, `/logowanie/` (z „Nie pamiętam hasła”), `/logowanie/nowe-haslo/`, `/konto/`.
   Logika bez DOM w `src/lib/auth.ts` (`?next=` tylko ścieżki aplikacji, walidacja, mapowanie błędów Auth), wyspy w `src/lib/auth-ui.ts`.
   Google i link potwierdzający wracają na `/konto/` — tam pierwsze logowanie bez `privacy_notice_ack_at` pokazuje klauzulę
@@ -106,6 +107,11 @@
   co 3 s przez maks. 60 s. `/konto/` — „Twoje karnety” (aktywne: `status = 'active'` i dziś ≤ „Ważny do”), „Historia karnetów”
   (`<details>`), „Historia płatności” (tabela od najnowszych), „Przedłuż karnet” → `/oferta/`. Zapytania z kluczem publishable
   i JWT — RLS zwraca tylko własne `orders`, `user_passes`, `pass_usages`. Logika bez DOM: `src/lib/offer.ts`, wyspy `src/lib/offer-ui.ts`.
+- Sprzedaż na miejscu (SPEC-003 AC-21…AC-23, obsługa i admin): `/panel/sprzedaz/` (`PanelLayout access="staff"`, `requireStaff`;
+  pozycja „Sprzedaż” w menu obsługi i admina). Osoba — `rpc/staff_search_people` (skan kodu QR dojdzie z SPEC-005) albo
+  „Osoba bez konta”; lista pozycji (aktywne produkty i wejściówki na trwające płatne wydarzenia, dla osoby bez konta zawężona
+  do dziś), „Gotówka” / „Terminal”, zapis `rpc/create_on_site_order`. Poniżej `rpc/staff_on_site_sales_today` z sumami
+  gotówki i terminala (tylko `paid`). Logika bez DOM: `src/lib/on-site-sales.ts`, wyspa `src/lib/on-site-sales-ui.ts`.
 - `src/lib/site.ts` — adres produkcyjny: `link rel=canonical`, `og:url` i `og:image` (`public/og-default.png`) zawsze na produkcję.
 - Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie).
@@ -146,7 +152,11 @@
   Zapis wyłącznie funkcjami `security definer` i kluczem secret:
   - `fulfil_order(order_id)` — tylko `service_role` (`payments-notify`): `pending`/`cancelled` → `paid` + uprawnienie w jednej transakcji,
     idempotentna; `expires_on` = `pass_expires_on(dzień zakupu)` (+ `pass_validity()` = 1 rok), bez konta — dzień zakupu.
-  - `create_on_site_order(user_id | null, product_id, 'cash'|'terminal')` — obsługa; bez konta tylko wejście jednorazowe na dziś.
+  - `create_on_site_order(user_id | null, product_id | null, 'cash'|'terminal', event_id | null)` — obsługa (AC-21, AC-22):
+    dokładnie jedno z produktu i wejściówki; wejściówka jak w `create_tpay_order` (opublikowane płatne wydarzenie, do ostatniego dnia,
+    limit z blokadą wiersza); bez konta tylko wejście jednorazowe pasujące do dziś albo wejściówka na wydarzenie trwające dziś.
+  - `staff_on_site_sales_today()` — obsługa (AC-23): dzisiejsze (Europe/Warsaw) zamówienia `on_site` od najnowszych — godzina,
+    pozycja, kwota, gotówka/terminal, stan, imię i nazwisko sprzedającego (bez danych kupującego).
   - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`: stan uprawnienia + niewycofane `pass_usages`);
     Tpay → `refund_pending`, na miejscu → `refunded`; wpis `order_refund` w `audit_log`.
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy

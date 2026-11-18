@@ -6,25 +6,29 @@
  * obsługa — własne menu, bez kalendarza i słowników (SPEC-002 AC-26); użytkownik — brak uprawnień
  * i link do konta (AC-27); niezalogowany — logowanie Google (SPEC-001 AC-4).
  * Skrypt strony pobiera dane po `await requireAdmin()`.
- * Pozycje Książka (SPEC-005) i Sprzedaż (SPEC-003) dochodzą do `staffMenu` (i `adminMenu`) z tymi modułami.
+ * Pozycja Książka (SPEC-005) dojdzie do `staffMenu` (i `adminMenu`) z tym modułem.
+ * `access="staff"` — strona obsługi (np. Sprzedaż, SPEC-003 US-5): treść widzi obsługa i admin (`requireStaff`).
  */
 import BaseLayout from './BaseLayout.astro';
 import { t } from '../i18n';
 
 interface Props {
   title?: string;
+  access?: 'admin' | 'staff';
 }
 
-const { title } = Astro.props;
+const { title, access = 'admin' } = Astro.props;
+const salesItem = { href: '/panel/sprzedaz/', label: t('panel.menu.sales') };
 const adminMenu = [
   { href: '/panel/', label: t('panel.menu.calendar') },
   { href: '/panel/regulaminy/', label: t('panel.menu.rulebooks') },
   { href: '/panel/dyscypliny/', label: t('panel.menu.disciplines') },
   { href: '/panel/kategorie/', label: t('panel.menu.categories') },
   { href: '/panel/oferta/', label: t('panel.menu.offer') },
+  salesItem,
   { href: '/panel/uzytkownicy/', label: t('panel.menu.users') },
 ];
-const staffMenu: { href: string; label: string }[] = [];
+const staffMenu = [salesItem];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
 ---
 <BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>
@@ -38,7 +42,7 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
       <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
     </ul>
   </Fragment>
-  <section class="section panel">
+  <section class="section panel" data-panel-access={access}>
     <div class="container">
       <div data-panel-state="loading">
         <p role="status">{t('panel.loading')}</p>

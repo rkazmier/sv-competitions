@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
-import { resolvePanelState, stateForRole } from './panel';
+import { contentState, resolvePanelState, stateForRole } from './panel';
 
 /** Minimalny klient: sesja i odpowiedź `profiles.select('role')`. */
 function client(options: { session?: boolean; role?: string | null; error?: boolean }): SupabaseClient {
@@ -37,5 +37,12 @@ describe('bramka panelu (SPEC-002 US-7, ADR-0004)', () => {
     expect(await resolvePanelState(client({}))).toBe('forbidden');
     expect(await resolvePanelState(client({ session: false }))).toBe('signedOut');
     expect(await resolvePanelState(client({ role: 'admin', error: true }))).toBe('error');
+  });
+
+  it('SPEC-003 AC-21: strona obsługi (Sprzedaż) — treść dla obsługi i admina, nie dla użytkownika', () => {
+    expect(contentState('staff', 'staff')).toBe('admin');
+    expect(contentState('admin', 'staff')).toBe('admin');
+    expect(contentState('forbidden', 'staff')).toBe('forbidden');
+    expect(contentState('staff', 'admin')).toBe('staff');
   });
 });
