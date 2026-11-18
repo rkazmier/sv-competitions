@@ -7,13 +7,12 @@
 import { t } from '../i18n';
 import { todayInWarsaw } from './calendar';
 import { requireStaff } from './panel';
+import { bindAnnotationForm } from './range-annotation-ui';
 import { entryTime } from './range-entry';
 import {
   ANNOTATION_COLUMNS,
   ENTRY_SAVED_EVENT,
   annotationAuthor,
-  annotationError,
-  annotationSaveErrorKey,
   groupAnnotations,
   type Annotation,
 } from './range-history';
@@ -76,48 +75,7 @@ export async function mountRangeToday(root: HTMLElement): Promise<void> {
     );
 
     // AC-21: „Dodaj adnotację” → treść 5–500 znaków; AC-22: odrzucenie przez RLS → komunikat.
-    const open = el<HTMLButtonElement>(item, '[data-annotate]');
-    el(open, '[data-annotate-sr]').textContent = ` ${t('rangeHistory.addAnnotationSr', { name: entry.full_name, time })}`;
-    const form = el<HTMLFormElement>(item, 'form');
-    const textarea = el<HTMLTextAreaElement>(form, 'textarea');
-    const label = el<HTMLLabelElement>(form, 'label');
-    const error = el(form, '[data-annotation-error]');
-    textarea.id = `ann-${entry.id}`;
-    label.htmlFor = textarea.id;
-    error.id = `ann-${entry.id}-error`;
-    textarea.setAttribute('aria-describedby', error.id);
-    const showError = (text: string | null) => {
-      error.textContent = text ?? '';
-      error.hidden = !text;
-      textarea.setAttribute('aria-invalid', String(Boolean(text)));
-    };
-    open.addEventListener('click', () => {
-      form.hidden = false;
-      open.hidden = true;
-      textarea.focus();
-    });
-    el(form, '[data-annotation-cancel]').addEventListener('click', () => {
-      form.hidden = true;
-      open.hidden = false;
-      showError(null);
-      open.focus();
-    });
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const invalid = annotationError(textarea.value);
-      if (invalid) {
-        showError(t(invalid));
-        return textarea.focus();
-      }
-      const submit = el<HTMLButtonElement>(form, '[data-annotation-save]');
-      submit.disabled = true;
-      const { error: saveError } = await supabase
-        .from('range_log_annotations')
-        .insert({ entry_id: entry.id, body: textarea.value.trim() });
-      submit.disabled = false;
-      if (saveError) return showError(t(annotationSaveErrorKey(saveError.code)));
-      await load();
-    });
+    bindAnnotationForm(item, entry.id, t('rangeHistory.addAnnotationSr', { name: entry.full_name, time }), supabase, load);
     return item;
   }
 

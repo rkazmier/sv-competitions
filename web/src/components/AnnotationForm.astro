@@ -1,0 +1,19 @@
+---
+/**
+ * „Dodaj adnotację” z formularzem (SPEC-005 AC-21, AC-22) — w liście dzisiejszych wpisów i w przeglądzie książki.
+ * Obsługa: lib/range-annotation-ui.ts (`bindAnnotationForm`).
+ */
+import { t } from '../i18n';
+---
+<div class="stack" data-annotation>
+  <button type="button" class="button" data-annotate>{t('rangeHistory.addAnnotation')}<span class="visually-hidden" data-annotate-sr></span></button>
+  <form class="stack" hidden novalidate>
+    <label class="field-label">{t('rangeHistory.annotationLabel')}</label>
+    <textarea class="input" rows="3" maxlength="500"></textarea>
+    <p class="message-error" role="alert" data-annotation-error hidden></p>
+    <div class="button-row">
+      <button type="submit" class="button button-primary" data-annotation-save>{t('rangeHistory.annotationSave')}</button>
+      <button type="button" class="button" data-annotation-cancel>{t('rangeHistory.annotationCancel')}</button>
+    </div>
+  </form>
+</div>
