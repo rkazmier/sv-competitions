@@ -121,9 +121,9 @@ describe('/konto/ — karnety', () => {
       firstUsedOn(
         pass({
           pass_usages: [
-            { used_on: '2026-11-25', reverted_at: null },
-            { used_on: '2026-11-20', reverted_at: '2026-11-20T12:00:00Z' },
-            { used_on: '2026-11-22', reverted_at: null },
+            { id: 'u1', used_on: '2026-11-25', created_at: '2026-11-25T09:00:00Z', reverted_at: null },
+            { id: 'u2', used_on: '2026-11-20', created_at: '2026-11-20T09:00:00Z', reverted_at: '2026-11-20T12:00:00Z' },
+            { id: 'u3', used_on: '2026-11-22', created_at: '2026-11-22T09:00:00Z', reverted_at: null },
           ],
         }),
       ),

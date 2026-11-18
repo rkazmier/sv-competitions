@@ -5,6 +5,7 @@
  * Interfejs: lib/admin-users-ui.ts.
  */
 import { t, type MessageKey } from '../i18n';
+import { formatDate } from './dates';
 import type { ProfileField } from './profile';
 
 export const ROLES = ['user', 'staff', 'admin'] as const;
@@ -87,6 +88,11 @@ function valueText(field: string, value: unknown): string {
 
 /** AC-21: „co” — jedna linia na zmienione pole: „Telefon: nie podano → 600 100 200”. */
 export function describeChanges(entry: Pick<AuditEntry, 'action' | 'changes'>): string[] {
+  // SPEC-005 AC-23: `changes` cofnięcia zużycia to opis zdarzenia, nie pary [stara, nowa].
+  if (entry.action === 'pass_usage_revert') {
+    const usedOn = (entry.changes as Record<string, unknown> | null)?.used_on;
+    return [t('rangeHistory.auditRevert', { date: typeof usedOn === 'string' ? formatDate(usedOn) : '—' })];
+  }
   return Object.entries(entry.changes ?? {}).map(([field, [before, after]]) => {
     const label = field === 'role' ? t('users.role') : field in FIELD_LABEL ? t(FIELD_LABEL[field as ProfileField]) : field;
     return t('users.change', { field: label, before: valueText(field, before), after: valueText(field, after) });

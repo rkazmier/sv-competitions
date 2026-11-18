@@ -3,7 +3,7 @@
  * Konto użytkownika (SPEC-002 §6) — cel po zalogowaniu i po linku potwierdzającym e-mail (AC-1, AC-3, AC-5).
  * Klauzula przy pierwszym logowaniu (Google), potem: braki lub gotowość do wpisu (AC-9, AC-10), kod QR (AC-12…AC-15),
  * „Twoje dane” + „Edytuj dane” (AC-7). Karnety, historia karnetów i płatności, „Przedłuż karnet” — SPEC-003 AC-12…AC-15
- * (lib/offer-ui.ts). Kod QR zaraz po statusie — na telefonie obsługa skanuje z ekranu.
+ * (lib/offer-ui.ts). „Historia wejść” i historia zużycia karnetu — SPEC-005 AC-24, AC-25. Kod QR zaraz po statusie — na telefonie obsługa skanuje z ekranu.
  * Logika: lib/auth-ui.ts (sesja, klauzula), lib/account-ui.ts (panel).
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -80,6 +80,22 @@ const fields = [
                   </tr>
                 </thead>
                 <tbody data-orders></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="card" aria-labelledby="entries-heading">
+            <h2 id="entries-heading">{t('rangeHistory.entriesTitle')}</h2>
+            <p class="hint" data-entries-empty hidden>{t('rangeHistory.entriesEmpty')}</p>
+            <div class="table-scroll" data-entries-table hidden>
+              <table class="orders-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('rangeHistory.entryDate')}</th>
+                    <th scope="col">{t('rangeHistory.entryOfficer')}</th>
+                    <th scope="col">{t('rangeHistory.entryPass')}</th>
+                  </tr>
+                </thead>
+                <tbody data-entries></tbody>
               </table>
             </div>
           </section>

@@ -15,6 +15,7 @@ import { requireStaff } from './panel';
 import { LIMITS } from './profile';
 import { scanQrCode } from './qr-scanner';
 import { currentShiftOfficerId } from './range-shift';
+import { ENTRY_SAVED_EVENT } from './range-history';
 import { entryDateTime, permitOrAddress, saveErrorKey, signaturePath, type EntryPerson } from './range-sign';
 import { mountSignaturePad, saveRangeEntry } from './range-sign-ui';
 import {
@@ -417,6 +418,8 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     entry = null;
     pad.clear();
     showStep('done');
+    // AC-21: lista dzisiejszych wpisów (lib/range-today-ui.ts) odświeża się po zapisie.
+    root.dispatchEvent(new CustomEvent(ENTRY_SAVED_EVENT));
     query(done, '[data-done-text]').focus();
   });
   query(sign, '[data-clear]').addEventListener('click', () => pad.clear());
