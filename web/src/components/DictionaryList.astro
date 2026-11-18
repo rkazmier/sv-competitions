@@ -1,18 +1,19 @@
 ---
 /**
- * Lista słownikowa (SPEC-001 §6.2): dyscypliny (AC-8…11) i kategorie wydarzeń (AC-45…47).
+ * Lista słownikowa (SPEC-001 §6.2): dyscypliny (AC-8…11), kategorie wydarzeń (AC-45…47),
+ * prowadzący strzelanie (SPEC-005 AC-1, AC-2).
  * Formularz dodania + lista z edycją nazwy i „Ukryj” / „Przywróć”. Bez usuwania.
  * Dane pobiera skrypt (lib/dictionary-ui.ts) po potwierdzeniu roli organizatora.
  */
 import { t } from '../i18n';
-import { DICTIONARY_NAME_MAX, type DictionaryTable } from '../lib/dictionary';
+import { DICTIONARIES, dictionaryText, type DictionaryKind } from '../lib/dictionary';
 
 interface Props {
-  kind: 'disciplines' | 'categories';
+  kind: DictionaryKind;
 }
 
 const { kind } = Astro.props;
-const table: DictionaryTable = kind === 'disciplines' ? 'disciplines' : 'event_categories';
+const { table, max } = DICTIONARIES[kind];
 const id = `dict-${kind}`;
 ---
 <div class="dictionary" data-dictionary={table} data-kind={kind}>
@@ -21,7 +22,7 @@ const id = `dict-${kind}`;
 
   <form class="card add-form" data-add-form novalidate>
     <h2 class="form-heading">{t(`dictionary.${kind}.addHeading`)}</h2>
-    <label class="field-label" for={`${id}-name`}>{t('dictionary.nameLabel')}</label>
+    <label class="field-label" for={`${id}-name`}>{dictionaryText(kind, 'nameLabel')}</label>
     <div class="field-row">
       <input
         class="input"
@@ -29,7 +30,7 @@ const id = `dict-${kind}`;
         name="name"
         type="text"
         required
-        maxlength={DICTIONARY_NAME_MAX}
+        maxlength={max}
         autocomplete="off"
         aria-describedby={`${id}-error`}
       />
@@ -53,7 +54,7 @@ const id = `dict-${kind}`;
         </p>
         <div class="button-row">
           <button type="button" class="button" data-rename>
-            {t('dictionary.rename')}<span class="visually-hidden" data-sr-name></span>
+            {dictionaryText(kind, 'rename')}<span class="visually-hidden" data-sr-name></span>
           </button>
           <button type="button" class="button" data-toggle>
             <span data-toggle-text></span><span class="visually-hidden" data-sr-name></span>
@@ -61,9 +62,9 @@ const id = `dict-${kind}`;
         </div>
       </div>
       <form class="item-edit" data-edit-form novalidate hidden>
-        <label class="field-label" data-edit-label>{t('dictionary.newNameLabel')}</label>
+        <label class="field-label" data-edit-label>{dictionaryText(kind, 'newNameLabel')}</label>
         <div class="field-row">
-          <input class="input" name="name" type="text" required maxlength={DICTIONARY_NAME_MAX} autocomplete="off" />
+          <input class="input" name="name" type="text" required maxlength={max} autocomplete="off" />
         </div>
         <p class="message-error field-error" data-error hidden></p>
         <div class="button-row">

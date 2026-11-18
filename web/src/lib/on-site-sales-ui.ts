@@ -3,7 +3,6 @@
  * Zapis wyłącznie funkcją bazy `create_on_site_order` (cena z bazy, `created_by` = zalogowana obsługa).
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` (bez HTML).
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { todayInWarsaw } from './calendar';
 import {
@@ -48,7 +47,7 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
   const status = query<HTMLElement>(form, '[data-status]');
   const todayBody = query<HTMLElement>(root, '[data-today]');
 
-  const supabase: SupabaseClient = await requireStaff();
+  const { supabase } = await requireStaff();
   let person: PersonHit | null = null;
   let products: Product[] = [];
   let events: TicketEvent[] = [];

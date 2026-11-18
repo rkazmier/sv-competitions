@@ -61,8 +61,8 @@
   sesja w localStorage pod kluczem `sv-auth`); tworzony leniwie, więc build bez tych zmiennych działa.
 - `src/lib/panel.ts` — bramka panelu (ADR-0004): stan z roli w `profiles` (jak w RLS) — logowanie Google / brak uprawnień
   z linkiem do `/konto/` (`user`) / menu obsługi (`staff`) / treść i pełne menu (`admin`). `requireAdmin()` zwraca klienta
-  tylko adminowi; skrypty stron kalendarza i słowników pobierają dane dopiero po niej. Menu obsługi i admina — `PanelLayout.astro`.
-  Strony obsługi (`<PanelLayout access="staff">`, np. `/panel/sprzedaz/`) pokazują treść także roli `staff` — `requireStaff()`.
+  tylko adminowi; skrypty stron kalendarza i słowników pobierają dane dopiero po niej. Strony z `PanelLayout access="staff"`
+  (książka, sprzedaż na miejscu) pokazują treść także obsłudze i pobierają dane po `requireStaff()`. Menu obsługi i admina — `PanelLayout.astro`.
 - Konta (SPEC-002 AC-1…AC-6): `/rejestracja/`, `/logowanie/` (z „Nie pamiętam hasła”), `/logowanie/nowe-haslo/`, `/konto/`.
   Logika bez DOM w `src/lib/auth.ts` (`?next=` tylko ścieżki aplikacji, walidacja, mapowanie błędów Auth), wyspy w `src/lib/auth-ui.ts`.
   Google i link potwierdzający wracają na `/konto/` — tam pierwsze logowanie bez `privacy_notice_ack_at` pokazuje klauzulę
@@ -114,7 +114,13 @@
   gotówki i terminala (tylko `paid`). Logika bez DOM: `src/lib/on-site-sales.ts`, wyspa `src/lib/on-site-sales-ui.ts`.
 - `src/lib/site.ts` — adres produkcyjny: `link rel=canonical`, `og:url` i `og:image` (`public/og-default.png`) zawsze na produkcję.
 - Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
-- `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie).
+- `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie,
+  prowadzący strzelanie); ustawienia list (tabela, kolumna nazwy, długość, unikalność, przebudowa) w `DICTIONARIES`.
+- Książka — prowadzący (SPEC-005 AC-1…AC-4): `/panel/prowadzacy/` (admin) — lista `range_officers` z „Ukryj” / „Przywróć”,
+  bez usuwania (zmiana nazwiska nie zmienia wpisów — kopia w `range_log.range_officer_name`). `/panel/ksiazka/` (obsługa i admin) —
+  „Kto prowadzi strzelanie?” z aktywnymi prowadzącymi; wybór w localStorage `sv-range-shift` = `{ id, day }` (bez nazwiska),
+  ważny do końca dnia Europe/Warsaw; prowadzący ukryty w trakcie zmiany → ponowny wybór. Logika `src/lib/range-shift.ts`
+  (`currentShiftOfficerId()` — źródło prowadzącego dla wpisów), wyspa `src/lib/range-log-ui.ts`.
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).

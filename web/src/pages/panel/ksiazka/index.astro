@@ -1,0 +1,75 @@
+---
+/**
+ * Panel: książka rejestru pobytu (SPEC-005 §6) — obsługa i admin.
+ * Najpierw prowadzący zmiany (AC-3, AC-4); przebieg wpisu i lista dzisiejszych wpisów — zadania #60, #61.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('rangeLog.title')} access="staff">
+  <div class="range-log" data-range-log>
+    <h1>{t('rangeLog.title')}</h1>
+
+    <section class="card" data-shift-picker aria-labelledby="shift-question" hidden>
+      <h2 id="shift-question" class="question">{t('rangeLog.shiftQuestion')}</h2>
+      <p>{t('rangeLog.shiftHint')}</p>
+      <p data-no-officers hidden>{t('rangeLog.noOfficers')}</p>
+      <ul class="officers" data-officers></ul>
+    </section>
+
+    <div data-shift hidden>
+      <div class="card shift-bar">
+        <p class="shift-officer">
+          {t('rangeLog.officerLabel')} <strong data-officer-name></strong>
+        </p>
+        <button type="button" class="button" data-change-officer>
+          {t('rangeLog.change')}<span class="visually-hidden"> {t('rangeLog.changeSr')}</span>
+        </button>
+      </div>
+      <p>{t('rangeLog.entriesComingSoon')}</p>
+    </div>
+
+    <template data-officer-template>
+      <li><button type="button" class="button officer" data-officer></button></li>
+    </template>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountRangeLog } from '../../../lib/range-log-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-range-log]');
+  if (root) void mountRangeLog(root);
+</script>
+
+<style>
+  .question {
+    font-size: var(--text-h3);
+  }
+
+  .officers {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .officer {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .shift-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  .shift-officer {
+    margin: 0;
+  }
+</style>

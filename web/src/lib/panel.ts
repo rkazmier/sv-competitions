@@ -4,29 +4,17 @@
  * Stany (elementy `[data-panel-state]` w PanelLayout):
  * - `signedOut` — przycisk „Zaloguj się przez Google”, powrót do `/panel/` (AC-4),
  * - `forbidden` — rola `user`: „Nie masz uprawnień do panelu.”, link do konta, bez pobierania danych (AC-27),
- * - `staff` — obsługa strzelnicy: menu obsługi, bez kalendarza i słowników (AC-26),
+ * - `staff` — obsługa strzelnicy: menu obsługi, bez kalendarza i słowników (AC-26); treść tylko stron
+ *   dostępnych dla obsługi (`PanelLayout access="staff"`, np. książka — SPEC-005),
  * - `admin` — treść strony i pełne menu panelu,
  * - `error` — błąd sieci przy sprawdzaniu roli.
  *
  * Rola z `profiles` (to samo źródło co RLS — `is_staff()` / `is_admin()`), nie z claimu JWT.
- *
- * Dostęp strony (`data-panel-access` w PanelLayout): `admin` (domyślnie) albo `staff` — strony obsługi
- * (np. `/panel/sprzedaz/`, SPEC-003 US-5) pokazują treść także obsłudze, z menu obsługi.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
 
 export type PanelState = 'loading' | 'signedOut' | 'forbidden' | 'staff' | 'admin' | 'error';
-export type PanelAccess = 'admin' | 'staff';
-
-/** Który blok `[data-panel-state]` pokazać: obsługa na stronie obsługi widzi treść (blok `admin`). */
-export function contentState(state: PanelState, access: PanelAccess): PanelState {
-  return state === 'staff' && access === 'staff' ? 'admin' : state;
-}
-
-function pageAccess(): PanelAccess {
-  return document.querySelector<HTMLElement>('[data-panel-access]')?.dataset.panelAccess === 'staff' ? 'staff' : 'admin';
-}
 
 /** Rola konta → stan panelu (hierarchia admin ⊃ staff ⊃ user). */
 export function stateForRole(role: unknown): PanelState {
@@ -49,9 +37,9 @@ export async function resolvePanelState(supabase: SupabaseClient): Promise<Panel
 }
 
 function show(state: PanelState): void {
-  const content = contentState(state, pageAccess());
+  // `data-panel-state` może zawierać kilka stanów, np. „admin staff” — strona dostępna dla obsługi (SPEC-005).
   for (const element of document.querySelectorAll<HTMLElement>('[data-panel-state]')) {
-    element.hidden = element.dataset.panelState !== content;
+    element.hidden = !(element.dataset.panelState ?? '').split(' ').includes(state);
   }
   for (const menu of document.querySelectorAll<HTMLElement>('[data-panel-menu]')) {
     menu.hidden = menu.dataset.panelMenu !== state;
@@ -81,14 +69,10 @@ function bindButtons(supabase: SupabaseClient): void {
   }
 }
 
-let ready: Promise<SupabaseClient> | undefined;
+let ready: Promise<{ supabase: SupabaseClient; state: PanelState }> | undefined;
 
-/**
- * Uruchamia bramkę (raz na stronę) i zwraca klienta tylko adminowi (strony kalendarza i słowników),
- * a na stronach z dostępem `staff` — także obsłudze (`requireStaff`).
- * Dla pozostałych stanów obietnica się nie spełnia — strona nie pobiera danych.
- */
-export function requireAdmin(): Promise<SupabaseClient> {
+/** Uruchamia bramkę (raz na stronę): ustala stan, pokazuje odpowiednią część układu. */
+function startPanel(): Promise<{ supabase: SupabaseClient; state: PanelState }> {
   ready ??= (async () => {
     let supabase: SupabaseClient;
     try {
@@ -100,14 +84,27 @@ export function requireAdmin(): Promise<SupabaseClient> {
     bindButtons(supabase);
     const state = await resolvePanelState(supabase).catch((): PanelState => 'error');
     show(state);
-    if (contentState(state, pageAccess()) !== 'admin') return new Promise<never>(() => {});
-    return supabase;
+    return { supabase, state };
   })();
   return ready;
 }
 
-/** Strony obsługi (PanelLayout `access="staff"`): klient dla obsługi i admina. */
-export const requireStaff = requireAdmin;
+/**
+ * Zwraca klienta tylko adminowi (strony kalendarza, słowników, prowadzących).
+ * Dla pozostałych stanów obietnica się nie spełnia — strona nie pobiera danych.
+ */
+export async function requireAdmin(): Promise<SupabaseClient> {
+  const { supabase, state } = await startPanel();
+  if (state !== 'admin') return new Promise<never>(() => {});
+  return supabase;
+}
+
+/** Jak `requireAdmin`, ale wpuszcza też obsługę strzelnicy (książka — SPEC-005). Zwraca rolę. */
+export async function requireStaff(): Promise<{ supabase: SupabaseClient; role: 'staff' | 'admin' }> {
+  const { supabase, state } = await startPanel();
+  if (state !== 'admin' && state !== 'staff') return new Promise<never>(() => {});
+  return { supabase, role: state };
+}
 
 /** Pokazuje stan błędu wczytywania (np. gdy zapytanie strony się nie powiodło). */
 export function showLoadError(): void {
