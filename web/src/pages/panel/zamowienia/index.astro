@@ -1,0 +1,177 @@
+---
+/**
+ * Panel: zamówienia (SPEC-003 US-6, AC-24…AC-27). Tylko admin.
+ * Filtry (zakres dat, status, metoda, produkt lub wejściówka, osoba), suma, eksport CSV bieżącego widoku,
+ * „Anuluj i zwróć” dla opłaconych zamówień bez zużycia uprawnienia. Dane obsługuje lib/orders-admin-ui.ts.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+import { ORDER_STATUS_TEXT, PAYMENT_METHOD_TEXT } from '../../../lib/offer';
+import { ORDER_STATUSES, PAYMENT_METHODS } from '../../../lib/orders-admin';
+---
+<PanelLayout title={t('orders.title')}>
+  <div class="orders" data-orders>
+    <h1>{t('orders.title')}</h1>
+    <p>{t('orders.intro')}</p>
+
+    <form class="card filters" data-filters novalidate>
+      <h2>{t('orders.filtersHeading')}</h2>
+      <div class="grid">
+        <div>
+          <label class="field-label" for="o-from">{t('orders.from')}</label>
+          <input class="input" id="o-from" name="from" type="date" />
+        </div>
+        <div>
+          <label class="field-label" for="o-to">{t('orders.to')}</label>
+          <input class="input" id="o-to" name="to" type="date" />
+        </div>
+        <div>
+          <label class="field-label" for="o-status">{t('orders.status')}</label>
+          <select class="input" id="o-status" name="status">
+            <option value="">{t('orders.any')}</option>
+            {ORDER_STATUSES.map((status) => <option value={status}>{t(ORDER_STATUS_TEXT[status])}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="o-method">{t('orders.method')}</label>
+          <select class="input" id="o-method" name="method">
+            <option value="">{t('orders.any')}</option>
+            {PAYMENT_METHODS.map((method) => <option value={method}>{t(PAYMENT_METHOD_TEXT[method])}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="o-item">{t('orders.item')}</label>
+          <select class="input" id="o-item" name="item" data-item>
+            <option value="">{t('orders.any')}</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="o-person">{t('orders.person')}</label>
+          <input class="input" id="o-person" name="person" type="search" autocomplete="off" />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="button button-primary">{t('orders.filter')}</button>
+        <button type="button" class="button" data-export disabled>{t('orders.exportCsv')}</button>
+      </div>
+    </form>
+
+    <p class="status" role="status" data-status></p>
+    <p class="message-error" role="alert" data-error hidden></p>
+
+    <section class="card" aria-live="polite">
+      <p class="total" data-summary></p>
+      <p class="hint" data-empty hidden>{t('orders.empty')}</p>
+      <div class="table-scroll" data-table hidden>
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th scope="col">{t('orders.colDate')}</th>
+              <th scope="col">{t('orders.colItem')}</th>
+              <th scope="col">{t('orders.colAmount')}</th>
+              <th scope="col">{t('orders.colMethod')}</th>
+              <th scope="col">{t('orders.colStatus')}</th>
+              <th scope="col">{t('orders.colPerson')}</th>
+              <th scope="col">{t('orders.colSeller')}</th>
+              <th scope="col">{t('orders.colNote')}</th>
+              <th scope="col">{t('orders.colActions')}</th>
+            </tr>
+          </thead>
+          <tbody data-rows></tbody>
+        </table>
+      </div>
+    </section>
+
+    <dialog class="card confirm" aria-labelledby="refund-heading" data-dialog>
+      <form method="dialog" class="stack" data-refund-form>
+        <h2 id="refund-heading">{t('orders.confirmHeading')}</h2>
+        <p data-confirm-item></p>
+        <p data-confirm-text></p>
+        <label class="field-label" for="o-note">{t('orders.note')}</label>
+        <textarea class="input" id="o-note" name="note" maxlength="300" rows="2" data-note></textarea>
+        <div class="actions">
+          <button type="submit" class="button button-primary" value="confirm" data-confirm>{t('orders.confirm')}</button>
+          <button type="submit" class="button" value="cancel" formnovalidate>{t('orders.back')}</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountOrdersAdmin } from '../../../lib/orders-admin-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-orders]');
+  if (root) void mountOrdersAdmin(root);
+</script>
+
+<style>
+  .orders {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .orders > *,
+  h2 {
+    margin: 0;
+  }
+
+  h2 {
+    margin-bottom: var(--space-2);
+    font-size: var(--text-h3);
+  }
+
+  .grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .status:empty,
+  .total:empty {
+    display: none;
+  }
+
+  .total {
+    margin: 0 0 var(--space-2);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .orders-table th,
+  .orders-table td {
+    padding: var(--space-2);
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .confirm {
+    max-width: 32rem;
+  }
+
+  .confirm::backdrop {
+    background: rgb(0 0 0 / 50%);
+  }
+</style>

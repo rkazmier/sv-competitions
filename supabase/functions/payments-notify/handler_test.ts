@@ -177,11 +177,22 @@ Deno.test('§7: powtórzone powiadomienie — TRUE bez zmian (idempotencja w baz
   }
 });
 
-Deno.test('AC-9: stan inny niż wpłata (CHARGEBACK, FALSE) — p_is_payment = false; PAID — wpłata', async () => {
-  for (const [status, isPayment] of [['CHARGEBACK', false], ['FALSE', false], ['PAID', true]] as const) {
+Deno.test('AC-9, AC-25: PAID — wpłata; CHARGEBACK — zwrot; FALSE — ani jedno, ani drugie', async () => {
+  const cases = [['CHARGEBACK', false, true], ['FALSE', false, false], ['PAID', true, false]] as const;
+  for (const [status, isPayment, isRefund] of cases) {
     const { calls, fetch } = mockFetch('ignored_status');
     await handle(await notification({ ...FIELDS, tr_status: status }), { fetch, config: CONFIG, log: () => {} });
-    assert(JSON.parse(String(rpcCall(calls)!.init.body)).p_is_payment === isPayment, status);
+    const args = JSON.parse(String(rpcCall(calls)!.init.body));
+    assert(args.p_is_payment === isPayment && args.p_is_refund === isRefund, status);
+  }
+});
+
+Deno.test('AC-25: powiadomienie o zwrocie przyjęte (refunded, already_refunded) — TRUE', async () => {
+  for (const result of ['refunded', 'already_refunded', 'duplicate:refunded']) {
+    const { fetch } = mockFetch(result);
+    const fields = { ...FIELDS, tr_status: 'CHARGEBACK' };
+    const response = await handle(await notification(fields), { fetch, config: CONFIG, log: () => {} });
+    assert(response.status === 200 && (await response.text()) === 'TRUE', `${result}: ${response.status}`);
   }
 });
 

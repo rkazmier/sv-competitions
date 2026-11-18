@@ -3,9 +3,9 @@
  * POST od Tpay (`application/x-www-form-urlencoded`, nagłówek `X-JWS-Signature`):
  * 1. podpis JWS (RS256, certyfikat Tpay ze stałego adresu dla środowiska z `TPAY_API_URL`) — inaczej 401, nic nie zapisujemy;
  * 2. pola `tr_id` (tytuł transakcji), `tr_crc` (id zamówienia), `tr_amount`, `tr_paid`, `tr_status` — kwoty na grosze bez liczb
- *    zmiennoprzecinkowych; `tr_status` `TRUE` / `PAID` = wpłata (inne, np. `CHARGEBACK`, tylko zapisywane — zwroty #53);
+ *    zmiennoprzecinkowych; `tr_status` `TRUE` / `PAID` = wpłata, `CHARGEBACK` = zwrot (AC-25), inne tylko zapisywane;
  * 3. `rpc/process_tpay_notification` kluczem secret: idempotencja (skrót SHA-256 body), tytuł i kwota zgodne z zamówieniem,
- *    `fulfil_order` (zamówienie → `paid` + uprawnienie) w jednej transakcji bazy.
+ *    `fulfil_order` (zamówienie → `paid` + uprawnienie) albo zwrot (`refund_pending` → `refunded`) w jednej transakcji bazy.
  * Odpowiedź `TRUE` (Tpay przestaje ponawiać) dla przyjętych i powtórzonych; odrzucone (kwota, tytuł, brak zamówienia) → 400.
  * Logi tylko z id zamówienia i wynikiem — bez e-maila i danych płatnika (§9).
  */
@@ -26,7 +26,7 @@ export interface Deps {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ACCEPTED = new Set(['paid', 'already_paid', 'ignored_status']);
+const ACCEPTED = new Set(['paid', 'already_paid', 'refunded', 'already_refunded', 'ignored_status']);
 
 const text = (status: number, body: string) => new Response(body, { status, headers: { 'Content-Type': 'text/plain' } });
 
@@ -89,6 +89,7 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
         p_amount: amount,
         p_paid: paid,
         p_is_payment: ['TRUE', 'PAID'].includes(form.get('tr_status') ?? ''),
+        p_is_refund: form.get('tr_status') === 'CHARGEBACK',
       }),
     });
     if (!response.ok) {
