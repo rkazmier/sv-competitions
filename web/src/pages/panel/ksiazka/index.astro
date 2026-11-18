@@ -2,12 +2,13 @@
 /**
  * Panel: książka rejestru pobytu (SPEC-005 §6) — obsługa i admin.
  * Najpierw prowadzący zmiany (AC-3, AC-4), potem osoba z kontem: skan QR / wyszukanie, uzupełnienie danych,
- * wybór uprawnienia (AC-5…AC-12, lib/range-entry-ui.ts). Podpis i zapis wpisu — zadanie #61.
+ * wybór uprawnienia (AC-5…AC-12, lib/range-entry-ui.ts); osoba bez konta ze sprzedażą na miejscu, podpis,
+ * zapis wpisu i osoba towarzysząca (AC-13…AC-20).
  */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import QrScanDialog from '../../../components/QrScanDialog.astro';
 import { t } from '../../../i18n';
-import { SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
+import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
 
 const completeFields = [
   { name: 'full_name', label: t('profile.fullName'), autocomplete: 'name' },
@@ -39,6 +40,7 @@ const completeFields = [
 
       <section class="card stack" aria-labelledby="find-heading" data-find>
         <h2 id="find-heading">{t('rangeEntry.findHeading')}</h2>
+        <p class="tag" data-companion-note hidden>{t('rangeSign.companionNote')}</p>
         <button type="button" class="button button-primary" data-scan>{t('rangeEntry.scan')}</button>
         <div class="auth-form">
           <label class="field-label" for="e-query">{t('sales.searchLabel')}</label>
@@ -50,7 +52,45 @@ const completeFields = [
         </div>
         <p role="status" data-find-status></p>
         <ul class="card-list" data-results></ul>
+        <button type="button" class="button" data-guest-open>{t('rangeSign.guest')}</button>
       </section>
+
+      <form class="card stack" aria-labelledby="guest-heading" data-guest hidden novalidate>
+        <h2 id="guest-heading" tabindex="-1">{t('rangeSign.guest')}</h2>
+        <p class="hint">{t('rangeEntry.completeHint')}</p>
+        {completeFields.map((field) => (
+          <div class="auth-form">
+            <label class="field-label" for={`g-${field.name}`}>{field.label}{field.name === 'full_name' ? ' *' : ''}</label>
+            <input class="input" id={`g-${field.name}`} name={field.name} autocomplete="off" aria-describedby={`g-${field.name}-error`} />
+            <p class="message-error" id={`g-${field.name}-error`} data-error-for={field.name} hidden></p>
+          </div>
+        ))}
+        <p class="message-error" role="alert" data-guest-error hidden></p>
+        <div class="button-row">
+          <button type="submit" class="button button-primary">{t('rangeEntry.next')}</button>
+          <button type="button" class="button" data-back>{t('rangeEntry.otherPerson')}</button>
+        </div>
+      </form>
+
+      <form class="card stack" aria-labelledby="sale-heading" data-sale hidden novalidate>
+        <h2 id="sale-heading" tabindex="-1">{t('rangeSign.saleHeading')}</h2>
+        <p class="hint">{t('sales.guestHint')}</p>
+        <label class="field-label" for="g-item">{t('sales.itemLabel')}</label>
+        <select class="input" id="g-item" name="item" data-item>
+          <option value="">{t('sales.itemChoose')}</option>
+        </select>
+        <fieldset>
+          <legend>{t('sales.methodHeading')}</legend>
+          {ON_SITE_METHODS.map((method) => (
+            <label class="choice"><input type="radio" name="method" value={method} /> {t(`sales.${method}`)}</label>
+          ))}
+        </fieldset>
+        <p class="message-error" role="alert" data-sale-error hidden></p>
+        <div class="button-row">
+          <button type="submit" class="button button-primary" data-sale-submit>{t('sales.submit')}</button>
+          <button type="button" class="button" data-back>{t('rangeEntry.otherPerson')}</button>
+        </div>
+      </form>
 
       <section class="card stack" aria-labelledby="person-name" data-person hidden>
         <h2 id="person-name" tabindex="-1" data-person-name></h2>
@@ -97,10 +137,40 @@ const completeFields = [
         </div>
       </section>
 
-      <section class="card stack" data-next-step hidden>
-        <p data-next-summary></p>
-        <p>{t('rangeEntry.signComingSoon')}</p>
-        <button type="button" class="button" data-restart>{t('rangeEntry.nextPerson')}</button>
+      <section class="card stack" aria-labelledby="sign-heading" data-sign hidden>
+        <h2 id="sign-heading" tabindex="-1">{t('rangeSign.heading')}</h2>
+        <dl class="entry-data">
+          <dt>{t('rangeSign.dateTime')}</dt><dd data-sign-field="time"></dd>
+          <dt>{t('profile.fullName')}</dt><dd data-sign-field="name"></dd>
+          <dt>{t('rangeSign.permitOrAddress')}</dt><dd data-sign-field="permit"></dd>
+          <dt>{t('rangeSign.officer')}</dt><dd data-sign-field="officer"></dd>
+          <dt data-sign-pass-label>{t('rangeEntry.passesLegend')}</dt><dd data-sign-field="pass"></dd>
+        </dl>
+        <section class="scroll-box" aria-labelledby="notice-heading" tabindex="0" data-guest-notice hidden>
+          <h3 id="notice-heading">{t('rangeSign.noticeHeading')}</h3>
+          <p>{t('rangeSign.noticePlaceholder')}</p>
+        </section>
+        <section class="scroll-box" aria-labelledby="rules-heading" tabindex="0">
+          <h3 id="rules-heading">{t('rangeSign.rulesHeading')}</h3>
+          <p>{t('rangeSign.rulesPlaceholder')}</p>
+        </section>
+        <p id="sign-hint"><strong>{t('rangeSign.confirm')}</strong></p>
+        <canvas class="signature" role="img" aria-label={t('rangeSign.padLabel')} aria-describedby="sign-hint" data-pad></canvas>
+        <p class="message-error" role="alert" data-sign-error hidden></p>
+        <div class="button-row">
+          <button type="button" class="button button-primary" data-save disabled>{t('rangeSign.save')}</button>
+          <button type="button" class="button" data-clear>{t('rangeSign.clear')}</button>
+          <button type="button" class="button" data-other-pass hidden>{t('rangeSign.otherPass')}</button>
+          <button type="button" class="button" data-back>{t('rangeSign.cancel')}</button>
+        </div>
+      </section>
+
+      <section class="card stack" data-done hidden>
+        <p role="status" tabindex="-1" data-done-text></p>
+        <div class="button-row">
+          <button type="button" class="button button-primary" data-add-companion>{t('rangeSign.addCompanion')}</button>
+          <button type="button" class="button" data-back>{t('rangeEntry.nextPerson')}</button>
+        </div>
       </section>
     </div>
     <QrScanDialog />
@@ -204,6 +274,49 @@ const completeFields = [
     width: 1.25rem;
     height: 1.25rem;
     margin-top: 0.125rem;
+  }
+
+  .entry-data {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-1) var(--space-3);
+    margin: 0;
+  }
+
+  .entry-data dt {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .entry-data dd {
+    margin: 0;
+  }
+
+  .scroll-box {
+    max-height: 12rem;
+    overflow-y: auto;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+  }
+
+  .scroll-box h3 {
+    margin-top: 0;
+    font-size: var(--text-base);
+  }
+
+  .signature {
+    display: block;
+    width: 100%;
+    height: 220px;
+    border: 2px solid var(--color-text);
+    background: #fff;
+    touch-action: none;
+  }
+
+  /* §6: tryb „podaj urządzenie” — osoba wpisywana nie widzi nawigacji panelu. */
+  :global(body.handover .site-header),
+  :global(body.handover .site-footer),
+  :global(body.handover .shift-bar) {
+    display: none;
   }
 
   [role='status']:empty {
