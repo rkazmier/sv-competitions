@@ -108,10 +108,12 @@
   (`<details>`), „Historia płatności” (tabela od najnowszych), „Przedłuż karnet” → `/oferta/`. Zapytania z kluczem publishable
   i JWT — RLS zwraca tylko własne `orders`, `user_passes`, `pass_usages`. Logika bez DOM: `src/lib/offer.ts`, wyspy `src/lib/offer-ui.ts`.
 - Sprzedaż na miejscu (SPEC-003 AC-21…AC-23, obsługa i admin): `/panel/sprzedaz/` (`PanelLayout access="staff"`, `requireStaff`;
-  pozycja „Sprzedaż” w menu obsługi i admina). Osoba — `rpc/staff_search_people` (skan kodu QR dojdzie z SPEC-005) albo
+  pozycja „Sprzedaż” w menu obsługi i admina). Osoba — skan kodu QR (`rpc/staff_find_by_qr`, SPEC-005 AC-5), `rpc/staff_search_people` albo
   „Osoba bez konta”; lista pozycji (aktywne produkty i wejściówki na trwające płatne wydarzenia, dla osoby bez konta zawężona
   do dziś), „Gotówka” / „Terminal”, zapis `rpc/create_on_site_order`. Poniżej `rpc/staff_on_site_sales_today` z sumami
   gotówki i terminala (tylko `paid`). Logika bez DOM: `src/lib/on-site-sales.ts`, wyspa `src/lib/on-site-sales-ui.ts`.
+  Z książki (`?osoba=<id>&powrot=ksiazka`, SPEC-005 AC-12): osoba wybrana od razu (`rpc/staff_person_by_id`), po sprzedaży
+  tej osobie powrót do `/panel/ksiazka/?osoba=<id>`.
 - Zamówienia (SPEC-003 AC-24…AC-27, tylko admin): `/panel/zamowienia/` (`requireAdmin`, pozycja „Zamówienia” w menu admina).
   Filtry (zakres dat — domyślnie bieżący miesiąc, status, metoda, produkt lub wejściówka, osoba) → `rpc/admin_list_orders`,
   suma kwot widoku, „Eksportuj CSV” (generowany w przeglądarce: BOM, `;`, kwota `120,00`, formuły arkusza neutralizowane).
@@ -127,6 +129,14 @@
   „Kto prowadzi strzelanie?” z aktywnymi prowadzącymi; wybór w localStorage `sv-range-shift` = `{ id, day }` (bez nazwiska),
   ważny do końca dnia Europe/Warsaw; prowadzący ukryty w trakcie zmiany → ponowny wybór. Logika `src/lib/range-shift.ts`
   (`currentShiftOfficerId()` — źródło prowadzącego dla wpisów), wyspa `src/lib/range-log-ui.ts`.
+- Książka — wpis osoby z kontem (SPEC-005 AC-5…AC-12): w `/panel/ksiazka/` po wyborze prowadzącego „Skanuj kod QR”
+  (`src/lib/qr-scanner.ts` + `src/components/QrScanDialog.astro`: `getUserMedia` z tylną kamerą, `BarcodeDetector`,
+  a gdy brak formatu `qr_code` — `jsqr` ładowany dynamicznie; ten sam skaner w `/panel/sprzedaz/`), wyszukiwarka
+  (`rpc/staff_search_people`) albo `?osoba=<id>` (karta użytkownika „Rozpocznij wpis do książki”, powrót ze sprzedaży).
+  Karta osoby: ostrzeżenie o dzisiejszym wpisie z „Kontynuuj” (AC-9), braki i „Uzupełnij dane” tylko z brakującymi polami
+  (`rpc/staff_complete_profile`, AC-7), uprawnienia `rpc/passes_for_range_entry` jako lista wyboru z opisem skutku (AC-10, AC-11),
+  bez uprawnienia — „Sprzedaj na miejscu” i „Wpisz jako osobę towarzyszącą” (AC-12). „Dalej” aktywny tylko przy komplecie
+  danych i wybranym uprawnieniu; krok podpisu i zapis wpisu — #61. Logika `src/lib/range-entry.ts`, wyspa `src/lib/range-entry-ui.ts`.
 - `src/components/CompetitionForm.astro` + `src/lib/competition*.ts` — formularz zawodów (`/panel/zawody/nowe/`, `/panel/zawody/edytuj/?id=`),
   matchbook i harmonogram; matchbook i harmonogram dostępne po pierwszym zapisie (potrzebują `id` zawodów).
 - Teksty z bazy trafiają do DOM tylko przez `textContent` (bez `innerHTML`).
@@ -206,6 +216,11 @@
     `pass_valid_on(pass, date)` — reguły ważności jednego uprawnienia (używa jej też `passes_valid_on`).
   - `staff_find_by_qr(token)`, `staff_search_people(query)` (od 3 znaków, maks. 10, e-mail częściowo) — obsługa; minimum danych:
     imię i nazwisko, `is_range_ready`, `missing_fields` (`full_name`, `permit_or_address`), godzina dzisiejszego wpisu.
+    `staff_person_by_id(id)` — to samo podsumowanie po identyfikatorze (AC-8, powrót ze sprzedaży).
+  - `staff_complete_profile(id, full_name?, permit_number?, permit_authority?, address?)` — obsługa (bez `update` na `profiles`)
+    uzupełnia tylko brakujące pola (imię i nazwisko; decyzja z organem lub adres, gdy brak obu), nie nadpisuje istniejących;
+    `permit_pair` przy niepełnej parze, długości — `check` w `profiles`; wpis `profile_update` w `audit_log` robi wyzwalacz
+    `audit_profile_changes` (aktor = obsługa). Zwraca nowe podsumowanie osoby.
   - `my_range_entries()` — własne wpisy bez podpisu i kolumn technicznych, z nazwą wykorzystanego uprawnienia.
 - Retencja (ADR-0006, SPEC-005 AC-30, AC-31, SPEC-002 §9): okresy jako funkcje `range_log_retention()` i `audit_log_retention()`
   (`1 year`), `orphan_signature_grace()` (`24 hours`) — zmiana przez PR i migrację. Tylko `service_role`:

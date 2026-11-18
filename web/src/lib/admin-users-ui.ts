@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { ACCOUNT_COLUMNS, fillProfileForm, readProfileForm } from './account-ui';
+import { entryUrlFor } from './range-entry';
 import {
   DELETE_USER_FUNCTION,
   HISTORY_LIMIT,
@@ -153,6 +154,8 @@ export async function mountUserCard(root: HTMLElement): Promise<void> {
     ready.hidden = !data.is_range_ready;
   };
   showHeader(profile);
+  // SPEC-005 AC-8: ten sam przebieg wpisu co po skanie, od razu ta osoba.
+  el<HTMLAnchorElement>(root, '[data-start-entry]').href = entryUrlFor(userId);
 
   // Dane (AC-20): te same pola i walidacja co /konto/dane/; wpis w audit_log robi wyzwalacz w bazie.
   const form = el<HTMLFormElement>(root, 'form[data-profile]');

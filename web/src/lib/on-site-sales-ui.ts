@@ -20,6 +20,8 @@ import {
 } from './on-site-sales';
 import { PRODUCT_COLUMNS, formatPrice, type Product } from './products';
 import { requireStaff } from './panel';
+import { scanQrCode } from './qr-scanner';
+import { entryReturnUrl, personIdFromSearch, qrTokenFromScan, type PersonSummary } from './range-entry';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
@@ -182,6 +184,27 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
       void search();
     }
   });
+  // SPEC-005 AC-5: skan kodu QR konta zamiast wyszukiwania.
+  async function selectBy(fn: 'staff_find_by_qr' | 'staff_person_by_id', args: Record<string, string>): Promise<void> {
+    const { data, error } = await supabase.rpc(fn, args);
+    const found = ((data ?? []) as PersonSummary[])[0];
+    if (!found) {
+      searchStatus.textContent = error ? t('rangeEntry.qrError') : t('rangeEntry.qrNotFound');
+      return;
+    }
+    person = { id: found.id, full_name: found.full_name, email_hint: null };
+    setError('person', null);
+    renderPerson();
+  }
+  query<HTMLButtonElement>(form, '[data-scan]').addEventListener('click', async () => {
+    searchStatus.textContent = '';
+    const text = await scanQrCode(query<HTMLDialogElement>(document, '[data-scan-dialog]'));
+    if (text === null) return;
+    const token = qrTokenFromScan(text);
+    if (token) await selectBy('staff_find_by_qr', { p_token: token });
+    else searchStatus.textContent = t('rangeEntry.qrNotFound');
+  });
+
   query<HTMLButtonElement>(form, '[data-change]').addEventListener('click', () => {
     person = null;
     renderPerson();
@@ -216,12 +239,20 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
       return;
     }
     status.textContent = t('sales.saved', { name: item?.name ?? '', amount: formatPrice(item?.price ?? 0) });
+    // SPEC-005 AC-12: sprzedaż z książki → powrót do wpisu tej osoby z nowym uprawnieniem.
+    if (returnUrl && !guest && person?.id === presetId) return window.location.assign(returnUrl);
     person = null;
     form.reset();
     renderPerson();
     await loadToday();
   });
 
+  const returnUrl = entryReturnUrl(window.location.search);
+  if (returnUrl) {
+    query<HTMLElement>(root, '[data-back-to-entry]').hidden = false;
+    query<HTMLAnchorElement>(root, '[data-back-link]').href = returnUrl;
+  }
   renderPerson();
-  await Promise.all([loadItems(), loadToday()]);
+  const presetId = personIdFromSearch(window.location.search);
+  await Promise.all([loadItems(), loadToday(), presetId ? selectBy('staff_person_by_id', { p_id: presetId }) : null]);
 }

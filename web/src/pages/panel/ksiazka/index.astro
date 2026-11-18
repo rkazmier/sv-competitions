@@ -1,10 +1,20 @@
 ---
 /**
  * Panel: książka rejestru pobytu (SPEC-005 §6) — obsługa i admin.
- * Najpierw prowadzący zmiany (AC-3, AC-4); przebieg wpisu i lista dzisiejszych wpisów — zadania #60, #61.
+ * Najpierw prowadzący zmiany (AC-3, AC-4), potem osoba z kontem: skan QR / wyszukanie, uzupełnienie danych,
+ * wybór uprawnienia (AC-5…AC-12, lib/range-entry-ui.ts). Podpis i zapis wpisu — zadanie #61.
  */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
+import QrScanDialog from '../../../components/QrScanDialog.astro';
 import { t } from '../../../i18n';
+import { SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
+
+const completeFields = [
+  { name: 'full_name', label: t('profile.fullName'), autocomplete: 'name' },
+  { name: 'permit_number', label: t('profile.permitNumber'), autocomplete: 'off' },
+  { name: 'permit_authority', label: t('profile.permitAuthority'), autocomplete: 'off' },
+  { name: 'address', label: t('profile.address'), autocomplete: 'street-address' },
+];
 ---
 <PanelLayout title={t('rangeLog.title')} access="staff">
   <div class="range-log" data-range-log>
@@ -26,8 +36,74 @@ import { t } from '../../../i18n';
           {t('rangeLog.change')}<span class="visually-hidden"> {t('rangeLog.changeSr')}</span>
         </button>
       </div>
-      <p>{t('rangeLog.entriesComingSoon')}</p>
+
+      <section class="card stack" aria-labelledby="find-heading" data-find>
+        <h2 id="find-heading">{t('rangeEntry.findHeading')}</h2>
+        <button type="button" class="button button-primary" data-scan>{t('rangeEntry.scan')}</button>
+        <div class="auth-form">
+          <label class="field-label" for="e-query">{t('sales.searchLabel')}</label>
+          <div class="search-row">
+            <input class="input" id="e-query" type="search" autocomplete="off" aria-describedby="e-query-hint" data-query />
+            <button type="button" class="button" data-search>{t('sales.search')}</button>
+          </div>
+          <p class="hint" id="e-query-hint">{t('sales.searchHint', { min: SEARCH_MIN_LENGTH })}</p>
+        </div>
+        <p role="status" data-find-status></p>
+        <ul class="card-list" data-results></ul>
+      </section>
+
+      <section class="card stack" aria-labelledby="person-name" data-person hidden>
+        <h2 id="person-name" tabindex="-1" data-person-name></h2>
+        <div class="stack" role="alert" data-today-warning hidden>
+          <p class="message-error" data-today-text></p>
+          <button type="button" class="button" data-today-continue>{t('rangeEntry.continue')}</button>
+        </div>
+        <div class="stack" data-person-body>
+          <p class="tag" data-ready hidden>{t('account.ready')}</p>
+          <div class="stack" data-missing hidden>
+            <p>{t('rangeEntry.missingTitle')}</p>
+            <ul data-missing-list></ul>
+            <button type="button" class="button" data-complete-open>{t('rangeEntry.complete')}</button>
+          </div>
+          <form class="stack" data-complete-form hidden novalidate>
+            <p class="hint" data-complete-hint>{t('rangeEntry.completeHint')}</p>
+            {completeFields.map((field) => (
+              <div class="auth-form" data-field={field.name}>
+                <label class="field-label" for={`c-${field.name}`}>{field.label}</label>
+                <input class="input" id={`c-${field.name}`} name={field.name} autocomplete={field.autocomplete} aria-describedby={`c-${field.name}-error`} />
+                <p class="message-error" id={`c-${field.name}-error`} data-error-for={field.name} hidden></p>
+              </div>
+            ))}
+            <p class="message-error" role="alert" data-complete-error hidden></p>
+            <button type="submit" class="button button-primary" data-complete-submit>{t('rangeEntry.completeSave')}</button>
+          </form>
+          <p role="status" data-complete-status></p>
+          <fieldset data-passes hidden>
+            <legend>{t('rangeEntry.passesLegend')}</legend>
+            <div class="stack" data-pass-list></div>
+          </fieldset>
+          <p class="message-error" role="alert" data-passes-error hidden>{t('rangeEntry.passesError')}</p>
+          <div class="stack" data-no-pass hidden>
+            <p>{t('rangeEntry.noPass')}</p>
+            <div class="button-row">
+              <a class="button" data-sell>{t('rangeEntry.sell')}</a>
+              <button type="button" class="button" data-companion>{t('rangeEntry.companion')}</button>
+            </div>
+          </div>
+        </div>
+        <div class="button-row">
+          <button type="button" class="button button-primary" data-next disabled>{t('rangeEntry.next')}</button>
+          <button type="button" class="button" data-other>{t('rangeEntry.otherPerson')}</button>
+        </div>
+      </section>
+
+      <section class="card stack" data-next-step hidden>
+        <p data-next-summary></p>
+        <p>{t('rangeEntry.signComingSoon')}</p>
+        <button type="button" class="button" data-restart>{t('rangeEntry.nextPerson')}</button>
+      </section>
     </div>
+    <QrScanDialog />
 
     <template data-officer-template>
       <li><button type="button" class="button officer" data-officer></button></li>
@@ -37,9 +113,13 @@ import { t } from '../../../i18n';
 
 <script>
   import { mountRangeLog } from '../../../lib/range-log-ui';
+  import { mountRangeEntry } from '../../../lib/range-entry-ui';
 
   const root = document.querySelector<HTMLElement>('[data-range-log]');
-  if (root) void mountRangeLog(root);
+  if (root) {
+    void mountRangeLog(root);
+    void mountRangeEntry(root);
+  }
 </script>
 
 <style>
@@ -71,5 +151,62 @@ import { t } from '../../../i18n';
 
   .shift-officer {
     margin: 0;
+  }
+
+  .stack {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .stack > *,
+  h2 {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: var(--text-h3);
+  }
+
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  legend {
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .search-row {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .search-row .input {
+    flex: 1;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .stack :global(.choice) {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    min-height: 44px;
+  }
+
+  .stack :global(.choice input) {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.125rem;
+  }
+
+  [role='status']:empty {
+    display: none;
   }
 </style>
