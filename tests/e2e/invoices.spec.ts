@@ -241,7 +241,7 @@ test.describe('sprzedaż na miejscu', () => {
     await expect(page.getByText('Zapisana Firma S.A.')).toBeVisible();
     await page.getByRole('button', { name: 'Użyj zapisanych danych' }).click();
     await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
-    await expect(page.getByText(`Sprzedaż zarejestrowana: ${item.name}, 120,00 zł.`)).toBeVisible();
+    await expect(page.getByText(/^Sprzedaż zarejestrowana: SV-\d{4}-\d{6,}\.$/)).toBeVisible();
 
     const { data } = await admin()
       .from('orders')
@@ -265,7 +265,7 @@ test.describe('sprzedaż na miejscu', () => {
     await page.getByRole('button', { name: 'Pobierz dane firmy' }).click();
     await page.getByRole('button', { name: 'Dane są poprawne' }).click();
     await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
-    await expect(page.getByText(`Sprzedaż zarejestrowana: ${item.name}, 40,00 zł.`)).toBeVisible();
+    await expect(page.getByText(/^Sprzedaż zarejestrowana: SV-\d{4}-\d{6,}\.$/)).toBeVisible();
 
     const { data } = await admin().from('orders').select('user_id, invoice_nip, invoice_company_name').eq('item_name', item.name).single();
     expect(data).toEqual({ user_id: null, invoice_nip: NIP, invoice_company_name: FIRM.name });

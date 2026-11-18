@@ -12,6 +12,8 @@ export type InvoiceTab = 'todo' | 'issued';
 /** Wiersz `admin_list_invoices`. */
 export interface AdminInvoice {
   id: string;
+  /** SPEC-006 AC-7: numer zamówienia, np. `SV-2026-000123`. */
+  order_number: string;
   paid_at: string;
   item_name: string;
   amount: number;
@@ -52,7 +54,7 @@ export const FIELD_KEYS: readonly MessageKey[] = [
   'invoices.fieldAmount', 'invoices.fieldSaleDate', 'invoices.fieldPayment', 'invoices.fieldOrder',
 ];
 
-/** AC-11: wartości do skopiowania, w kolejności `FIELD_KEYS`. */
+/** AC-11: wartości do skopiowania, w kolejności `FIELD_KEYS` (numer zamówienia — `order_number`, SPEC-006 AC-7, AC-8). */
 export function invoiceValues(invoice: AdminInvoice, text: (key: MessageKey) => string): string[] {
   return [
     invoice.invoice_nip,
@@ -62,7 +64,7 @@ export function invoiceValues(invoice: AdminInvoice, text: (key: MessageKey) => 
     priceInputValue(invoice.amount),
     saleDate(invoice.paid_at),
     text(paymentKey(invoice)),
-    invoice.id,
+    invoice.order_number,
   ];
 }
 

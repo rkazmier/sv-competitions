@@ -7,6 +7,7 @@ import {
   filterArgs,
   invoiceAction,
   ordersCsv,
+  numberSearchKey,
   ordersTotal,
   personLabel,
   refundAction,
@@ -18,6 +19,7 @@ const ID = '00000000-0000-0000-0000-0000000000f1';
 
 const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   id: '00000000-0000-0000-0000-0000000000d1',
+  order_number: 'SV-2026-000123',
   created_at: '2026-11-18T08:05:00Z',
   item_name: 'Karnet 10 wejść',
   amount: 120000,
@@ -74,8 +76,24 @@ describe('AC-24: filtry zamówień', () => {
   });
 });
 
+describe('SPEC-006 AC-10, AC-11: filtr „Osoba lub nr zamówienia”', () => {
+  it('AC-10: numer zamówienia — komunikat o pominiętych filtrach albo o braku numeru', () => {
+    expect(t('orders.person')).toBe('Osoba lub nr zamówienia');
+    expect(numberSearchKey(' sv-2026-123 ', 1)).toBe('orders.numberResult');
+    expect(t('orders.numberResult')).toBe('Wynik wyszukiwania po numerze zamówienia — pozostałe filtry pominięte.');
+    expect(numberSearchKey('SV-2026-000999', 0)).toBe('orders.numberNotFound');
+    expect(t('orders.numberNotFound')).toBe('Brak zamówienia o tym numerze.');
+  });
+
+  it('AC-11: tekst bez formy numeru — wyszukiwanie po osobie bez komunikatu, wartość trafia do p_person', () => {
+    expect(numberSearchKey('Jan Kowalski', 0)).toBeNull();
+    expect(numberSearchKey('123', 3)).toBeNull();
+    expect(filterArgs({ ...defaultFilters('2026-11-18'), person: ' Jan ' }).p_person).toBe('Jan');
+  });
+});
+
 describe('AC-24: eksport CSV', () => {
-  it('BOM, średnik, nagłówki z i18n, kwota z przecinkiem, metoda i status po polsku', () => {
+  it('BOM, średnik, nagłówki z i18n, kwota z przecinkiem, metoda i status po polsku; SPEC-006 AC-9: numer zamówienia w 1. kolumnie', () => {
     const csv = ordersCsv(
       [order(), order({ payment_method: 'on_site', on_site_method: 'cash', status: 'refunded', user_id: null, person_name: null,
         person_email: null, seller_name: 'Anna', refund_note: 'Zwrot gotówki / na terminal' })],
@@ -83,8 +101,8 @@ describe('AC-24: eksport CSV', () => {
     );
     const lines = csv.replace('﻿', '').trimEnd().split('\r\n');
     expect(csv.startsWith('﻿')).toBe(true);
-    expect(lines[0]).toBe('"Data";"Produkt";"Kwota";"Metoda";"Status";"Osoba";"Sprzedał(a)";"Uwagi"');
-    expect(lines[1]).toBe('"18.11.2026, 09:05";"Karnet 10 wejść";"1200,00";"Online";"Opłacone";"Jan Kowalski";"";""');
+    expect(lines[0]).toBe('"Numer zamówienia";"Data";"Produkt";"Kwota";"Metoda";"Status";"Osoba";"Sprzedał(a)";"Uwagi"');
+    expect(lines[1]).toBe('"SV-2026-000123";"18.11.2026, 09:05";"Karnet 10 wejść";"1200,00";"Online";"Opłacone";"Jan Kowalski";"";""');
     expect(lines[2]).toContain('"Na miejscu / gotówka";"Zwrócone";"Bez konta";"Anna";"Zwrot gotówki / na terminal"');
   });
 

@@ -11,6 +11,7 @@ const NIP = '5260250274';
 
 interface Seeded {
   orderId: string;
+  orderNumber: string;
   userId: string;
   person: string;
   company: string;
@@ -33,7 +34,7 @@ async function seedOrder(withInvoice: boolean): Promise<Seeded> {
   const { data: order, error } = await db.from('orders').insert({
     user_id: userId, product_id: product!.id, item_name: product!.name, amount: 12000,
     payment_method: 'on_site', on_site_method: 'cash',
-  }).select('id').single();
+  }).select('id, order_number').single();
   expect(error).toBeNull();
   expect((await db.rpc('fulfil_order', { p_order_id: order!.id })).error).toBeNull();
   if (withInvoice) {
@@ -43,7 +44,7 @@ async function seedOrder(withInvoice: boolean): Promise<Seeded> {
     });
     expect(invoiceError).toBeNull();
   }
-  return { orderId: order!.id, userId, person, company };
+  return { orderId: order!.id, orderNumber: order!.order_number, userId, person, company };
 }
 
 const itemOf = (page: Page, company: string) => page.getByRole('listitem').filter({ hasText: company });
@@ -54,7 +55,7 @@ test.describe('admin', () => {
     await signIn(page, 'admin');
   });
 
-  test('AC-10, AC-11, AC-12, AC-13, AC-15: lista, kopiowanie, eksport, oznaczenie i cofnięcie', async ({ page }) => {
+  test('AC-10, AC-11, AC-12, AC-13, AC-15, SPEC-006 AC-7, AC-8: lista, kopiowanie, eksport, oznaczenie i cofnięcie', async ({ page }) => {
     const seeded = await seedOrder(true);
     await page.goto('/panel/faktury/');
 
@@ -63,12 +64,16 @@ test.describe('admin', () => {
     await expect(item).toContainText(NIP);
     await expect(item).toContainText('120,00');
     await expect(item).toContainText('Dane niezweryfikowane');
+    // SPEC-006 AC-7: numer zamówienia w nagłówku pozycji, obok daty zapłaty.
+    await expect(item.locator('summary')).toContainText(seeded.orderNumber);
     await expect(page.getByRole('link', { name: /Faktury/ })).toContainText(/\(\d+\)/);
 
     // AC-11: rozwinięcie, dane do skopiowania, „Kopiuj” → schowek i „Skopiowano”.
     await item.locator('summary').click();
     await expect(item).toContainText('gotówka');
-    await expect(item).toContainText(seeded.orderId);
+    await expect(item).not.toContainText(seeded.orderId);
+    await item.getByRole('button', { name: 'Kopiuj: Numer zamówienia' }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(seeded.orderNumber);
     await item.getByRole('button', { name: 'Kopiuj: NIP' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Skopiowano' })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(NIP);
@@ -82,6 +87,7 @@ test.describe('admin', () => {
     expect(csv.startsWith('﻿"NIP";"Nazwa nabywcy";"Adres"')).toBe(true);
     expect(csv).toContain('"Numer faktury";"Numer KSeF"');
     expect(csv).toContain(`"${NIP}";"${seeded.company}"`);
+    expect(csv).toContain(`"${seeded.orderNumber}";""`);
 
     // AC-12: walidacja i oznaczenie jako wystawionej.
     await item.getByLabel('Numer KSeF').fill('zly-numer');
@@ -133,7 +139,7 @@ test.describe('admin', () => {
     await page.route('**/functions/v1/company-lookup', (route) =>
       route.fulfill({ json: { found: true, name: seeded.company, address: 'ul. Rejestrowa 5, 00-001 Warszawa', source: 'vat_whitelist' } }));
     await page.goto('/panel/zamowienia/');
-    await page.getByLabel('Osoba (imię i nazwisko lub e-mail)').fill(seeded.person);
+    await page.getByLabel('Osoba lub nr zamówienia').fill(seeded.person);
     await page.getByRole('button', { name: 'Pokaż' }).click();
     // „Pokaż” przeładowuje listę asynchronicznie — do tego czasu widać zamówienia z innych testów, więc szukamy w wierszu tej osoby.
     await page.getByRole('row').filter({ hasText: seeded.person })

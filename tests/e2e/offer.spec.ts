@@ -130,12 +130,14 @@ test.describe('zalogowany', () => {
     await expect(page.getByText('Ten produkt nie jest już dostępny.')).toBeVisible();
   });
 
-  test('AC-10: powrót z Tpay — czekamy, a po potwierdzeniu „Płatność przyjęta…”', async ({ page }) => {
+  test('AC-10, SPEC-006 AC-13: powrót z Tpay — numer zamówienia, czekamy, a po potwierdzeniu „Płatność przyjęta…”', async ({ page }) => {
     const item = await product('entries', 12000);
     const userId = await newAccount(page);
     const orderId = await order(userId, item, 12000, false);
+    const { data: created } = await admin().from('orders').select('order_number').eq('id', orderId).single();
     await page.goto(`/konto/platnosc/?order=${orderId}`);
     await expect(page.getByText('Czekamy na potwierdzenie płatności…')).toBeVisible();
+    await expect(page.getByText(`Zamówienie ${created!.order_number}`, { exact: true })).toBeVisible();
     await fulfil(orderId);
     await expect(page.getByText('Płatność przyjęta. Karnet jest aktywny w Twoim koncie.')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('link', { name: 'Moje konto' }).last()).toHaveAttribute('href', '/konto/');
@@ -152,7 +154,7 @@ test.describe('zalogowany', () => {
     await expect(page.getByText('Potwierdzenie może potrwać kilka minut. Sprawdź „Moje konto”.')).toBeVisible();
   });
 
-  test('AC-12, AC-13, AC-15: „Twoje karnety”, „Historia karnetów”, „Historia płatności”', async ({ page }) => {
+  test('AC-12, AC-13, AC-15, SPEC-006 AC-12: „Twoje karnety”, „Historia karnetów”, „Historia płatności”', async ({ page }) => {
     const entries = await product('entries', 12000);
     const days = await product('days', 25000);
     const cancelledItem = await product('single_entry', 4000);
@@ -189,6 +191,10 @@ test.describe('zalogowany', () => {
     await expect(rows.nth(1)).toContainText('Online');
     await expect(rows.nth(1)).toContainText('Oczekuje');
     await expect(rows.filter({ hasText: entries.name })).toContainText('Opłacone');
+    // SPEC-006 AC-12: „Nr: SV-2026-000123” przy każdym zamówieniu.
+    const { data: numbered } = await db.from('orders').select('order_number').eq('id', entriesOrder).single();
+    await expect(rows.filter({ hasText: entries.name })).toContainText(`Nr: ${numbered!.order_number}`);
+    await expect(rows.filter({ hasText: /Nr: SV-\d{4}-\d{6,}/ })).toHaveCount(4);
   });
 
   test('AC-14: „Przedłuż karnet” → /oferta/', async ({ page }) => {

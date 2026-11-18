@@ -164,6 +164,7 @@ describe('/konto/ — historia płatności', () => {
   it('AC-13: od najnowszych; metoda i status po polsku', () => {
     const order = (id: string, created_at: string): UserOrder => ({
       id,
+      order_number: 'SV-2026-000001',
       item_name: 'Karnet',
       amount: 12000,
       payment_method: 'tpay',

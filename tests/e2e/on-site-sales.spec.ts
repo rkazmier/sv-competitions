@@ -44,7 +44,7 @@ test.beforeEach(async ({ page }) => {
   await signIn(page, 'staff');
 });
 
-test('AC-21, AC-23: obsługa sprzedaje karnet osobie z kontem; pozycja i suma w dzisiejszej sprzedaży', async ({ page }) => {
+test('AC-21, AC-23, SPEC-006 AC-15: obsługa sprzedaje karnet osobie z kontem; pozycja i suma w dzisiejszej sprzedaży', async ({ page }) => {
   const product = await seedProduct({ kind: 'entries', name: 'Karnet E2E', price: 12345, entries: 5 });
   const person = await seedPerson();
 
@@ -60,9 +60,12 @@ test('AC-21, AC-23: obsługa sprzedaje karnet osobie z kontem; pozycja i suma w 
   await page.getByLabel('Produkt lub wejściówka *').selectOption({ label: `${product} — 123,45 zł` });
   await page.getByLabel('Gotówka').check();
   await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
-  await expect(page.getByText(`Sprzedaż zarejestrowana: ${product}, 123,45 zł.`)).toBeVisible();
+  const { data: sold } = await admin().from('orders').select('order_number').eq('user_id', person.id).single();
+  await expect(page.getByText(`Sprzedaż zarejestrowana: ${sold!.order_number}.`)).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Nr zamówienia' })).toBeVisible();
 
   const row = page.getByRole('row').filter({ hasText: product });
+  await expect(row).toContainText(sold!.order_number);
   await expect(row).toContainText('Gotówka');
   await expect(row).toContainText('Obsługa E2E');
   await expect(page.getByText(/^Suma gotówka: /)).toBeVisible();
@@ -101,7 +104,7 @@ test('AC-22: osoba bez konta — tylko wejście na dziś, zamówienie bez danych
   await page.getByLabel('Produkt lub wejściówka *').selectOption({ label: `${fits} — 40,00 zł` });
   await page.getByLabel('Terminal').check();
   await page.getByRole('button', { name: 'Zarejestruj sprzedaż' }).click();
-  await expect(page.getByText(`Sprzedaż zarejestrowana: ${fits}, 40,00 zł.`)).toBeVisible();
+  await expect(page.getByText(/^Sprzedaż zarejestrowana: SV-\d{4}-\d{6,}\.$/)).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: fits })).toContainText('Terminal');
 
   const { data } = await admin().from('orders').select('user_id, user_passes(user_id)').eq('item_name', fits).single();

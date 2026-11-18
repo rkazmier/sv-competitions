@@ -1,7 +1,7 @@
 ---
 /**
  * Panel: zamówienia (SPEC-003 US-6, AC-24…AC-27). Tylko admin.
- * Filtry (zakres dat, status, metoda, produkt lub wejściówka, osoba), suma, eksport CSV bieżącego widoku,
+ * Filtry (zakres dat, status, metoda, produkt lub wejściówka, osoba lub nr zamówienia — SPEC-006 AC-10), suma, eksport CSV bieżącego widoku,
  * „Anuluj i zwróć” dla opłaconych zamówień bez zużycia uprawnienia, „Dodaj dane do faktury” (SPEC-004 AC-14).
  * Dane obsługuje lib/orders-admin-ui.ts.
  */
@@ -63,11 +63,13 @@ import { ORDER_STATUSES, PAYMENT_METHODS } from '../../../lib/orders-admin';
 
     <section class="card" aria-live="polite">
       <p class="total" data-summary></p>
+      <p class="hint" data-number-notice hidden></p>
       <p class="hint" data-empty hidden>{t('orders.empty')}</p>
       <div class="table-scroll" data-table hidden>
         <table class="orders-table">
           <thead>
             <tr>
+              <th scope="col">{t('orders.colNumber')}</th>
               <th scope="col">{t('orders.colDate')}</th>
               <th scope="col">{t('orders.colItem')}</th>
               <th scope="col">{t('orders.colAmount')}</th>

@@ -5,6 +5,7 @@
  */
 import type { MessageKey } from '../i18n';
 import { ORDER_STATUS_TEXT, PAYMENT_METHOD_TEXT, type OrderStatus } from './offer';
+import { normalizeOrderNumber } from './order-number';
 import { priceInputValue } from './products';
 
 export type PaymentMethod = 'tpay' | 'on_site';
@@ -12,6 +13,8 @@ export type PaymentMethod = 'tpay' | 'on_site';
 /** Wiersz `admin_list_orders`. */
 export interface AdminOrder {
   id: string;
+  /** SPEC-006: numer zamówienia, np. `SV-2026-000123`. */
+  order_number: string;
   created_at: string;
   item_name: string;
   amount: number;
@@ -60,6 +63,15 @@ export function filterArgs(filters: OrderFilters): Record<string, string | null>
     p_event_id: item?.[1] === 'event' ? item[2] : null,
     p_person: filters.person.trim() || null,
   };
+}
+
+/**
+ * SPEC-006 AC-10, AC-11: pole „Osoba lub nr zamówienia” w formie numeru — baza pomija pozostałe filtry;
+ * komunikat o wyniku. Tekst bez formy numeru (wyszukiwanie po osobie) — bez komunikatu.
+ */
+export function numberSearchKey(person: string, count: number): MessageKey | null {
+  if (!normalizeOrderNumber(person)) return null;
+  return count > 0 ? 'orders.numberResult' : 'orders.numberNotFound';
 }
 
 /** AC-24: suma kwot bieżącego widoku (grosze). */
@@ -116,15 +128,16 @@ export function csvCell(value: string): string {
 }
 
 /**
- * AC-24: CSV bieżącego widoku — średnik jako separator i BOM (polski Excel), kwota „120,00”.
+ * AC-24, SPEC-006 AC-9: CSV bieżącego widoku (pierwsza kolumna — numer zamówienia) — średnik jako separator i BOM (polski Excel), kwota „120,00”.
  * `text` tłumaczy klucze komunikatów (nagłówki, status, metoda).
  */
 export function ordersCsv(orders: readonly AdminOrder[], text: (key: MessageKey) => string): string {
   const header: MessageKey[] = [
-    'orders.colDate', 'orders.colItem', 'orders.colAmount', 'orders.colMethod', 'orders.colStatus',
+    'orders.csvNumber', 'orders.colDate', 'orders.colItem', 'orders.colAmount', 'orders.colMethod', 'orders.colStatus',
     'orders.colPerson', 'orders.colSeller', 'orders.colNote',
   ];
   const rows = orders.map((order) => [
+    order.order_number,
     orderDateTime(order.created_at),
     order.item_name,
     priceInputValue(order.amount),

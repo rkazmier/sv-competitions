@@ -262,7 +262,7 @@
 - Numer zamówienia (SPEC-006 §5): `orders.order_number` (`SV-RRRR-NNNNNN`, `unique`, `not null`) z sekwencji
   `order_number_seq` (ciągła, rok utworzenia w Europe/Warsaw); nadaje wyzwalacz `orders_before_insert_number`, zmianę blokuje
   `orders_before_update_number` (`order_number_immutable`, także `service_role`); `normalize_order_number(text)` — forma
-  numeru z pola wyszukiwania (wielkość liter, spacje, zera wiodące) albo `null`. `orders.id` (UUID) zostaje kluczem, w adresach i w `tr_crc` Tpay;
+  numeru z pola wyszukiwania (wielkość liter, spacje, zera wiodące) albo `null` (ta sama logika w `web/src/lib/order-number.ts` — komunikat w UI). `orders.id` (UUID) zostaje kluczem, w adresach i w `tr_crc` Tpay;
   `order_number` — w UI, CSV, wyszukiwaniu `admin_list_orders` i `description` transakcji Tpay.
 - Książka rejestru pobytu (SPEC-005 §5): `range_officers` (obsługa czyta, admin zapisuje, bez `delete`), `range_log`,
   `range_log_annotations`, `pass_usages`. Wpisy i adnotacje bez `update`/`delete` dla wszystkich ról (także `service_role`);
