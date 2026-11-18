@@ -182,7 +182,7 @@ Skan kodu QR — ten sam komponent co w SPEC-005 (kamera w przeglądarce); do cz
 
 ## 8. Integracje
 
-- **Tpay Open API** (ADR-0002): `payments-create` (OAuth client credentials, transakcja z kwotą, tytułem „SV <nr zamówienia>”, e-mailem i imieniem płatnika z profilu, `callbacks.notification.url` = `payments-notify`, powrót na `/konto/platnosc/?order=`),
+- **Tpay Open API** (ADR-0002): `payments-create` (OAuth client credentials, transakcja z kwotą, tytułem „<numer zamówienia> — <nazwa produktu>” (SPEC-006 AC-14), e-mailem i imieniem płatnika z profilu, `callbacks.notification.url` = `payments-notify`, powrót na `/konto/platnosc/?order=`),
   `payments-notify` (JWS, kwota, idempotencja, realizacja zamówienia funkcją `fulfil_order` w jednej transakcji), `payments-refund` (tylko admin, zwrot pełnej kwoty).
   Sekrety Supabase: `TPAY_CLIENT_ID`, `TPAY_CLIENT_SECRET`, `TPAY_API_URL`, `TPAY_NOTIFICATION_URL` (konfiguracja — zadanie `owner-task`).
 - **Zadanie cykliczne** (ADR-0006): co godzinę anulowanie `pending` starszych niż 24 h.
