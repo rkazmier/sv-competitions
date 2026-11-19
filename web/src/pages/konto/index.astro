@@ -83,7 +83,7 @@ const fields = [
               </table>
             </div>
           </section>
-          <section class="card" aria-labelledby="entries-heading">
+          <section class="card account-entries" aria-labelledby="entries-heading">
             <h2 id="entries-heading">{t('rangeHistory.entriesTitle')}</h2>
             <p class="hint" data-entries-empty hidden>{t('rangeHistory.entriesEmpty')}</p>
             <div class="table-scroll" data-entries-table hidden>
@@ -226,8 +226,9 @@ const fields = [
    * „Historia płatności” zajmuje dwie kolumny. Na telefonie bez zmian — jedna kolumna, kod QR zaraz po statusie.
    */
   @media (min-width: 48rem) {
+    /* 77rem = 3 kafelki po ok. 400px + 2 odstępy */
     .container.account-page {
-      max-width: calc(var(--container-max) + 2 * var(--container-pad));
+      max-width: calc(77rem + 2 * var(--container-pad));
       justify-items: stretch;
     }
 
@@ -263,6 +264,22 @@ const fields = [
 
     .account .account-wide {
       grid-column: span 2;
+    }
+
+    /* Kolejność kafelków: „Twoje dane” obok karnetów, „Historia wejść” obok „Historii płatności” */
+    .account .account-entries {
+      order: 1;
+    }
+
+    .account .account-full {
+      order: 2;
+    }
+  }
+
+  /* Od 80rem kafelki min. 24rem (3 po ok. 400px); węższe ekrany: min. 20rem (2–3 kolumny) */
+  @media (min-width: 80rem) {
+    .account {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
     }
   }
 
