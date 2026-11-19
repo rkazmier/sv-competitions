@@ -31,6 +31,9 @@ export async function mountRangeLog(root: HTMLElement): Promise<void> {
       .from('range_officers')
       .select('id, full_name')
       .eq('is_active', true)
+      // SPEC-007 AC-5, AC-18: tylko zatwierdzeni i nieukryci (do czasu #116 / #117).
+      .eq('status', 'approved')
+      .eq('hide_from_others', false)
       .order('full_name');
     if (error) return false;
     officers = ((data ?? []) as RangeOfficer[]).sort((a, b) => a.full_name.localeCompare(b.full_name, 'pl'));
