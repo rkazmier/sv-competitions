@@ -3,7 +3,7 @@
  * Układ panelu: ten sam co strony publiczne, z menu panelu zamiast
  * nawigacji publicznej i `noindex` (SPEC-001 §6.1, §6.2).
  * Bramka logowania (lib/panel.ts, ADR-0004): treść strony (slot) i pełne menu widzi tylko admin;
- * obsługa — własne menu, bez kalendarza i słowników (SPEC-002 AC-26); użytkownik — brak uprawnień
+ * obsługa — własne menu (książka, sprzedaż, prowadzący — SPEC-007 AC-10), bez kalendarza i słowników (SPEC-002 AC-26); użytkownik — brak uprawnień
  * i link do konta (AC-27); niezalogowany — logowanie Google (SPEC-001 AC-4).
  * Skrypt strony pobiera dane po `await requireAdmin()`; strony z `access="staff"` (książka — SPEC-005,
  * sprzedaż — SPEC-003 US-5) pokazują treść także obsłudze i pobierają dane po `await requireStaff()`.
@@ -20,6 +20,8 @@ interface Props {
 const { title, access = 'admin' } = Astro.props;
 const salesItem = { href: '/panel/sprzedaz/', label: t('panel.menu.sales') };
 const rangeLogItem = { href: '/panel/ksiazka/', label: t('panel.menu.rangeLog') };
+// SPEC-007 AC-7: „Prowadzący (n)” — liczba zgłoszeń z kont do zatwierdzenia; także w menu obsługi (AC-10).
+const officersItem = { href: '/panel/prowadzacy/', label: t('panel.menu.rangeOfficers'), officerCount: true };
 const adminMenu = [
   { href: '/panel/', label: t('panel.menu.calendar') },
   { href: '/panel/regulaminy/', label: t('panel.menu.rulebooks') },
@@ -32,9 +34,9 @@ const adminMenu = [
   { href: '/panel/uzytkownicy/', label: t('panel.menu.users') },
   rangeLogItem,
   { href: '/panel/ksiazka/przeglad/', label: t('panel.menu.rangeReview') },
-  { href: '/panel/prowadzacy/', label: t('panel.menu.rangeOfficers') },
+  officersItem,
 ];
-const staffMenu = [rangeLogItem, salesItem];
+const staffMenu = [rangeLogItem, salesItem, officersItem];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
 ---
 <BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>
@@ -46,6 +48,7 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
             <a href={item.href} aria-current={isCurrent(item.href)}>
               {item.label}
               {'invoiceCount' in item && <span class="menu-count" data-invoice-count hidden />}
+              {'officerCount' in item && <span class="menu-count" data-officer-count hidden />}
             </a>
           </li>
         ))
@@ -53,7 +56,16 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
       <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
     </ul>
     <ul data-panel-menu="staff" hidden>
-      {staffMenu.map((item) => <li><a href={item.href} aria-current={isCurrent(item.href)}>{item.label}</a></li>)}
+      {
+        staffMenu.map((item) => (
+          <li>
+            <a href={item.href} aria-current={isCurrent(item.href)}>
+              {item.label}
+              {'officerCount' in item && <span class="menu-count" data-officer-count hidden />}
+            </a>
+          </li>
+        ))
+      }
       <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
     </ul>
   </Fragment>
@@ -96,7 +108,8 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
 
 <script>
   import { t } from '../i18n';
-  import { requireAdmin } from '../lib/panel';
+  import { requireAdmin, requireStaff } from '../lib/panel';
+  import { PENDING_COUNT_EVENT, pendingMenuLabel } from '../lib/range-officer-review';
 
   // SPEC-004 §6: „Faktury” w menu admina z liczbą pozycji „Do wystawienia” (AC-10).
   void requireAdmin().then(async (supabase) => {
@@ -111,5 +124,31 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
     badge.textContent = ` (${count})`;
     badge.closest('a')?.setAttribute('aria-label', `${t('panel.menu.invoices')}, ${t('panel.menu.invoicesCount', { count })}`);
     badge.hidden = false;
+  });
+
+  // SPEC-007 AC-7: „Prowadzący (n)” — zgłoszenia z kont `pending` (Obsługa i admin; RLS `is_staff()`).
+  function showOfficerCount(count: number): void {
+    for (const badge of document.querySelectorAll<HTMLElement>('[data-officer-count]')) {
+      const link = badge.closest('a');
+      badge.textContent = count ? ` (${count})` : '';
+      badge.hidden = !count;
+      if (count) link?.setAttribute('aria-label', pendingMenuLabel(count));
+      else link?.removeAttribute('aria-label');
+    }
+  }
+  // Strona prowadzących podaje aktualną liczbę (także po decyzji) — ma pierwszeństwo przed zapytaniem niżej.
+  let countFromPage = false;
+  document.addEventListener(PENDING_COUNT_EVENT, (event) => {
+    countFromPage = true;
+    showOfficerCount(Number((event as CustomEvent).detail));
+  });
+  void requireStaff().then(async ({ supabase }) => {
+    const { count } = await supabase
+      .from('range_officers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .eq('is_active', true)
+      .not('profile_id', 'is', null);
+    if (count && !countFromPage) showOfficerCount(count);
   });
 </script>

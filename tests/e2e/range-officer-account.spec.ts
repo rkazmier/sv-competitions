@@ -137,6 +137,8 @@ test('AC-12: przełącznik „Ukryj mnie dla innych” działa od razu, bez zmia
   await page.goto('/konto/');
   await dataCard(page).getByRole('button', { name: 'Dodaj uprawnienia prowadzącego' }).click();
   await submitForm(page, '20/2024', 'PZŁ');
+  // Czekamy na zapis, zanim sięgniemy do bazy (inaczej wyścig z wysyłką formularza).
+  await expect(dataCard(page).getByText('Uprawnienia prowadzącego: czekają na zatwierdzenie')).toBeVisible();
   const row = await officerRow(id);
   await admin().from('range_officers').update({ status: 'approved' }).eq('id', row!.id);
   await page.reload();
@@ -159,6 +161,7 @@ test('AC-13: „Usuń” po potwierdzeniu → is_active = false, znów „Dodaj�
   const card = dataCard(page);
   await card.getByRole('button', { name: 'Dodaj uprawnienia prowadzącego' }).click();
   await submitForm(page, '30/2024', 'PZSS');
+  await expect(card.getByText('Uprawnienia prowadzącego: czekają na zatwierdzenie')).toBeVisible();
   const row = await officerRow(id);
   await admin().from('range_officers').update({ status: 'approved' }).eq('id', row!.id);
 
