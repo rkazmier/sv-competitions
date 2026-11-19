@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { admin, hasLocalSupabase, signIn, signInAs, unique } from './support/supabase';
+import { E2E_DUTY_OFFICER, admin, ensureRangeDuty, hasLocalSupabase, signIn, signInAs, unique } from './support/supabase';
 
 // SPEC-005 US-7, US-8 (AC-21…AC-25): adnotacje na liście dzisiejszych wpisów, „Historia wejść” i historia zużycia
 // w `/konto/`, „Cofnij zużycie” w karcie użytkownika. Reguły bazy (RLS, niezmienność, cofnięcie): pgTAP 013, 020.
@@ -45,10 +45,9 @@ async function drawSignature(page: Page): Promise<void> {
 
 test('AC-21, AC-22: obsługa widzi dzisiejszy wpis na liście i dodaje adnotację', async ({ page }) => {
   await signIn(page, 'staff');
-  const officer = unique('Prowadzący historia');
-  expect((await admin().from('range_officers').insert({ full_name: officer })).error).toBeNull();
+  const officer = await ensureRangeDuty();
   await page.goto(`/panel/ksiazka/?osoba=${person.id}`);
-  await page.getByRole('main').getByRole('button', { name: officer, exact: true }).click();
+  await expect(page.getByRole('main').getByText('Dyżurny:')).toContainText(officer);
   await page.getByRole('button', { name: 'Dalej' }).click();
   // Ekran podpisu (tryb „podaj urządzenie”) nie pokazuje listy wpisów innych osób.
   await expect(page.getByRole('heading', { name: 'Dzisiejsze wpisy' })).toBeHidden();
@@ -88,7 +87,7 @@ test('AC-24, AC-25: użytkownik widzi historię wejść i historię zużycia kar
   const entries = page.getByRole('region', { name: 'Historia wejść' });
   const row = entries.getByRole('row').nth(1);
   await expect(row.getByRole('cell').nth(0)).toHaveText(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
-  await expect(row.getByRole('cell').nth(1)).toHaveText(/^Prowadzący historia /);
+  await expect(row.getByRole('cell').nth(1)).toHaveText(E2E_DUTY_OFFICER);
   await expect(row.getByRole('cell').nth(2)).toHaveText(person.passName);
   await expect(entries.locator('img, canvas')).toHaveCount(0);
 

@@ -68,3 +68,38 @@ export async function signInAs(page: Page, email: string, password: string): Pro
 
 /** Unikalny sufiks nazw (baza lokalna nie jest czyszczona między uruchomieniami). */
 export const unique = (prefix: string) => `${prefix} ${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
+
+/**
+ * SPEC-007 US-4: dyżurny Prowadzący jest jeden na dzień dla całej bazy, więc testy wpisów (równolegle) nie wybierają
+ * własnego — wszystkie używają tego samego, stałego prowadzącego. Testy zmieniające dyżurnego (range-duty.spec.ts)
+ * działają w osobnym projekcie Playwright, po pozostałych (playwright.config.ts).
+ */
+export const E2E_DUTY_OFFICER = 'Dyżurny E2E';
+
+/** Ustawia (zmiana w książce na dziś) wspólnego dyżurnego testów i zwraca jego imię i nazwisko. */
+export async function ensureRangeDuty(): Promise<string> {
+  const db = admin();
+  const { data: found } = await db
+    .from('range_officers')
+    .select('id')
+    .eq('full_name', E2E_DUTY_OFFICER)
+    .is('profile_id', null)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+  let id = found?.id as string | undefined;
+  if (id) {
+    await db.from('range_officers').update({ is_active: true }).eq('id', id);
+  } else {
+    const { data, error } = await db.from('range_officers').insert({ full_name: E2E_DUTY_OFFICER }).select('id').single();
+    if (error || !data) throw error ?? new Error('Brak prowadzącego');
+    id = data.id as string;
+  }
+  const { data: day, error: dayError } = await db.rpc('range_today');
+  if (dayError) throw dayError;
+  const { error } = await db
+    .from('range_duty')
+    .upsert({ day, source: 'book', range_officer_id: id, set_at: new Date().toISOString() }, { onConflict: 'day,source' });
+  if (error) throw error;
+  return E2E_DUTY_OFFICER;
+}

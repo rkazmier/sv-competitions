@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { admin, hasLocalSupabase, signIn, unique } from './support/supabase';
+import { admin, ensureRangeDuty, hasLocalSupabase, signIn, unique } from './support/supabase';
 
 // SPEC-005 US-3, US-4 (AC-5…AC-12): wpis osoby z kontem w `/panel/ksiazka/` — skan QR, wyszukanie, uzupełnienie
 // danych, lista uprawnień, „Sprzedaj na miejscu”; skan QR także w `/panel/sprzedaz/`.
@@ -71,12 +71,11 @@ async function fakeCamera(page: Page, code: string): Promise<void> {
   }, code);
 }
 
-/** Prowadzący zmiany (AC-3) — przebieg wpisu jest dostępny dopiero po wyborze. */
+/** Dyżurny Prowadzący (SPEC-007 AC-16) — przebieg wpisu jest dostępny, gdy dyżurny jest ustawiony. */
 async function openRangeLog(page: Page, path = '/panel/ksiazka/'): Promise<void> {
-  const officer = unique('Prowadzący wpis');
-  expect((await admin().from('range_officers').insert({ full_name: officer })).error).toBeNull();
+  const officer = await ensureRangeDuty();
   await page.goto(path);
-  await page.getByRole('main').getByRole('button', { name: officer, exact: true }).click();
+  await expect(page.getByRole('main').getByText('Dyżurny:')).toContainText(officer);
 }
 
 const passOptions = (page: Page) => page.getByRole('group', { name: 'Uprawnienie do wykorzystania' }).getByRole('radio');
@@ -217,10 +216,8 @@ test('AC-8: admin — „Rozpocznij wpis do książki” w karcie użytkownika',
   const start = page.getByRole('link', { name: 'Rozpocznij wpis do książki' });
   await expect(start).toHaveAttribute('href', `/panel/ksiazka/?osoba=${person.id}`);
 
-  const officer = unique('Prowadzący admin');
-  await admin().from('range_officers').insert({ full_name: officer });
+  await ensureRangeDuty();
   await start.click();
-  await page.getByRole('main').getByRole('button', { name: officer, exact: true }).click();
   await expect(page.getByRole('heading', { name: person.fullName })).toBeVisible();
   await expect(passOptions(page)).toHaveCount(1);
   await expect(passOptions(page).first()).toBeChecked();

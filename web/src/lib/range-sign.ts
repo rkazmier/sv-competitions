@@ -54,7 +54,10 @@ export function entryDateTime(timestamp: Date | string): string {
 
 /** AC-16: wykorzystane w międzyczasie uprawnienie → wybór innego; reszta → „Spróbuj ponownie”. */
 export function saveErrorKey(error: { message?: string } | null | undefined): MessageKey {
-  return error?.message === 'pass_not_valid' ? 'rangeSign.errorPassUsed' : 'rangeSign.errorSave';
+  if (error?.message === 'pass_not_valid') return 'rangeSign.errorPassUsed';
+  // SPEC-007 AC-17: dyżurny zniknął z listy w trakcie wpisu.
+  if (error?.message === 'range_officer_inactive') return 'rangeSign.errorOfficerInactive';
+  return 'rangeSign.errorSave';
 }
 
 /** Ponowienie po udanym wysłaniu pliku: Storage odpowiada „już istnieje” — plik jest, można zapisać wpis. */

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { admin, hasLocalSupabase, signIn, unique } from './support/supabase';
+import { admin, ensureRangeDuty, hasLocalSupabase, signIn, unique } from './support/supabase';
 
 // SPEC-005 US-5, US-6 (AC-13…AC-20): ekran podpisu, zapis wpisu z zużyciem, osoba bez konta ze sprzedażą
 // na miejscu, osoba towarzysząca. Reguły bazy (transakcja, blokada, zużycie): pgTAP 013_range_log_test.sql.
@@ -32,11 +32,11 @@ async function seedPersonWithPass(): Promise<{ id: string; fullName: string; pas
   return { id, fullName, passId: pass!.id as string, passName };
 }
 
+/** Dyżurny Prowadzący (SPEC-007 AC-16) — domyślny Prowadzący każdego wpisu. */
 async function openRangeLog(page: Page, path: string): Promise<string> {
-  const officer = unique('Prowadzący podpis');
-  expect((await admin().from('range_officers').insert({ full_name: officer })).error).toBeNull();
+  const officer = await ensureRangeDuty();
   await page.goto(path);
-  await page.getByRole('main').getByRole('button', { name: officer, exact: true }).click();
+  await expect(page.getByRole('main').getByText('Dyżurny:')).toContainText(officer);
   return officer;
 }
 

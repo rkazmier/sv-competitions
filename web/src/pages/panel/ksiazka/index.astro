@@ -1,7 +1,7 @@
 ---
 /**
  * Panel: książka rejestru pobytu (SPEC-005 §6) — obsługa i admin.
- * Najpierw prowadzący zmiany (AC-3, AC-4), potem osoba z kontem: skan QR / wyszukanie, uzupełnienie danych,
+ * Najpierw dyżurny Prowadzący z bazy (SPEC-007 AC-15…AC-17, AC-19, lib/range-log-ui.ts), potem osoba z kontem: skan QR / wyszukanie, uzupełnienie danych,
  * wybór uprawnienia (AC-5…AC-12, lib/range-entry-ui.ts); osoba bez konta ze sprzedażą na miejscu, podpis,
  * zapis wpisu i osoba towarzysząca (AC-13…AC-20); lista dzisiejszych wpisów z adnotacjami (AC-21, AC-22,
  * lib/range-today-ui.ts).
@@ -11,6 +11,7 @@ import AnnotationForm from '../../../components/AnnotationForm.astro';
 import QrScanDialog from '../../../components/QrScanDialog.astro';
 import { t } from '../../../i18n';
 import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
+import { OFFICER_SEARCH_MIN_LENGTH } from '../../../lib/range-duty';
 
 const completeFields = [
   { name: 'full_name', label: t('profile.fullName'), autocomplete: 'name' },
@@ -23,17 +24,29 @@ const completeFields = [
   <div class="range-log" data-range-log>
     <h1>{t('rangeLog.title')}</h1>
 
-    <section class="card" data-shift-picker aria-labelledby="shift-question" hidden>
+    <section class="card stack" data-shift-picker aria-labelledby="shift-question" hidden>
       <h2 id="shift-question" class="question">{t('rangeLog.shiftQuestion')}</h2>
       <p>{t('rangeLog.shiftHint')}</p>
       <p data-no-officers hidden>{t('rangeLog.noOfficers')}</p>
       <ul class="officers" data-officers></ul>
+      <div class="auth-form officer-search">
+        <label class="field-label" for="o-query">{t('rangeLog.searchLabel')}</label>
+        <div class="search-row">
+          <input class="input" id="o-query" type="search" autocomplete="off" aria-describedby="o-query-hint" data-officer-query />
+          <button type="button" class="button" data-officer-search>{t('rangeLog.search')}</button>
+        </div>
+        <p class="hint" id="o-query-hint">{t('rangeLog.searchHint', { min: OFFICER_SEARCH_MIN_LENGTH })}</p>
+      </div>
+      <p role="status" data-officer-search-status></p>
+      <ul class="officers" data-officer-results></ul>
+      <p class="message-error" role="alert" data-picker-error hidden></p>
+      <button type="button" class="button" data-picker-cancel hidden>{t('rangeLog.cancel')}</button>
     </section>
 
     <div data-shift hidden>
       <div class="card shift-bar">
         <p class="shift-officer">
-          {t('rangeLog.officerLabel')} <strong data-officer-name></strong>
+          {t('rangeLog.officerLabel')} <strong data-officer-name></strong> <span data-duty-source hidden></span>
         </p>
         <button type="button" class="button" data-change-officer>
           {t('rangeLog.change')}<span class="visually-hidden"> {t('rangeLog.changeSr')}</span>
