@@ -56,7 +56,7 @@ test.describe('admin — /panel/prowadzacy/', () => {
     expect(data).toEqual({ is_active: true, license_number: '123/2024', institution: 'PZL', institution_other: null });
 
     const menu = page.getByRole('navigation', { name: 'Menu panelu' });
-    await expect(menu.getByRole('link', { name: 'Prowadzący', exact: true })).toHaveAttribute('href', '/panel/prowadzacy/');
+    await expect(menu.getByRole('link', { name: /^Prowadzący/ })).toHaveAttribute('href', '/panel/prowadzacy/');
     await expect(menu.getByRole('link', { name: 'Książka', exact: true })).toHaveAttribute('href', '/panel/ksiazka/');
   });
 
@@ -146,10 +146,11 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     await main.getByRole('button', { name, exact: true }).click();
     await expect(main.getByText('Prowadzący strzelanie:')).toContainText(name);
 
-    // Menu obsługi: Książka, bez stron admina.
+    // Menu obsługi: Książka i Prowadzący (SPEC-007 AC-10), bez stron admina.
     const menu = page.getByRole('navigation', { name: 'Menu panelu' });
     await expect(menu.getByRole('link', { name: 'Książka', exact: true })).toHaveAttribute('href', '/panel/ksiazka/');
-    await expect(menu.getByRole('link', { name: 'Prowadzący', exact: true })).toHaveCount(0);
+    await expect(menu.getByRole('link', { name: /^Prowadzący/ })).toHaveAttribute('href', '/panel/prowadzacy/');
+    await expect(menu.getByRole('link', { name: 'Dyscypliny', exact: true })).toHaveCount(0);
   });
 
   test('AC-3: wybór z poprzedniego dnia nie obowiązuje — pytanie wraca', async ({ page }) => {
@@ -176,10 +177,15 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     await expect(page.getByRole('main').getByRole('button', { name, exact: true })).toHaveCount(0);
   });
 
-  test('AC-1: obsługa nie widzi listy prowadzących (/panel/prowadzacy/ tylko admin)', async ({ page }) => {
+  test('AC-1, SPEC-007 AC-10: obsługa widzi listę prowadzących tylko do odczytu (dodawanie i edycja — admin)', async ({
+    page,
+  }) => {
+    const name = unique('Tylko odczyt');
+    await addOfficer(name);
     await page.goto('/panel/prowadzacy/');
-    await expect(page.getByRole('main').getByText('Moduły obsługi będą dostępne wkrótce.')).toBeVisible();
-    await expect(page.getByLabel('Imię i nazwisko', { exact: true })).toBeHidden();
+    await expect(itemFor(page, name)).toContainText('Aktywny');
+    await expect(page.getByRole('form', { name: 'Dodaj prowadzącego' })).toBeHidden();
+    await expect(itemFor(page, name).getByRole('button')).toHaveCount(0);
   });
 
   test('AC-3: wybór prowadzącego na telefonie (320 px) bez poziomego przewijania', async ({ page }) => {

@@ -1,9 +1,12 @@
 ---
-/** Panel: prowadzący strzelanie (SPEC-005 US-1, AC-1, AC-2) — tylko admin. */
+/**
+ * Panel: prowadzący strzelanie (SPEC-005 US-1, AC-1, AC-2) — edycja tylko admin;
+ * Obsługa: „Do zatwierdzenia” i lista tylko do odczytu (SPEC-007 AC-7…AC-10).
+ */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import DictionaryList from '../../../components/DictionaryList.astro';
 import { t } from '../../../i18n';
 ---
-<PanelLayout title={t('dictionary.officers.title')}>
+<PanelLayout title={t('dictionary.officers.title')} access="staff">
   <DictionaryList kind="officers" />
 </PanelLayout>

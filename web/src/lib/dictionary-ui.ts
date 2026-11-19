@@ -2,6 +2,8 @@
  * Wyspa listy słownikowej (DictionaryList.astro) — dyscypliny, kategorie wydarzeń, prowadzący strzelanie.
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` (bez HTML).
  * Zmiana nazwy i ukrycie/przywrócenie dyscypliny lub kategorii uruchamiają przebudowę strony publicznej (AC-29).
+ * Prowadzący (SPEC-007 AC-7…AC-10): stronę widzi też Obsługa — „Do zatwierdzenia” i lista tylko do odczytu;
+ * zgłoszeń z kont admin nie edytuje (tylko „Ukryj” / „Przywróć”).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
@@ -26,7 +28,9 @@ import {
   type OfficerDetailsInput,
   type OfficerDetailsRow,
 } from './dictionary';
-import { requireAdmin, showLoadError } from './panel';
+import { requireAdmin, requireStaff, showLoadError } from './panel';
+import { canEditOfficer, canToggleOfficer, officerTags, type PanelRole } from './range-officer-review';
+import { mountOfficerReview } from './range-officer-review-ui';
 import { rebuildAndDescribe } from './site-rebuild';
 
 function errorText(kind: DictionaryKind, config: DictionaryConfig, error: NameError | 'save'): string {
@@ -132,7 +136,7 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
   const officers = kind === 'officers';
   const columns = (
     officers
-      ? `id, name:${column}, is_active, license_number, institution, institution_other`
+      ? `id, name:${column}, is_active, license_number, institution, institution_other, profile_id, status, hide_from_others, submitted_at`
       : `id, name:${column}, is_active`
   ) as 'id, name, is_active';
   const nameRow = (value: string) => ({ [column]: value }) as Partial<Record<DictionaryConfig['column'], string>>;
@@ -146,8 +150,14 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
   const list = query<HTMLUListElement>(root, '[data-list]');
   const template = query<HTMLTemplateElement>(root, '[data-row-template]');
 
-  const supabase: SupabaseClient = await requireAdmin();
+  // Prowadzący — także Obsługa (SPEC-007 AC-10); pozostałe listy — tylko admin.
+  const { supabase, role }: { supabase: SupabaseClient; role: PanelRole } = officers
+    ? await requireStaff()
+    : { supabase: await requireAdmin(), role: 'admin' };
   let items: DictionaryItem[] = [];
+  addForm.hidden = role !== 'admin';
+  const readOnlyNote = root.querySelector<HTMLElement>('[data-read-only]');
+  if (readOnlyNote) readOnlyNote.hidden = role === 'admin';
 
   const announce = (message: string) => {
     status.textContent = message;
@@ -185,6 +195,19 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
     const fieldId = `${root.id || table}-edit-${item.id}`;
 
     const editOfficer = wireOfficerFields(editForm, fieldId);
+    const rename = query<HTMLButtonElement>(li, '[data-rename]');
+    rename.hidden = !canEditOfficer(item, role);
+    toggle.hidden = !canToggleOfficer(role);
+    query<HTMLElement>(li, '.button-row').hidden = rename.hidden && toggle.hidden;
+    const tags = li.querySelector<HTMLElement>('[data-tags]');
+    tags?.replaceChildren(
+      ...officerTags(item).map((text) => {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = text;
+        return tag;
+      }),
+    );
 
     query<HTMLElement>(li, '[data-name]').textContent = item.name;
     const details = li.querySelector<HTMLElement>('[data-details]');
@@ -242,9 +265,19 @@ export async function mountDictionary(root: HTMLElement): Promise<void> {
     return li;
   }
 
+  // SPEC-007 AC-7…AC-9: „Do zatwierdzenia (n)” nad listą; po decyzji wiersz zmienia status lokalnie.
+  const renderReview = officers
+    ? mountOfficerReview(root, supabase, (id, decision, done) => {
+        items = items.map((item) => (item.id === id ? { ...item, status: decision } : item));
+        render();
+        announce(done);
+      })
+    : null;
+
   function render(): void {
     list.replaceChildren(...sortItems(items).map(renderItem));
     empty.hidden = items.length > 0;
+    renderReview?.(items);
   }
 
   addForm.addEventListener('submit', async (event) => {

@@ -1,7 +1,7 @@
 ---
 /**
  * Lista słownikowa (SPEC-001 §6.2): dyscypliny (AC-8…11), kategorie wydarzeń (AC-45…47),
- * prowadzący strzelanie (SPEC-005 AC-1, AC-2).
+ * prowadzący strzelanie (SPEC-005 AC-1, AC-2; SPEC-007 AC-7…AC-10 — „Do zatwierdzenia”, odczyt dla Obsługi).
  * Formularz dodania + lista z edycją nazwy i „Ukryj” / „Przywróć”. Bez usuwania.
  * Dane pobiera skrypt (lib/dictionary-ui.ts) po potwierdzeniu roli organizatora.
  */
@@ -22,6 +22,31 @@ const officers = kind === 'officers';
 <div class="dictionary" data-dictionary={table} data-kind={kind}>
   <h1>{t(`dictionary.${kind}.title`)}</h1>
   <p class="lead">{t(`dictionary.${kind}.intro`)}</p>
+  {officers && <p data-read-only hidden>{t('officerReview.readOnly')}</p>}
+
+  {
+    officers && (
+      <section class="review" data-review aria-labelledby={`${id}-review-heading`} hidden>
+        <h2 class="form-heading" id={`${id}-review-heading`} data-review-heading />
+        <p role="status" data-review-status />
+        <ul class="card-list" data-review-list />
+        <template data-review-template>
+          <li class="card item" data-review-item>
+            <p class="item-name"><span data-review-name /></p>
+            <p class="item-details" data-review-details />
+            <div class="button-row">
+              <button type="button" class="button button-primary" data-approve
+                >{t('officerReview.approve')}<span class="visually-hidden" data-sr-name /></button
+              >
+              <button type="button" class="button" data-reject
+                >{t('officerReview.reject')}<span class="visually-hidden" data-sr-name /></button
+              >
+            </div>
+          </li>
+        </template>
+      </section>
+    )
+  }
 
   <form class="card add-form" data-add-form novalidate aria-labelledby={`${id}-add-heading`}>
     <h2 class="form-heading" id={`${id}-add-heading`}>{t(`dictionary.${kind}.addHeading`)}</h2>
@@ -56,6 +81,7 @@ const officers = kind === 'officers';
         <p class="item-name">
           <span data-name></span>
           <span class="tag" data-state></span>
+          {officers && <span class="tags" data-tags></span>}
         </p>
         {officers && <p class="item-details" data-details></p>}
         <div class="button-row">
@@ -99,8 +125,17 @@ const officers = kind === 'officers';
     font-size: var(--text-h3);
   }
 
-  .add-form {
+  .add-form,
+  .review {
     margin-bottom: var(--space-4);
+  }
+
+  .review .item-details {
+    margin: 0 0 var(--space-2);
+  }
+
+  .tags {
+    display: contents;
   }
 
   .field-row {

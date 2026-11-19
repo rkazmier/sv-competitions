@@ -136,6 +136,10 @@
   zgłoszenia z kont w „Twoje dane” (`rpc/my_range_officer`, `rpc/save_my_range_officer`) i zatwierdzanie w `/panel/prowadzacy/`.
   Grafik dyżurów `/panel/dyzury/` (`rpc/range_duty_schedule`, `rpc/set_scheduled_range_duty`); dyżurny zawodów i wydarzeń
   (`duty_range_officer_id` w formularzach, `rpc/admin_calendar_duty`); kolejność: książka → zawody / wydarzenie → grafik (`range_duty_for`).
+  Zatwierdzanie (SPEC-007 AC-7…AC-10, #115): `/panel/prowadzacy/` dostępne też dla Obsługi (`PanelLayout access="staff"`) —
+  sekcja „Do zatwierdzenia (n)” (`rpc/review_range_officer`, `src/lib/range-officer-review*.ts`), lista tylko do odczytu dla Obsługi,
+  oznaczenia „Z konta” / „Ukryty dla innych”, zgłoszeń z kont admin nie edytuje (tylko „Ukryj” / „Przywróć”); „Prowadzący (n)” w menu
+  admina i obsługi (licznik `pending` z `range_officers`, aktualizowany zdarzeniem `sv:officers-pending`).
 - Książka — wpis osoby z kontem (SPEC-005 AC-5…AC-12): w `/panel/ksiazka/` po wyborze prowadzącego „Skanuj kod QR”
   (`src/lib/qr-scanner.ts` + `src/components/QrScanDialog.astro`: `getUserMedia` z tylną kamerą, `BarcodeDetector`,
   a gdy brak formatu `qr_code` — `jsqr` ładowany dynamicznie; ten sam skaner w `/panel/sprzedaz/`), wyszukiwarka

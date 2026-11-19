@@ -35,6 +35,11 @@ export interface DictionaryItem {
   license_number?: string | null;
   institution?: OfficerInstitution | null;
   institution_other?: string | null;
+  /** Tylko prowadzący: konto zgłaszającego (SPEC-007); `null` = dodany przez admina. */
+  profile_id?: string | null;
+  status?: 'pending' | 'approved' | 'rejected';
+  hide_from_others?: boolean;
+  submitted_at?: string | null;
 }
 
 export type NameError = 'required' | 'tooShort' | 'tooLong' | 'duplicate';
