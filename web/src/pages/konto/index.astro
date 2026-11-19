@@ -4,10 +4,12 @@
  * Klauzula przy pierwszym logowaniu (Google), potem: braki lub gotowość do wpisu (AC-9, AC-10), kod QR (AC-12…AC-15),
  * „Twoje dane” + „Edytuj dane” (AC-7). Karnety, historia karnetów i płatności, „Przedłuż karnet” — SPEC-003 AC-12…AC-15
  * (lib/offer-ui.ts). „Historia wejść” i historia zużycia karnetu — SPEC-005 AC-24, AC-25. Kod QR zaraz po statusie — na telefonie obsługa skanuje z ekranu.
+ * W „Twoje dane” uprawnienia prowadzącego z konta (SPEC-007 US-1, US-3) — lib/range-officer-account-ui.ts.
  * Logika: lib/auth-ui.ts (sesja, klauzula), lib/account-ui.ts (panel).
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PrivacyNotice from '../../components/PrivacyNotice.astro';
+import OfficerFields from '../../components/OfficerFields.astro';
 import { t } from '../../i18n';
 import { OFFER_PAGE } from '../../lib/offer';
 
@@ -113,6 +115,36 @@ const fields = [
             ))}
           </dl>
           <a class="button" href="/konto/dane/">{t('account.editData')}</a>
+
+          <!-- SPEC-007 US-1, US-3: uprawnienia prowadzącego z konta (lib/range-officer-account-ui.ts) -->
+          <div class="account-officer" data-officer hidden>
+            <div data-officer-none hidden>
+              <button type="button" class="button" data-officer-add>{t('rangeOfficerAccount.add')}</button>
+            </div>
+            <div class="account-officer" data-officer-current hidden>
+              <p class="account-officer-state" data-officer-state></p>
+              <dl class="account-data">
+                <div>
+                  <dt>{t('dictionary.officers.licenseLabel')}</dt>
+                  <dd data-officer-license></dd>
+                </div>
+                <div>
+                  <dt>{t('dictionary.officers.institutionLabel')}</dt>
+                  <dd data-officer-institution></dd>
+                </div>
+              </dl>
+              <div class="check">
+                <input type="checkbox" id="ro-hide-current" aria-describedby="ro-hide-current-hint" data-officer-hide />
+                <label for="ro-hide-current">{t('rangeOfficerAccount.hide')}</label>
+              </div>
+              <p class="hint" id="ro-hide-current-hint">{t('rangeOfficerAccount.hideHint')}</p>
+              <div class="button-row">
+                <button type="button" class="button" data-officer-edit>{t('rangeOfficerAccount.edit')}</button>
+                <button type="button" class="button" data-officer-remove>{t('rangeOfficerAccount.remove')}</button>
+              </div>
+            </div>
+            <p role="status" data-officer-status></p>
+          </div>
         </section>
 
         <div class="account-full account-signout">
@@ -127,6 +159,31 @@ const fields = [
   <dialog class="qr-fullscreen" data-qr-dialog aria-label={t('account.qrLabel')}>
     <div class="qr" data-qr></div>
     <button type="button" class="button button-primary" data-close>{t('account.close')}</button>
+  </dialog>
+
+  <!-- SPEC-007 AC-2: formularz zgłoszenia / edycji uprawnień prowadzącego (poza .auth — tam margin: 0 psuje środkowanie okna) -->
+  <dialog class="card officer-dialog" aria-labelledby="ro-heading" data-officer-dialog>
+    <form class="auth-form" novalidate>
+      <h2 id="ro-heading">{t('rangeOfficerAccount.formTitle')}</h2>
+      <dl class="account-data">
+        <div>
+          <dt>{t('rangeOfficerAccount.fullName')}</dt>
+          <dd data-officer-name></dd>
+        </div>
+      </dl>
+      <p class="hint">{t('rangeOfficerAccount.fullNameHint')}</p>
+      <OfficerFields />
+      <div class="check">
+        <input type="checkbox" id="ro-hide" name="hide_from_others" aria-describedby="ro-hide-hint" />
+        <label for="ro-hide">{t('rangeOfficerAccount.hide')}</label>
+      </div>
+      <p class="hint" id="ro-hide-hint">{t('rangeOfficerAccount.hideHint')}</p>
+      <p class="message-error" role="alert" data-form-error hidden></p>
+      <div class="button-row">
+        <button type="submit" class="button button-primary" data-submit>{t('rangeOfficerAccount.submit')}</button>
+        <button type="button" class="button" data-cancel>{t('rangeOfficerAccount.cancel')}</button>
+      </div>
+    </form>
   </dialog>
 
   <!-- AC-14: tylko do druku — kod (min. 4 cm) i imię i nazwisko, bez menu i stopki -->
@@ -328,6 +385,47 @@ const fields = [
   .account-data dd {
     margin: 0;
     overflow-wrap: anywhere;
+  }
+
+  /* SPEC-007: uprawnienia prowadzącego w „Twoje dane” i okno formularza */
+  .account-officer {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .account-officer > *,
+  .officer-dialog .auth-form > * {
+    margin: 0;
+  }
+
+  .account-officer-state {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .officer-dialog {
+    width: min(30rem, calc(100vw - 2 * var(--space-4)));
+  }
+
+  .officer-dialog::backdrop {
+    background: rgb(0 0 0 / 50%);
+  }
+
+  .officer-dialog .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .officer-dialog .check {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+
+  .officer-dialog .check input {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.125rem;
   }
 
   /* AC-13: kod na cały ekran, czarny na białym */

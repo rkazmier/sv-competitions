@@ -57,8 +57,8 @@ function officerErrorText(error: OfficerDetailsError): string {
   return t(`dictionary.officers.${error}`, params);
 }
 
-/** Pola prowadzącego (OfficerFields.astro) w danym formularzu; `null` dla innych list. */
-interface OfficerFieldsHandle {
+/** Pola prowadzącego (OfficerFields.astro) w danym formularzu; `null` dla innych list. Też w zgłoszeniu z konta (SPEC-007 AC-2). */
+export interface OfficerFieldsHandle {
   read(): OfficerDetailsInput;
   fill(item: DictionaryItem): void;
   reset(): void;
@@ -67,7 +67,7 @@ interface OfficerFieldsHandle {
 }
 
 /** Nadaje identyfikatory (etykiety, opisy błędów) i pokazuje „Nazwa instytucji” tylko przy „Inne”. */
-function wireOfficerFields(form: HTMLFormElement, idPrefix: string): OfficerFieldsHandle | null {
+export function wireOfficerFields(form: HTMLFormElement, idPrefix: string): OfficerFieldsHandle | null {
   const container = form.querySelector<HTMLElement>('[data-officer-fields]');
   if (!container) return null;
   const control = (name: OfficerDetailsField) =>
