@@ -4,7 +4,8 @@
  * lub po sprzedaży na miejscu (`staff_person_by_id`). Braki danych — `staff_complete_profile` (wpis w `audit_log`).
  * Uprawnienia w kolejności AC-10 — `passes_for_range_entry`. Osoba bez konta (AC-18, AC-19): dane i sprzedaż
  * na miejscu (`create_on_site_order`), potem jej uprawnienie bez właściciela. Podpis i zapis (AC-13…AC-17) —
- * lib/range-sign-ui.ts; osoba towarzysząca (AC-20) — ten sam przebieg bez kroku uprawnienia.
+ * lib/range-sign-ui.ts; osoba towarzysząca (AC-20) — ten sam przebieg bez kroku uprawnienia. Prowadzący wpisu:
+ * domyślnie dyżurny, „Zmień” w kroku podpisu (SPEC-007 AC-18…AC-21, lib/range-officer-picker-ui.ts).
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */
 import { t } from '../i18n';
@@ -15,6 +16,7 @@ import { requireStaff } from './panel';
 import { LIMITS } from './profile';
 import { scanQrCode } from './qr-scanner';
 import { DUTY_CHANGED_EVENT, DUTY_MISSING_EVENT, dutyFromRows, type RangeDuty } from './range-duty';
+import { mountOfficerPicker } from './range-officer-picker-ui';
 import { ENTRY_SAVED_EVENT } from './range-history';
 import { entryDateTime, permitOrAddress, saveErrorKey, signaturePath, type EntryPerson } from './range-sign';
 import { mountSignaturePad, saveRangeEntry } from './range-sign-ui';
@@ -74,7 +76,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   /** Identyfikator wpisu = nazwa pliku podpisu; ten sam przy ponowieniu, nowy po zmianie podpisu (AC-16). */
   let entry: { id: string; path: string; version: number } | null = null;
   let saving = false;
-  /** Prowadzący tego wpisu — dyżurny z chwili otwarcia kroku podpisu (SPEC-007 §7). */
+  /** Prowadzący tego wpisu — dyżurny z chwili otwarcia kroku podpisu (SPEC-007 §7) albo wybrany „Zmień” (AC-20). */
   let officerId: string | null = null;
   const pad = mountSignaturePad(query<HTMLCanvasElement>(sign, '[data-pad]'), () => {
     save.disabled = saving || !pad.complete; // AC-14
@@ -288,6 +290,39 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     officerId = duty?.range_officer_id ?? null;
     query(sign, '[data-sign-field="officer"]').textContent = duty?.full_name ?? '';
   }
+
+  /**
+   * SPEC-007 AC-18…AC-21: „Prowadzący: …” + „Zmień” w kroku podpisu. Wybór dotyczy tylko tego wpisu — dyżurny
+   * się nie zmienia (AC-20); osoba wpisywana jest pierwsza na liście, ale nie jest wybierana automatycznie (AC-21).
+   */
+  const officerPicker = query(sign, '[data-entry-officer-picker]');
+  const officerChange = query<HTMLButtonElement>(sign, '[data-entry-officer-change]');
+  const showOfficerPicker = (show: boolean) => {
+    officerPicker.hidden = !show;
+    officerChange.hidden = show;
+  };
+  const entryOfficers = mountOfficerPicker(query(officerPicker, '[data-officer-picker]'), supabase, (officer) => {
+    officerId = officer.id;
+    query(sign, '[data-sign-field="officer"]').textContent = officer.full_name;
+    signError.hidden = true;
+    showOfficerPicker(false);
+    officerChange.focus();
+  });
+  async function openOfficerPicker(): Promise<void> {
+    // AC-18: osoba z kontem (także towarzysząca) — jej zatwierdzone uprawnienia na początku; osoba bez konta — bez.
+    if (!(await entryOfficers.open(person?.id ?? null))) {
+      signError.textContent = t('panel.loadError');
+      signError.hidden = false;
+      return;
+    }
+    showOfficerPicker(true);
+    entryOfficers.focusFirst();
+  }
+  officerChange.addEventListener('click', () => void openOfficerPicker());
+  query(officerPicker, '[data-entry-officer-cancel]').addEventListener('click', () => {
+    showOfficerPicker(false);
+    officerChange.focus();
+  });
   root.addEventListener(DUTY_CHANGED_EVENT, (event) => {
     setOfficer((event as CustomEvent<RangeDuty | null>).detail);
     signError.hidden = true;
@@ -323,6 +358,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     query(sign, '[data-guest-notice]').hidden = !guest;
     query(sign, '[data-other-pass]').hidden = true;
     signError.hidden = true;
+    showOfficerPicker(false);
     showStep('sign');
     query(sign, '#sign-heading').focus();
     await loadEntryOfficer();
@@ -433,8 +469,12 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     save.textContent = t('rangeSign.save');
     if ('error' in result) {
       const key = saveErrorKey(result.error);
-      // AC-17: dyżurny zniknął z listy w trakcie wpisu — pobierz aktualnego (podpis zostaje na ekranie).
-      if (key === 'rangeSign.errorOfficerInactive' && !(await loadEntryOfficer())) return;
+      // AC-17, §7: wybrany prowadzący zniknął z listy w trakcie wpisu — domyślnie aktualny dyżurny i lista wyboru;
+      // podpis zostaje na ekranie.
+      if (key === 'rangeSign.errorOfficerInactive') {
+        if (!(await loadEntryOfficer())) return;
+        await openOfficerPicker();
+      }
       signError.textContent = t(key);
       signError.hidden = false;
       query(sign, '[data-other-pass]').hidden = key !== 'rangeSign.errorPassUsed' || !person;

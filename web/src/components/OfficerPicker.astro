@@ -1,0 +1,71 @@
+---
+/**
+ * Lista wyboru Prowadzącego z wyszukiwarką (SPEC-007 AC-15, AC-18, AC-19). Obsługa: lib/range-officer-picker-ui.ts.
+ * Używana w `/panel/ksiazka/` — wybór dyżurnego i „Zmień” w kroku podpisu. `prefix` — unikalne identyfikatory pól.
+ */
+import { t } from '../i18n';
+import { OFFICER_SEARCH_MIN_LENGTH } from '../lib/range-duty';
+
+interface Props {
+  prefix: string;
+}
+const { prefix } = Astro.props;
+---
+<div class="officer-picker" data-officer-picker>
+  <p data-no-officers hidden>{t('rangeLog.noOfficers')}</p>
+  <ul class="officers" data-officers></ul>
+  <div class="auth-form">
+    <label class="field-label" for={`${prefix}-query`}>{t('rangeLog.searchLabel')}</label>
+    <div class="search-row">
+      <input class="input" id={`${prefix}-query`} type="search" autocomplete="off" aria-describedby={`${prefix}-query-hint`} data-officer-query />
+      <button type="button" class="button" data-officer-search>{t('rangeLog.search')}</button>
+    </div>
+    <p class="hint" id={`${prefix}-query-hint`}>{t('rangeLog.searchHint', { min: OFFICER_SEARCH_MIN_LENGTH })}</p>
+  </div>
+  <p role="status" data-officer-search-status></p>
+  <ul class="officers" data-officer-results></ul>
+  <template data-officer-template>
+    <li><button type="button" class="button officer" data-officer></button></li>
+  </template>
+</div>
+
+<style>
+  .officer-picker {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .officer-picker > * {
+    margin: 0;
+  }
+
+  .officers {
+    display: grid;
+    gap: var(--space-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  .officer {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .search-row {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .search-row .input {
+    flex: 1;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  [role='status']:empty {
+    display: none;
+  }
+</style>

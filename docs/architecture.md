@@ -129,13 +129,15 @@
   instytucja — `OFFICER_INSTITUTIONS` w `src/lib/dictionary.ts`, pola dodatkowe tylko dla tej listy) z „Ukryj” / „Przywróć”,
   bez usuwania (zmiana nazwiska nie zmienia wpisów — kopia w `range_log.range_officer_name`). `/panel/ksiazka/` (obsługa i admin) —
   dyżurny Prowadzący w bazie (SPEC-007 AC-15…AC-17, AC-19, #116; zastąpił wybór w localStorage `sv-range-shift`):
-  bez dyżurnego „Kto prowadzi dziś strzelanie?” z widocznymi prowadzącymi i wyszukiwarką (`rpc/staff_search_range_officers`,
-  także ukryci), wybór → `rpc/set_range_duty`; z dyżurnym „Dyżurny: …” (+ „(z grafiku)” / „(<nazwa>)”) i „Zmień”
-  (`rpc/current_range_duty`). Prowadzący wpisu = dyżurny pobrany przy otwarciu kroku podpisu; brak → ponowny wybór
-  (zdarzenia `range-duty:missing` / `range-duty:changed` na korzeniu strony). Logika `src/lib/range-duty.ts`,
-  wyspa `src/lib/range-log-ui.ts`.
-  SPEC-007 (#112, dalsze zadania): przy wpisie „Prowadzący: …” + „Zmień” (`rpc/range_officer_choices`, `rpc/staff_search_range_officers`);
-  zgłoszenia z kont w „Twoje dane” (`rpc/my_range_officer`, `rpc/save_my_range_officer`) i zatwierdzanie w `/panel/prowadzacy/`.
+  bez dyżurnego „Kto prowadzi dziś strzelanie?” z widocznymi prowadzącymi (`rpc/range_officer_choices`) i wyszukiwarką
+  (`rpc/staff_search_range_officers`, także ukryci), wybór → `rpc/set_range_duty`; z dyżurnym „Dyżurny: …” (+ „(z grafiku)” /
+  „(<nazwa>)”) i „Zmień” (`rpc/current_range_duty`). Prowadzący wpisu (SPEC-007 AC-18…AC-21, #117) = dyżurny pobrany przy
+  otwarciu kroku podpisu; tam „Prowadzący: …” + „Zmień” — lista `rpc/range_officer_choices(person_id)` (osoba wpisywana
+  z zatwierdzonymi uprawnieniami pierwsza, także ukryta) i wyszukiwarka; wybór dotyczy tylko tego wpisu (dyżurny bez zmian).
+  Brak dyżurnego → ponowny wybór (zdarzenia `range-duty:missing` / `range-duty:changed` na korzeniu strony). Lista
+  z wyszukiwarką — `src/components/OfficerPicker.astro` + `src/lib/range-officer-picker-ui.ts`; logika `src/lib/range-duty.ts`,
+  wyspy `src/lib/range-log-ui.ts`, `src/lib/range-entry-ui.ts`.
+  SPEC-007 (#112, dalsze zadania): zgłoszenia z kont w „Twoje dane” (`rpc/my_range_officer`, `rpc/save_my_range_officer`) i zatwierdzanie w `/panel/prowadzacy/`.
   Grafik dyżurów `/panel/dyzury/` (`rpc/range_duty_schedule`, `rpc/set_scheduled_range_duty`); dyżurny zawodów i wydarzeń
   (`duty_range_officer_id` w formularzach, `rpc/admin_calendar_duty`); kolejność: książka → zawody / wydarzenie → grafik (`range_duty_for`).
   Zatwierdzanie (SPEC-007 AC-7…AC-10, #115): `/panel/prowadzacy/` dostępne też dla Obsługi (`PanelLayout access="staff"`) —
@@ -302,7 +304,9 @@
     wydarzenie) → `schedule`; zwraca `range_officer_id`, `full_name`, `source` (`book` / `event` / `schedule`), `event_name`.
     Obsługa i admin: `current_range_duty()` (= `range_duty_for(range_today())`), `set_range_duty(officer_id)` (upsert
     `range_today()`, `book`; błąd `range_officer_inactive`), `staff_search_range_officers(query)` (od 3 znaków, maks. 10,
-    zatwierdzeni i aktywni — także ukryci; tylko `id`, `full_name`; `ilike` ze znakami wzorca dosłownie). Błąd `forbidden`.
+    zatwierdzeni i aktywni — także ukryci; tylko `id`, `full_name`; `ilike` ze znakami wzorca dosłownie),
+    `range_officer_choices(person_id?)` (#117, AC-18: prowadzący „na liście” bez „Ukryj mnie dla innych” oraz osoba wpisywana
+    — `profile_id = person_id`, także ukryta — pierwsza z `is_person = true`; `id`, `full_name`, `is_person`). Błąd `forbidden`.
     `purge_range_duty()` — `pg_cron` `purge-range-duty` (`20 2 * * *` UTC): usuwa dni sprzed `range_today()`.
   - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
     permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, prowadzący „na liście”,

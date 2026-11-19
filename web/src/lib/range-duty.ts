@@ -53,6 +53,20 @@ export function dutyErrorKey(error: { message?: string } | null | undefined): Me
 }
 
 /** Lista wyboru (AC-15 = AC-18 bez osoby wpisywanej): alfabetycznie po imieniu i nazwisku. */
-export function sortOfficers(officers: readonly RangeOfficer[]): RangeOfficer[] {
+export function sortOfficers<T extends RangeOfficer>(officers: readonly T[]): T[] {
   return [...officers].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pl'));
+}
+
+/** Wiersz `range_officer_choices` — `is_person`: osoba wpisywana (AC-18). */
+export interface OfficerChoice extends RangeOfficer {
+  is_person?: boolean;
+}
+
+/**
+ * AC-18, AC-21: kolejność listy wyboru — osoba wpisywana (także ukryta dla innych) na początku, potem reszta
+ * alfabetycznie (polskie litery). Osoba wpisywana nie jest wybierana automatycznie.
+ */
+export function orderChoices(rows: unknown): OfficerChoice[] {
+  const choices = (Array.isArray(rows) ? rows : []) as OfficerChoice[];
+  return [...choices.filter((choice) => choice.is_person), ...sortOfficers(choices.filter((choice) => !choice.is_person))];
 }

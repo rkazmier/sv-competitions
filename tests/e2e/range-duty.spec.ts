@@ -51,6 +51,8 @@ async function setDuty(source: 'book' | 'schedule', officerId: string): Promise<
 }
 
 const dutyBar = (page: Page) => page.getByRole('main').getByText('Dyżurny:');
+// Druga wyszukiwarka prowadzących jest w kroku podpisu (AC-18) — tu tylko wybór dyżurnego.
+const dutyPicker = (page: Page) => page.locator('[data-shift-picker]');
 
 test.beforeEach(async ({ page }) => {
   await clearDuty();
@@ -78,7 +80,7 @@ test('AC-15, AC-19: bez dyżurnego — pytanie z listą i wyszukiwarką; wybór 
   await expect(main.getByRole('heading', { name: 'Kogo wpisujemy?' })).toBeHidden();
 
   // AC-19: wyszukiwarka — od 3 znaków, także ukryci dla innych; spoza listy — brak.
-  const search = main.getByLabel('Szukaj prowadzącego');
+  const search = dutyPicker(page).getByLabel('Szukaj prowadzącego');
   await search.fill('Uk');
   await main.getByRole('button', { name: 'Szukaj', exact: true }).click();
   await expect(main.getByRole('status').filter({ hasText: 'Wpisz co najmniej 3 znaki imienia lub nazwiska.' })).toBeVisible();
@@ -117,7 +119,7 @@ test('AC-16: dyżurny widoczny na każdym urządzeniu; „Zmień” obowiązuje 
   await main.getByRole('button', { name: 'Anuluj', exact: true }).click();
   await expect(dutyBar(page)).toContainText(scheduled);
   await main.getByRole('button', { name: /^Zmień/ }).click();
-  await main.getByLabel('Szukaj prowadzącego').fill(chosen);
+  await dutyPicker(page).getByLabel('Szukaj prowadzącego').fill(chosen);
   await main.getByRole('button', { name: 'Szukaj', exact: true }).click();
   await main.getByRole('button', { name: chosen, exact: true }).click();
   await expect(dutyBar(page)).toContainText(chosen);
