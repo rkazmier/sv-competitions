@@ -8,10 +8,10 @@
  */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import AnnotationForm from '../../../components/AnnotationForm.astro';
+import OfficerPicker from '../../../components/OfficerPicker.astro';
 import QrScanDialog from '../../../components/QrScanDialog.astro';
 import { t } from '../../../i18n';
 import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
-import { OFFICER_SEARCH_MIN_LENGTH } from '../../../lib/range-duty';
 
 const completeFields = [
   { name: 'full_name', label: t('profile.fullName'), autocomplete: 'name' },
@@ -27,18 +27,7 @@ const completeFields = [
     <section class="card stack" data-shift-picker aria-labelledby="shift-question" hidden>
       <h2 id="shift-question" class="question">{t('rangeLog.shiftQuestion')}</h2>
       <p>{t('rangeLog.shiftHint')}</p>
-      <p data-no-officers hidden>{t('rangeLog.noOfficers')}</p>
-      <ul class="officers" data-officers></ul>
-      <div class="auth-form officer-search">
-        <label class="field-label" for="o-query">{t('rangeLog.searchLabel')}</label>
-        <div class="search-row">
-          <input class="input" id="o-query" type="search" autocomplete="off" aria-describedby="o-query-hint" data-officer-query />
-          <button type="button" class="button" data-officer-search>{t('rangeLog.search')}</button>
-        </div>
-        <p class="hint" id="o-query-hint">{t('rangeLog.searchHint', { min: OFFICER_SEARCH_MIN_LENGTH })}</p>
-      </div>
-      <p role="status" data-officer-search-status></p>
-      <ul class="officers" data-officer-results></ul>
+      <OfficerPicker prefix="o" />
       <p class="message-error" role="alert" data-picker-error hidden></p>
       <button type="button" class="button" data-picker-cancel hidden>{t('rangeLog.cancel')}</button>
     </section>
@@ -154,11 +143,20 @@ const completeFields = [
 
       <section class="card stack" aria-labelledby="sign-heading" data-sign hidden>
         <h2 id="sign-heading" tabindex="-1">{t('rangeSign.heading')}</h2>
+        <div class="entry-officer" data-entry-officer>
+          <p class="shift-officer">{t('rangeSign.officerLabel')} <strong data-sign-field="officer"></strong></p>
+          <button type="button" class="button" data-entry-officer-change>
+            {t('rangeLog.change')}<span class="visually-hidden"> {t('rangeSign.officerChangeSr')}</span>
+          </button>
+        </div>
+        <div class="stack" data-entry-officer-picker hidden>
+          <OfficerPicker prefix="eo" />
+          <button type="button" class="button" data-entry-officer-cancel>{t('rangeLog.cancel')}</button>
+        </div>
         <dl class="entry-data">
           <dt>{t('rangeSign.dateTime')}</dt><dd data-sign-field="time"></dd>
           <dt>{t('profile.fullName')}</dt><dd data-sign-field="name"></dd>
           <dt>{t('rangeSign.permitOrAddress')}</dt><dd data-sign-field="permit"></dd>
-          <dt>{t('rangeSign.officer')}</dt><dd data-sign-field="officer"></dd>
           <dt data-sign-pass-label>{t('rangeEntry.passesLegend')}</dt><dd data-sign-field="pass"></dd>
         </dl>
         <section class="scroll-box" aria-labelledby="notice-heading" tabindex="0" data-guest-notice hidden>
@@ -207,10 +205,6 @@ const completeFields = [
         <AnnotationForm />
       </li>
     </template>
-
-    <template data-officer-template>
-      <li><button type="button" class="button officer" data-officer></button></li>
-    </template>
   </div>
 </PanelLayout>
 
@@ -232,26 +226,18 @@ const completeFields = [
     font-size: var(--text-h3);
   }
 
-  .officers {
-    display: grid;
-    gap: var(--space-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .officer {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .shift-bar {
+  .shift-bar,
+  .entry-officer {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2) var(--space-4);
     margin-bottom: var(--space-4);
+  }
+
+  .entry-officer {
+    margin-bottom: 0;
   }
 
   .shift-officer {

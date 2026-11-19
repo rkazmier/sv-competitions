@@ -36,7 +36,9 @@ test.beforeAll(async () => {
 });
 
 async function drawSignature(page: Page): Promise<void> {
-  const box = (await page.getByRole('img', { name: /Pole podpisu/ }).boundingBox())!;
+  const pad = page.getByRole('img', { name: /Pole podpisu/ });
+  await pad.scrollIntoViewIfNeeded();
+  const box = (await pad.boundingBox())!;
   await page.mouse.move(box.x + 20, box.y + 40);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 20, box.y + box.height - 40, { steps: 30 });

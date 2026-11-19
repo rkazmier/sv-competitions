@@ -1,24 +1,14 @@
 /**
  * Wyspa `/panel/ksiazka/` — dyżurny Prowadzący (SPEC-007 US-4, AC-15…AC-17, AC-19). Obsługa i admin (`requireStaff`).
  * Bez dyżurnego na dziś: „Kto prowadzi dziś strzelanie?” z listą widocznych prowadzących i wyszukiwarką
- * „Szukaj prowadzącego” (także ukrytych dla innych). Wybór zapisuje dyżurnego w bazie dla całej strzelnicy
- * (`set_range_duty`). Z dyżurnym: „Dyżurny: …” (+ źródło) i „Zmień”. Przebieg wpisu — lib/range-entry-ui.ts.
- * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
+ * „Szukaj prowadzącego” (także ukrytych dla innych) — lib/range-officer-picker-ui.ts. Wybór zapisuje dyżurnego
+ * w bazie dla całej strzelnicy (`set_range_duty`). Z dyżurnym: „Dyżurny: …” (+ źródło) i „Zmień”.
+ * Przebieg wpisu — lib/range-entry-ui.ts. Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */
 import { t } from '../i18n';
 import { showLoadError, requireStaff } from './panel';
-import {
-  DUTY_CHANGED_EVENT,
-  DUTY_MISSING_EVENT,
-  OFFICER_SEARCH_MIN_LENGTH,
-  dutyErrorKey,
-  dutyFromRows,
-  dutySourceNote,
-  officerSearchQuery,
-  sortOfficers,
-  type RangeDuty,
-  type RangeOfficer,
-} from './range-duty';
+import { DUTY_CHANGED_EVENT, DUTY_MISSING_EVENT, dutyErrorKey, dutyFromRows, dutySourceNote, type RangeDuty } from './range-duty';
+import { mountOfficerPicker } from './range-officer-picker-ui';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
@@ -28,50 +18,26 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
 
 export async function mountRangeLog(root: HTMLElement): Promise<void> {
   const picker = query<HTMLElement>(root, '[data-shift-picker]');
-  const officersList = query<HTMLUListElement>(picker, '[data-officers]');
-  const noOfficers = query<HTMLElement>(picker, '[data-no-officers]');
   const pickerError = query<HTMLElement>(picker, '[data-picker-error]');
-  const searchInput = query<HTMLInputElement>(picker, '[data-officer-query]');
-  const searchButton = query<HTMLButtonElement>(picker, '[data-officer-search]');
-  const searchStatus = query<HTMLElement>(picker, '[data-officer-search-status]');
-  const searchResults = query<HTMLUListElement>(picker, '[data-officer-results]');
   const cancel = query<HTMLButtonElement>(picker, '[data-picker-cancel]');
   const shift = query<HTMLElement>(root, '[data-shift]');
   const officerName = query<HTMLElement>(shift, '[data-officer-name]');
   const sourceNote = query<HTMLElement>(shift, '[data-duty-source]');
   const change = query<HTMLButtonElement>(shift, '[data-change-officer]');
-  const template = query<HTMLTemplateElement>(root, '[data-officer-template]');
 
   const { supabase } = await requireStaff();
   let duty: RangeDuty | null = null;
   let picking = false;
-
-  /** AC-15: lista wyboru — aktywni, zatwierdzeni, nieukryci (AC-18 bez osoby wpisywanej), alfabetycznie. */
-  async function loadOfficers(): Promise<RangeOfficer[] | null> {
-    const { data, error } = await supabase
-      .from('range_officers')
-      .select('id, full_name')
-      .eq('is_active', true)
-      .eq('status', 'approved')
-      .eq('hide_from_others', false);
-    return error ? null : sortOfficers((data ?? []) as RangeOfficer[]);
-  }
+  // AC-15: lista jak AC-18 bez osoby wpisywanej (`range_officer_choices`) i wyszukiwarka (AC-19).
+  const officers = mountOfficerPicker(query<HTMLElement>(picker, '[data-officer-picker]'), supabase, (officer) => {
+    void choose(officer.id);
+  });
 
   async function loadDuty(): Promise<boolean> {
     const { data, error } = await supabase.rpc('current_range_duty');
     if (error) return false;
     duty = dutyFromRows(data);
     return true;
-  }
-
-  function officerButtons(officers: readonly RangeOfficer[]): DocumentFragment[] {
-    return officers.map((officer) => {
-      const fragment = template.content.cloneNode(true) as DocumentFragment;
-      const button = query<HTMLButtonElement>(fragment, '[data-officer]');
-      button.textContent = officer.full_name;
-      button.addEventListener('click', () => void choose(officer.id));
-      return fragment;
-    });
   }
 
   function render(): void {
@@ -90,14 +56,7 @@ export async function mountRangeLog(root: HTMLElement): Promise<void> {
   async function openPicker(): Promise<void> {
     picking = true;
     pickerError.hidden = true;
-    searchInput.value = '';
-    searchStatus.textContent = '';
-    searchResults.replaceChildren();
-    // Świeża lista — prowadzący mógł zostać dodany, zatwierdzony lub ukryty w trakcie dnia.
-    const officers = await loadOfficers();
-    if (!officers) return showLoadError();
-    officersList.replaceChildren(...officerButtons(officers));
-    noOfficers.hidden = officers.length > 0;
+    if (!(await officers.open())) return showLoadError();
     render();
   }
 
@@ -119,32 +78,9 @@ export async function mountRangeLog(root: HTMLElement): Promise<void> {
     change.focus();
   }
 
-  /** AC-19: wyszukiwarka — także ukryci dla innych; tylko identyfikator i imię i nazwisko. */
-  async function search(): Promise<void> {
-    const value = officerSearchQuery(searchInput.value);
-    searchResults.replaceChildren();
-    if (!value) {
-      searchStatus.textContent = t('rangeLog.searchHint', { min: OFFICER_SEARCH_MIN_LENGTH });
-      return;
-    }
-    searchButton.disabled = true;
-    const { data, error } = await supabase.rpc('staff_search_range_officers', { p_query: value });
-    searchButton.disabled = false;
-    const found = (data ?? []) as RangeOfficer[];
-    searchStatus.textContent = error ? t('panel.loadError') : found.length ? '' : t('rangeLog.searchEmpty');
-    searchResults.replaceChildren(...officerButtons(found));
-  }
-
-  searchButton.addEventListener('click', () => void search());
-  searchInput.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    void search();
-  });
-
   change.addEventListener('click', async () => {
     await openPicker();
-    officersList.querySelector<HTMLButtonElement>('button')?.focus();
+    officers.focusFirst();
   });
   cancel.addEventListener('click', () => {
     picking = false;

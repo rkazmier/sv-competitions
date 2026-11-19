@@ -42,7 +42,10 @@ async function openRangeLog(page: Page, path: string): Promise<string> {
 
 /** Podpis myszą: `steps` ruchów = tyle punktów ścieżki (+1 za naciśnięcie). */
 async function drawSignature(page: Page, steps = 30): Promise<void> {
-  const box = (await page.getByRole('img', { name: /Pole podpisu/ }).boundingBox())!;
+  const pad = page.getByRole('img', { name: /Pole podpisu/ });
+  // Pole podpisu może być poniżej krawędzi ekranu (pasek „Prowadzący: …” nad danymi wpisu, SPEC-007 AC-18).
+  await pad.scrollIntoViewIfNeeded();
+  const box = (await pad.boundingBox())!;
   await page.mouse.move(box.x + 20, box.y + 40);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 20, box.y + box.height - 40, { steps });
