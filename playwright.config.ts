@@ -38,7 +38,17 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /range-duty\.spec\.ts$/ },
+    // SPEC-007 US-4: dyżurny Prowadzący jest jeden dla całej bazy — testy, które go zmieniają, po pozostałych
+    // (testy wpisów używają wspólnego dyżurnego `ensureRangeDuty()`).
+    {
+      name: 'range-duty',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /range-duty\.spec\.ts$/,
+      dependencies: ['chromium'],
+    },
+  ],
   webServer: {
     command: `npm --prefix web run build && npm --prefix web run preview -- --host 127.0.0.1 --port ${PORT} --ignore-lock`,
     url: `http://127.0.0.1:${PORT}`,

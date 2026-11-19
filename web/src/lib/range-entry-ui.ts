@@ -14,7 +14,7 @@ import { PRODUCT_COLUMNS, formatPrice, type Product } from './products';
 import { requireStaff } from './panel';
 import { LIMITS } from './profile';
 import { scanQrCode } from './qr-scanner';
-import { currentShiftOfficerId } from './range-shift';
+import { DUTY_CHANGED_EVENT, DUTY_MISSING_EVENT, dutyFromRows, type RangeDuty } from './range-duty';
 import { ENTRY_SAVED_EVENT } from './range-history';
 import { entryDateTime, permitOrAddress, saveErrorKey, signaturePath, type EntryPerson } from './range-sign';
 import { mountSignaturePad, saveRangeEntry } from './range-sign-ui';
@@ -74,6 +74,8 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   /** Identyfikator wpisu = nazwa pliku podpisu; ten sam przy ponowieniu, nowy po zmianie podpisu (AC-16). */
   let entry: { id: string; path: string; version: number } | null = null;
   let saving = false;
+  /** Prowadzący tego wpisu — dyżurny z chwili otwarcia kroku podpisu (SPEC-007 §7). */
+  let officerId: string | null = null;
   const pad = mountSignaturePad(query<HTMLCanvasElement>(sign, '[data-pad]'), () => {
     save.disabled = saving || !pad.complete; // AC-14
   });
@@ -281,13 +283,38 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     renderPerson();
   });
 
+  /** SPEC-007 AC-16, AC-17, §7: Prowadzący wpisu = dyżurny pobrany z bazy przy rozpoczęciu każdego wpisu. */
+  function setOfficer(duty: RangeDuty | null): void {
+    officerId = duty?.range_officer_id ?? null;
+    query(sign, '[data-sign-field="officer"]').textContent = duty?.full_name ?? '';
+  }
+  root.addEventListener(DUTY_CHANGED_EVENT, (event) => {
+    setOfficer((event as CustomEvent<RangeDuty | null>).detail);
+    signError.hidden = true;
+  });
+
+  /**
+   * Aktualny dyżurny do wpisu. AC-17: źródło z prowadzącym spoza listy jest pomijane (baza); gdy żadne nie wskazuje
+   * prowadzącego — komunikat i ponowny wybór dyżurnego (AC-15, lib/range-log-ui.ts). Zwraca, czy dyżurny jest.
+   */
+  async function loadEntryOfficer(): Promise<boolean> {
+    const { data, error } = await supabase.rpc('current_range_duty');
+    const duty = error ? null : dutyFromRows(data);
+    setOfficer(duty);
+    if (duty) return true;
+    signError.textContent = t(error ? 'panel.loadError' : 'rangeSign.errorOfficer');
+    signError.hidden = false;
+    if (!error) root.dispatchEvent(new CustomEvent(DUTY_MISSING_EVENT));
+    return false;
+  }
+
   /** AC-13: ekran podpisu z danymi wpisu, regulaminem i (osoba bez konta) klauzulą informacyjną. */
-  function openSign(passText: string): void {
+  async function openSign(passText: string): Promise<void> {
     const values: Record<string, string> = {
       time: entryDateTime(new Date()),
       name: entryData!.full_name ?? '',
       permit: permitOrAddress(entryData!),
-      officer: query(root, '[data-officer-name]').textContent ?? '',
+      officer: '',
       pass: passText,
     };
     for (const field of sign.querySelectorAll<HTMLElement>('[data-sign-field]')) {
@@ -298,6 +325,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     signError.hidden = true;
     showStep('sign');
     query(sign, '#sign-heading').focus();
+    await loadEntryOfficer();
   }
 
   async function goNext(asCompanion: boolean): Promise<void> {
@@ -307,7 +335,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     entryData = ((data ?? []) as EntryPerson[])[0] ?? { full_name: person!.full_name, permit_number: null, permit_authority: null, address: null };
     entryPassId = pass?.id ?? null;
     const effect = pass && passEffect(pass, todayInWarsaw());
-    openSign(effect ? t(effect.key, effect.params) : t('rangeSign.companionPass'));
+    await openSign(effect ? t(effect.key, effect.params) : t('rangeSign.companionPass'));
   }
   next.addEventListener('click', () => void goNext(false));
   query(card, '[data-companion]').addEventListener('click', () => void goNext(true));
@@ -334,7 +362,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     person = null;
     guest = entryData = values as EntryPerson;
     entryPassId = null;
-    if (companion) return openSign(t('rangeSign.companionPass'));
+    if (companion) return void openSign(t('rangeSign.companionPass'));
     void openSale();
   });
 
@@ -379,18 +407,15 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
       return;
     }
     entryPassId = (pass.data as { id: string }).id;
-    openSign(itemSelect.selectedOptions[0]?.text ?? '');
+    await openSign(itemSelect.selectedOptions[0]?.text ?? '');
   });
 
   // AC-15, AC-16: podpis do bucketu, wpis i zużycie w jednej transakcji; po błędzie podpis zostaje na ekranie.
   save.addEventListener('click', async () => {
-    const officerId = currentShiftOfficerId(window.localStorage);
     signError.hidden = true;
-    if (!officerId) {
-      signError.textContent = t('rangeSign.errorOfficer');
-      signError.hidden = false;
-      return;
-    }
+    if (!officerId) await loadEntryOfficer();
+    const entryOfficerId = officerId;
+    if (!entryOfficerId) return;
     if (!entry || entry.version !== pad.version) {
       const id = crypto.randomUUID();
       entry = { id, path: signaturePath(id), version: pad.version };
@@ -400,7 +425,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     const png = await pad.toPng();
     const result = png
       ? await saveRangeEntry(supabase, {
-          ...entry, png, officerId, profileId: person?.id ?? null, passId: entryPassId, companion, guest,
+          ...entry, png, officerId: entryOfficerId, profileId: person?.id ?? null, passId: entryPassId, companion, guest,
         })
       : { error: {} };
     saving = false;
@@ -408,6 +433,8 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     save.textContent = t('rangeSign.save');
     if ('error' in result) {
       const key = saveErrorKey(result.error);
+      // AC-17: dyżurny zniknął z listy w trakcie wpisu — pobierz aktualnego (podpis zostaje na ekranie).
+      if (key === 'rangeSign.errorOfficerInactive' && !(await loadEntryOfficer())) return;
       signError.textContent = t(key);
       signError.hidden = false;
       query(sign, '[data-other-pass]').hidden = key !== 'rangeSign.errorPassUsed' || !person;

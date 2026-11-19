@@ -47,6 +47,8 @@ describe('podpis i zapis wpisu (SPEC-005 US-5, US-6)', () => {
     expect(t(saveErrorKey({ message: 'pass_not_valid' }))).toBe('Uprawnienie zostało właśnie wykorzystane — wybierz inne.');
     expect(t(saveErrorKey({ message: 'upload_failed' }))).toBe('Nie udało się zapisać wpisu. Spróbuj ponownie.');
     expect(t(saveErrorKey(null))).toBe('Nie udało się zapisać wpisu. Spróbuj ponownie.');
+    // SPEC-007 AC-17: dyżurny zniknął z listy w trakcie wpisu.
+    expect(saveErrorKey({ message: 'range_officer_inactive' })).toBe('rangeSign.errorOfficerInactive');
     expect(isAlreadyUploaded({ statusCode: '409', message: 'Duplicate' })).toBe(true);
     expect(isAlreadyUploaded({ message: 'The resource already exists' })).toBe(true);
     expect(isAlreadyUploaded({ message: 'Failed to fetch' })).toBe(false);

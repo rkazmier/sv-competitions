@@ -1,12 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { admin, hasLocalSupabase, signIn, unique } from './support/supabase';
 
-// SPEC-005 US-1, US-2: lista prowadzących strzelanie (admin) i wybór prowadzącego na zmianę (obsługa).
+// SPEC-005 US-1: lista prowadzących strzelanie (admin; obsługa — odczyt). Wybór prowadzącego na zmianę (SPEC-005 AC-3,
+// AC-4) zastąpił dyżurny Prowadzący w bazie — tests/e2e/range-duty.spec.ts (SPEC-007 AC-15…AC-17).
 // AC-2 (kopia nazwiska we wpisie) — także pgTAP: supabase/tests/013_range_log_test.sql.
 // Wymaga lokalnego Supabase (zmienne — tests/e2e/support/supabase.ts); w CI zawsze uruchamiane.
 test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supabase start + zmienne środowiskowe)');
-
-const SHIFT_KEY = 'sv-range-shift';
 
 const itemFor = (page: Page, name: string) =>
   page.getByRole('main').getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) });
@@ -114,67 +113,9 @@ test.describe('admin — /panel/prowadzacy/', () => {
   });
 });
 
-test.describe('obsługa — /panel/ksiazka/', () => {
+test.describe('obsługa — /panel/prowadzacy/', () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page, 'staff');
-  });
-
-  test('AC-3, AC-4: „Kto prowadzi strzelanie?” → wybór zapamiętany na urządzeniu, nazwisko i „Zmień”', async ({
-    page,
-  }) => {
-    const name = unique('Zmiana');
-    const hidden = unique('Ukryty');
-    await addOfficer(name);
-    await addOfficer(hidden, false);
-
-    await page.goto('/panel/ksiazka/');
-    const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { name: 'Kto prowadzi strzelanie?' })).toBeVisible();
-    await expect(main.getByRole('button', { name: hidden })).toHaveCount(0);
-    await main.getByRole('button', { name, exact: true }).click();
-
-    await expect(main.getByText('Prowadzący strzelanie:')).toContainText(name);
-    await expect(main.getByRole('heading', { name: 'Kto prowadzi strzelanie?' })).toBeHidden();
-
-    // Zapamiętane na urządzeniu — po przeładowaniu bez pytania (AC-3).
-    await page.reload();
-    await expect(main.getByText('Prowadzący strzelanie:')).toContainText(name);
-
-    // „Zmień” wraca do wyboru (AC-4).
-    await main.getByRole('button', { name: /^Zmień/ }).click();
-    await expect(main.getByRole('heading', { name: 'Kto prowadzi strzelanie?' })).toBeVisible();
-    await main.getByRole('button', { name, exact: true }).click();
-    await expect(main.getByText('Prowadzący strzelanie:')).toContainText(name);
-
-    // Menu obsługi: Książka i Prowadzący (SPEC-007 AC-10), bez stron admina.
-    const menu = page.getByRole('navigation', { name: 'Menu panelu' });
-    await expect(menu.getByRole('link', { name: 'Książka', exact: true })).toHaveAttribute('href', '/panel/ksiazka/');
-    await expect(menu.getByRole('link', { name: /^Prowadzący/ })).toHaveAttribute('href', '/panel/prowadzacy/');
-    await expect(menu.getByRole('link', { name: 'Dyscypliny', exact: true })).toHaveCount(0);
-  });
-
-  test('AC-3: wybór z poprzedniego dnia nie obowiązuje — pytanie wraca', async ({ page }) => {
-    const name = unique('Wczoraj');
-    const id = await addOfficer(name);
-    await page.addInitScript(
-      ([key, value]) => window.localStorage.setItem(key, value),
-      [SHIFT_KEY, JSON.stringify({ id, day: '2020-01-01' })] as const,
-    );
-    await page.goto('/panel/ksiazka/');
-    await expect(page.getByRole('heading', { name: 'Kto prowadzi strzelanie?' })).toBeVisible();
-  });
-
-  test('AC-3, §7: prowadzący ukryty w trakcie zmiany — trzeba wybrać ponownie', async ({ page }) => {
-    const name = unique('Ukrywany');
-    const id = await addOfficer(name);
-    await page.goto('/panel/ksiazka/');
-    await page.getByRole('main').getByRole('button', { name, exact: true }).click();
-    await expect(page.getByText('Prowadzący strzelanie:')).toContainText(name);
-
-    await admin().from('range_officers').update({ is_active: false }).eq('id', id);
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'Kto prowadzi strzelanie?' })).toBeVisible();
-    await expect(page.getByRole('main').getByRole('button', { name, exact: true })).toHaveCount(0);
   });
 
   test('AC-1, SPEC-007 AC-10: obsługa widzi listę prowadzących tylko do odczytu (dodawanie i edycja — admin)', async ({
@@ -186,16 +127,11 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     await expect(itemFor(page, name)).toContainText('Aktywny');
     await expect(page.getByRole('form', { name: 'Dodaj prowadzącego' })).toBeHidden();
     await expect(itemFor(page, name).getByRole('button')).toHaveCount(0);
-  });
 
-  test('AC-3: wybór prowadzącego na telefonie (320 px) bez poziomego przewijania', async ({ page }) => {
-    await addOfficer(unique('Telefon'));
-    await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto('/panel/ksiazka/');
-    await expect(page.getByRole('heading', { name: 'Kto prowadzi strzelanie?' })).toBeVisible();
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(0);
+    // Menu obsługi: Książka i Prowadzący (SPEC-007 AC-10), bez stron admina.
+    const menu = page.getByRole('navigation', { name: 'Menu panelu' });
+    await expect(menu.getByRole('link', { name: 'Książka', exact: true })).toHaveAttribute('href', '/panel/ksiazka/');
+    await expect(menu.getByRole('link', { name: /^Prowadzący/ })).toHaveAttribute('href', '/panel/prowadzacy/');
+    await expect(menu.getByRole('link', { name: 'Dyscypliny', exact: true })).toHaveCount(0);
   });
 });
