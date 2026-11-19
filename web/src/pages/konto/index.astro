@@ -276,7 +276,7 @@ const fields = [
     }
   }
 
-  /* Od 80rem mieszczą się 3 kafelki po ok. 400px; węższe ekrany zostają przy 20rem (2 kolumny od 48rem) */
+  /* Od 80rem kafelki min. 24rem (3 po ok. 400px); węższe ekrany: min. 20rem (2–3 kolumny) */
   @media (min-width: 80rem) {
     .account {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
