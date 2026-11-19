@@ -257,6 +257,8 @@ const fields = [
 
     .account .card {
       align-content: start;
+      /* elementy siatki mają min-width: auto — bez tego tabele nowrap rozpychają kolumny zamiast przewijać się w .table-scroll */
+      min-width: 0;
     }
 
     .account .account-wide {
