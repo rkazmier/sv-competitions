@@ -77,7 +77,10 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | --- | --- | --- |
 | Książka rejestru pobytu na strzelnicy | `range_log` | Elektroniczna książka wejść; wpisy niezmienne, przechowywane 1 rok |
 | Wpis do książki | `range_log entry` | Data i godzina, imię i nazwisko, numer decyzji z organem lub adres, prowadzący, podpis |
-| Prowadzący strzelanie | `range_officer` | Osoba z listy admina (imię i nazwisko, nr legitymacji, instytucja), przypisywana do wpisów na zmianę |
+| Prowadzący strzelanie | `range_officer` | Osoba z listy admina albo zatwierdzony użytkownik z konta (imię i nazwisko, nr legitymacji, instytucja), wskazywana przy wpisie do książki |
+| Uprawnienia prowadzącego (zgłoszenie z konta) | `range_officer` z `profile_id` | Zgłoszenie użytkownika w „Twoje dane”; statusy: czeka na zatwierdzenie (`pending`), zatwierdzone (`approved`), odrzucone (`rejected`) — SPEC-007 |
+| Ukryj mnie dla innych | `hide_from_others` | Zatwierdzony Prowadzący z konta nie jest na listach wyboru; Obsługa znajdzie go tylko wyszukiwarką; przy własnym wpisie jest pierwszy |
+| Dyżurny Prowadzący | `range_duty` | Prowadzący ustawiony przez Obsługę na dany dzień dla całej strzelnicy; domyślny Prowadzący każdego wpisu |
 | Nr legitymacji | `license_number` | Numer legitymacji prowadzącego strzelanie |
 | Instytucja | `institution` | Wydawca legitymacji prowadzącego: PZSS, LOK, PZŁ, Inne (z nazwą wpisaną ręcznie — `institution_other`) |
 | Osoba towarzysząca | `companion` | Osoba wpisywana do książki bez zużycia uprawnienia |

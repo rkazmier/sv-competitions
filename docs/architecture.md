@@ -131,6 +131,9 @@
   „Kto prowadzi strzelanie?” z aktywnymi prowadzącymi; wybór w localStorage `sv-range-shift` = `{ id, day }` (bez nazwiska),
   ważny do końca dnia Europe/Warsaw; prowadzący ukryty w trakcie zmiany → ponowny wybór. Logika `src/lib/range-shift.ts`
   (`currentShiftOfficerId()` — źródło prowadzącego dla wpisów), wyspa `src/lib/range-log-ui.ts`.
+  SPEC-007 (#112, do realizacji): wybór na urządzeniu zastępuje dyżurny w bazie (`range_duty`, `rpc/current_range_duty`,
+  `rpc/set_range_duty`); przy wpisie „Prowadzący: …” + „Zmień” (`rpc/range_officer_choices`, `rpc/staff_search_range_officers`);
+  zgłoszenia z kont w „Twoje dane” (`rpc/my_range_officer`, `rpc/save_my_range_officer`) i zatwierdzanie w `/panel/prowadzacy/`.
 - Książka — wpis osoby z kontem (SPEC-005 AC-5…AC-12): w `/panel/ksiazka/` po wyborze prowadzącego „Skanuj kod QR”
   (`src/lib/qr-scanner.ts` + `src/components/QrScanDialog.astro`: `getUserMedia` z tylną kamerą, `BarcodeDetector`,
   a gdy brak formatu `qr_code` — `jsqr` ładowany dynamicznie; ten sam skaner w `/panel/sprzedaz/`), wyszukiwarka
@@ -388,6 +391,8 @@ profiles 1──0..1 billing_details                                            
 profiles 1──* orders *──0..1 products | calendar_events (wejściówka)              — SPEC-003
 orders 1──1 user_passes 1──* pass_usages 0..1──1 range_log                        — SPEC-003 / SPEC-005
 range_officers 1──* range_log 1──* range_log_annotations                          — SPEC-005
+profiles 1──0..1 range_officers (zgłoszenie z konta: status, hide_from_others)     — SPEC-007
+range_officers 1──* range_duty (dyżurny, jeden wiersz na dzień)                    — SPEC-007
 audit_log (kto, kogo, co) — bez FK do usuwanych kont                              — SPEC-002
 Storage bucket signatures (prywatny): signatures/<RRRR>/<MM>/<range_log.id>.png
 disciplines 1──* competitions *──0..1 rulebooks
@@ -399,14 +404,15 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`) | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
 | `user_passes`, `pass_usages` | uprawnienia i ich zużycie | tak (powiązanie z kontem) | nie (własne; obsługa, admin) |
 | `billing_details` | dane do faktury | tak | nie (własne; obsługa, admin) |
 | `company_lookup_requests` | limit zapytań `company-lookup` (konto, czas; bez NIP-u; ostatnia godzina) | powiązanie z kontem | nie (tylko funkcja `company_lookup_take_quota`) |
-| `range_officers` | prowadzący strzelanie | tak | nie (obsługa, admin) |
+| `range_officers` | prowadzący strzelanie (admina i zgłoszenia z kont — SPEC-007) | tak | nie (obsługa, admin; użytkownik — własne zgłoszenie przez funkcje) |
+| `range_duty` | dyżurny Prowadzący na dzień (tylko bieżący dzień) | `set_by` | nie (obsługa, admin) |
 | `range_log`, `range_log_annotations` | książka rejestru pobytu (tylko `insert`, retencja 1 rok) | tak | nie (admin; obsługa — dzisiejsze; osoba — własne przez funkcję) |
 | `disciplines` | lista dyscyplin | nie | tak |
 | `event_categories` | kategorie wydarzeń | nie | tak |

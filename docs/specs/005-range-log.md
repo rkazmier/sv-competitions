@@ -47,6 +47,8 @@ Podpis zawsze składa osobiście osoba wpisywana.
 - **AC-2**: Given zmieniam imię i nazwisko prowadzącego When zapisuję Then wcześniejsze wpisy zachowują dawną wartość (kopia we wpisie).
 
 ### US-2: Jako obsługa chcę ustawić prowadzącego na zmianę
+> Od SPEC-007 (#112) AC-3 i AC-4 zastępuje dyżurny Prowadzący zapisany w bazie (SPEC-007 AC-15…AC-21); prowadzący mogą też zgłaszać się z konta (SPEC-007 US-1).
+
 - **AC-3**: Given otwieram `/panel/ksiazka/` When na tym urządzeniu nie wybrano dziś prowadzącego Then najpierw widzę „Kto prowadzi strzelanie?” z listą aktywnych prowadzących; wybór zapamiętuje urządzenie do końca dnia (Europe/Warsaw).
 - **AC-4**: Given wybrany prowadzący When tworzę kolejne wpisy Then każdy dziedziczy prowadzącego; nazwisko widać na górze ekranu z przyciskiem „Zmień”.
 
