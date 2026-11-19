@@ -279,8 +279,19 @@
   do dzisiejszego wpisu (`created_by = auth.uid()`). Bucket `signatures` prywatny (PNG, 200 KB): `insert` obsługa pod nazwą
   `<RRRR>/<MM>/<id wpisu>.png` (`range_log.signature_path`), `select` admin (podpisane linki), bez `update`/`delete`
   (upload bez `upsert`). Funkcje:
+  - Prowadzący z konta (SPEC-007 §5, #113): `range_officers.profile_id` (unikalny, `on delete cascade`; `null` = dodany przez
+    admina), `status` `pending`/`approved`/`rejected` (domyślnie `approved`), `hide_from_others`, `submitted_at`, `reviewed_by`,
+    `reviewed_at`. „Na liście” = `is_active and status = 'approved'`. Admin dodaje tylko wiersze bez konta; w zgłoszeniach
+    z kont zmienia z API tylko `is_active` (wyzwalacz `range_officers_account_guard`, `42501 forbidden`). `full_name` zgłoszenia
+    = kopia `profiles.full_name` (wyzwalacz `sync_range_officer_name`; wyczyszczone nazwisko nie nadpisuje kopii).
+    Użytkownik — bez dostępu do tabeli, tylko `my_range_officer()`, `save_my_range_officer(license_number, institution,
+    institution_other?, hide_from_others? = true)` (`pending` przy nowym, przywróconym i zmianie nr / instytucji; błędy
+    `full_name_required`, `23514` z nazwą `check`), `set_my_range_officer_hidden(hidden)`, `remove_my_range_officer()`
+    (`is_active = false`). `review_range_officer(id, decision)` — obsługa i admin, tylko `pending` z kontem; `audit_log`
+    `range_officer_review` (`changes`: `range_officer_id`, `decision`, nr legitymacji, instytucja); błędy `forbidden`,
+    `invalid_decision`, `not_pending`.
   - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
-    permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, aktywny prowadzący,
+    permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, prowadzący „na liście”,
     dane osoby (kopia z profilu albo podane dla osoby bez konta), uprawnienie `for update` + `pass_valid_on(dziś)`, wpis
     i zużycie (`activated` / `covered` / `decremented` / `consumed`). Uprawnienie bez właściciela — jednym wpisem.
     Ponowienie z tym samym `id` przez tę samą osobę zwraca istniejący wpis. Błędy: `forbidden`, `invalid_signature_path`,
