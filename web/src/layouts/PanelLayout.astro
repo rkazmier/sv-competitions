@@ -3,7 +3,7 @@
  * Układ panelu: ten sam co strony publiczne, z menu panelu zamiast
  * nawigacji publicznej i `noindex` (SPEC-001 §6.1, §6.2).
  * Bramka logowania (lib/panel.ts, ADR-0004): treść strony (slot) i pełne menu widzi tylko admin;
- * obsługa — własne menu (książka, sprzedaż, prowadzący — SPEC-007 AC-10), bez kalendarza i słowników (SPEC-002 AC-26); użytkownik — brak uprawnień
+ * obsługa — własne menu (książka, sprzedaż, prowadzący — SPEC-007 AC-10, dyżury — AC-22), bez kalendarza i słowników (SPEC-002 AC-26); użytkownik — brak uprawnień
  * i link do konta (AC-27); niezalogowany — logowanie Google (SPEC-001 AC-4).
  * Skrypt strony pobiera dane po `await requireAdmin()`; strony z `access="staff"` (książka — SPEC-005,
  * sprzedaż — SPEC-003 US-5) pokazują treść także obsłudze i pobierają dane po `await requireStaff()`.
@@ -22,6 +22,8 @@ const salesItem = { href: '/panel/sprzedaz/', label: t('panel.menu.sales') };
 const rangeLogItem = { href: '/panel/ksiazka/', label: t('panel.menu.rangeLog') };
 // SPEC-007 AC-7: „Prowadzący (n)” — liczba zgłoszeń z kont do zatwierdzenia; także w menu obsługi (AC-10).
 const officersItem = { href: '/panel/prowadzacy/', label: t('panel.menu.rangeOfficers'), officerCount: true };
+// SPEC-007 AC-22: grafik dyżurów — Obsługa i admin.
+const dutyScheduleItem = { href: '/panel/dyzury/', label: t('panel.menu.rangeDutySchedule') };
 const adminMenu = [
   { href: '/panel/', label: t('panel.menu.calendar') },
   { href: '/panel/regulaminy/', label: t('panel.menu.rulebooks') },
@@ -35,8 +37,9 @@ const adminMenu = [
   rangeLogItem,
   { href: '/panel/ksiazka/przeglad/', label: t('panel.menu.rangeReview') },
   officersItem,
+  dutyScheduleItem,
 ];
-const staffMenu = [rangeLogItem, salesItem, officersItem];
+const staffMenu = [rangeLogItem, salesItem, officersItem, dutyScheduleItem];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
 ---
 <BaseLayout title={title} indexable={false} navLabel={t('layout.panelMenuLabel')}>

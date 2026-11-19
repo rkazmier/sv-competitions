@@ -138,7 +138,10 @@
   z wyszukiwarką — `src/components/OfficerPicker.astro` + `src/lib/range-officer-picker-ui.ts`; logika `src/lib/range-duty.ts`,
   wyspy `src/lib/range-log-ui.ts`, `src/lib/range-entry-ui.ts`.
   SPEC-007 (#112, dalsze zadania): zgłoszenia z kont w „Twoje dane” (`rpc/my_range_officer`, `rpc/save_my_range_officer`) i zatwierdzanie w `/panel/prowadzacy/`.
-  Grafik dyżurów `/panel/dyzury/` (`rpc/range_duty_schedule`, `rpc/set_scheduled_range_duty`); dyżurny zawodów i wydarzeń
+  Grafik dyżurów (SPEC-007 AC-22…AC-25, #119): `/panel/dyzury/` (Obsługa i admin, „Dyżury” w menu) — 30 dni od dziś
+  („Pokaż kolejne 30 dni”, do dziś + 90), dyżurny ze źródłem (`rpc/range_duty_schedule`), „Ustaw” / „Zmień” pod dniem (ten sam
+  `OfficerPicker`) → `rpc/set_scheduled_range_duty`, „Usuń z grafiku” → `rpc/clear_scheduled_range_duty`; podpowiedzi AC-24, AC-25;
+  logika `src/lib/range-duty-schedule.ts`, wyspa `src/lib/range-duty-schedule-ui.ts`. Dyżurny zawodów i wydarzeń
   (`duty_range_officer_id` w formularzach, `rpc/admin_calendar_duty`); kolejność: książka → zawody / wydarzenie → grafik (`range_duty_for`).
   Zatwierdzanie (SPEC-007 AC-7…AC-10, #115): `/panel/prowadzacy/` dostępne też dla Obsługi (`PanelLayout access="staff"`) —
   sekcja „Do zatwierdzenia (n)” (`rpc/review_range_officer`, `src/lib/range-officer-review*.ts`), lista tylko do odczytu dla Obsługi,
@@ -307,6 +310,10 @@
     zatwierdzeni i aktywni — także ukryci; tylko `id`, `full_name`; `ilike` ze znakami wzorca dosłownie),
     `range_officer_choices(person_id?)` (#117, AC-18: prowadzący „na liście” bez „Ukryj mnie dla innych” oraz osoba wpisywana
     — `profile_id = person_id`, także ukryta — pierwsza z `is_person = true`; `id`, `full_name`, `is_person`). Błąd `forbidden`.
+    Grafik (#119): `set_scheduled_range_duty(day, officer_id)` (upsert `day`, `schedule`; `day` od `range_today()` do
+    `range_today() + 90`, inaczej `invalid_day`; `range_officer_inactive`), `clear_scheduled_range_duty(day)` (usuwa tylko wpis
+    grafiku; `invalid_day`), `range_duty_schedule(days)` (1…91 dni od dziś: dyżurny jak `current_range_duty()` oraz wpis grafiku
+    `schedule_range_officer_id`, `schedule_full_name`, `schedule_on_list`).
     `purge_range_duty()` — `pg_cron` `purge-range-duty` (`20 2 * * *` UTC): usuwa dni sprzed `range_today()`.
   - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
     permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, prowadzący „na liście”,

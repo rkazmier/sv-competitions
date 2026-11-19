@@ -1,0 +1,91 @@
+---
+/**
+ * Panel: grafik dyżurów (SPEC-007 US-6, AC-22…AC-25) — Obsługa i admin. 30 dni od dziś („Pokaż kolejne 30 dni”, do 90 dni
+ * naprzód); przy każdym dniu dyżurny i jego źródło, „Ustaw” / „Zmień” (lista i wyszukiwarka prowadzących), „Usuń z grafiku”.
+ * Obsługa: lib/range-duty-schedule-ui.ts.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import OfficerPicker from '../../../components/OfficerPicker.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('rangeDutySchedule.title')} access="staff">
+  <div class="duty-schedule" data-duty-schedule>
+    <h1>{t('rangeDutySchedule.title')}</h1>
+    <p class="hint">{t('rangeDutySchedule.intro')}</p>
+    <p role="status" data-schedule-status></p>
+    <ol class="days" data-days></ol>
+    <button type="button" class="button" data-show-more hidden>{t('rangeDutySchedule.showMore')}</button>
+
+    <section class="stack picker" aria-labelledby="picker-heading" data-day-picker hidden>
+      <h3 id="picker-heading" data-picker-heading></h3>
+      <OfficerPicker prefix="d" />
+      <p class="message-error" role="alert" data-picker-error hidden></p>
+      <button type="button" class="button" data-picker-cancel>{t('rangeLog.cancel')}</button>
+    </section>
+
+    <template data-day-template>
+      <li class="card stack day">
+        <h2 class="day-date"><span data-day-date></span> <span class="tag" data-day-today hidden>{t('rangeDutySchedule.today')}</span></h2>
+        <p class="duty"><strong data-day-officer></strong> <span class="tag" data-day-source hidden></span></p>
+        <p class="hint" data-day-hint hidden></p>
+        <p class="message-error" role="alert" data-day-error hidden></p>
+        <div class="button-row">
+          <button type="button" class="button" data-day-set><span data-day-set-label></span><span class="visually-hidden" data-day-sr></span></button>
+          <button type="button" class="button" data-day-clear hidden>{t('rangeDutySchedule.clear')}<span class="visually-hidden" data-day-sr></span></button>
+        </div>
+      </li>
+    </template>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountDutySchedule } from '../../../lib/range-duty-schedule-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-duty-schedule]');
+  if (root) void mountDutySchedule(root);
+</script>
+
+<style>
+  .duty-schedule > * {
+    margin-top: 0;
+  }
+
+  .days {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+  }
+
+  .stack {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .stack > :global(*) {
+    margin: 0;
+  }
+
+  .day-date {
+    font-size: var(--text-h3);
+  }
+
+  .picker {
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .picker h3 {
+    font-size: var(--text-base);
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  [role='status']:empty {
+    display: none;
+  }
+</style>
