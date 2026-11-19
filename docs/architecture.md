@@ -134,6 +134,8 @@
   SPEC-007 (#112, do realizacji): wybór na urządzeniu zastępuje dyżurny w bazie (`range_duty`, `rpc/current_range_duty`,
   `rpc/set_range_duty`); przy wpisie „Prowadzący: …” + „Zmień” (`rpc/range_officer_choices`, `rpc/staff_search_range_officers`);
   zgłoszenia z kont w „Twoje dane” (`rpc/my_range_officer`, `rpc/save_my_range_officer`) i zatwierdzanie w `/panel/prowadzacy/`.
+  Grafik dyżurów `/panel/dyzury/` (`rpc/range_duty_schedule`, `rpc/set_scheduled_range_duty`); dyżurny zawodów i wydarzeń
+  (`duty_range_officer_id` w formularzach, `rpc/admin_calendar_duty`); kolejność: książka → zawody / wydarzenie → grafik (`range_duty_for`).
 - Książka — wpis osoby z kontem (SPEC-005 AC-5…AC-12): w `/panel/ksiazka/` po wyborze prowadzącego „Skanuj kod QR”
   (`src/lib/qr-scanner.ts` + `src/components/QrScanDialog.astro`: `getUserMedia` z tylną kamerą, `BarcodeDetector`,
   a gdy brak formatu `qr_code` — `jsqr` ładowany dynamicznie; ten sam skaner w `/panel/sprzedaz/`), wyszukiwarka
@@ -392,7 +394,8 @@ profiles 1──* orders *──0..1 products | calendar_events (wejściówka)  
 orders 1──1 user_passes 1──* pass_usages 0..1──1 range_log                        — SPEC-003 / SPEC-005
 range_officers 1──* range_log 1──* range_log_annotations                          — SPEC-005
 profiles 1──0..1 range_officers (zgłoszenie z konta: status, hide_from_others)     — SPEC-007
-range_officers 1──* range_duty (dyżurny, jeden wiersz na dzień)                    — SPEC-007
+range_officers 1──* range_duty (dyżurny: książka / grafik, wiersz na dzień i źródło) — SPEC-007
+range_officers 1──* competitions, calendar_events (duty_range_officer_id)          — SPEC-007
 audit_log (kto, kogo, co) — bez FK do usuwanych kont                              — SPEC-002
 Storage bucket signatures (prywatny): signatures/<RRRR>/<MM>/<range_log.id>.png
 disciplines 1──* competitions *──0..1 rulebooks
@@ -412,7 +415,7 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | `billing_details` | dane do faktury | tak | nie (własne; obsługa, admin) |
 | `company_lookup_requests` | limit zapytań `company-lookup` (konto, czas; bez NIP-u; ostatnia godzina) | powiązanie z kontem | nie (tylko funkcja `company_lookup_take_quota`) |
 | `range_officers` | prowadzący strzelanie (admina i zgłoszenia z kont — SPEC-007) | tak | nie (obsługa, admin; użytkownik — własne zgłoszenie przez funkcje) |
-| `range_duty` | dyżurny Prowadzący na dzień (tylko bieżący dzień) | `set_by` | nie (obsługa, admin) |
+| `range_duty` | dyżurny Prowadzący na dzień: zmiana w książce (dziś) i grafik dyżurów (do 90 dni) | `set_by` | nie (obsługa, admin) |
 | `range_log`, `range_log_annotations` | książka rejestru pobytu (tylko `insert`, retencja 1 rok) | tak | nie (admin; obsługa — dzisiejsze; osoba — własne przez funkcję) |
 | `disciplines` | lista dyscyplin | nie | tak |
 | `event_categories` | kategorie wydarzeń | nie | tak |

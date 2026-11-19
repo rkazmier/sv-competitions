@@ -80,7 +80,9 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Prowadzący strzelanie | `range_officer` | Osoba z listy admina albo zatwierdzony użytkownik z konta (imię i nazwisko, nr legitymacji, instytucja), wskazywana przy wpisie do książki |
 | Uprawnienia prowadzącego (zgłoszenie z konta) | `range_officer` z `profile_id` | Zgłoszenie użytkownika w „Twoje dane”; statusy: czeka na zatwierdzenie (`pending`), zatwierdzone (`approved`), odrzucone (`rejected`) — SPEC-007 |
 | Ukryj mnie dla innych | `hide_from_others` | Zatwierdzony Prowadzący z konta nie jest na listach wyboru; Obsługa znajdzie go tylko wyszukiwarką; przy własnym wpisie jest pierwszy |
-| Dyżurny Prowadzący | `range_duty` | Prowadzący ustawiony przez Obsługę na dany dzień dla całej strzelnicy; domyślny Prowadzący każdego wpisu |
+| Dyżurny Prowadzący | `range_duty` | Prowadzący na dany dzień dla całej strzelnicy; domyślny Prowadzący każdego wpisu. Wynika ze zmiany w książce, dyżurnego zawodów / wydarzenia albo grafiku (w tej kolejności) |
+| Grafik dyżurów | `range_duty` (`source = schedule`) | Dyżurni ustawieni z wyprzedzeniem na kolejne dni (do 90), `/panel/dyzury/` |
+| Dyżurny Prowadzący zawodów / wydarzenia | `duty_range_officer_id` | Opcjonalny dyżurny na wszystkie dni zawodów lub wydarzenia; ma pierwszeństwo przed grafikiem |
 | Nr legitymacji | `license_number` | Numer legitymacji prowadzącego strzelanie |
 | Instytucja | `institution` | Wydawca legitymacji prowadzącego: PZSS, LOK, PZŁ, Inne (z nazwą wpisaną ręcznie — `institution_other`) |
 | Osoba towarzysząca | `companion` | Osoba wpisywana do książki bez zużycia uprawnienia |
