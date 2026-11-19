@@ -20,6 +20,7 @@ import { BILLING_COLUMNS, type InvoiceDetails } from './invoice';
 import { bindInvoiceFields, renderInvoiceSummary } from './invoice-ui';
 import { renderPassesAndPayments } from './offer-ui';
 import { qrSvg } from './qr';
+import { mountRangeOfficerAccount } from './range-officer-account-ui';
 import { getSupabase } from './supabase';
 
 /** Kolumny profilu potrzebne w `/konto/` i `/konto/dane/`. */
@@ -83,6 +84,8 @@ export function renderAccount(supabase: SupabaseClient, user: User, profile: Acc
   el(document, '[data-qr-print]').addEventListener('click', () => window.print());
   // SPEC-003 AC-12…AC-15: karnety, historia karnetów i płatności (pobierane osobno, nie blokują kodu QR).
   void renderPassesAndPayments(supabase, user.id);
+  // SPEC-007 US-1, US-3: uprawnienia prowadzącego z konta w „Twoje dane”.
+  void mountRangeOfficerAccount(supabase, profile.full_name);
 
   // AC-15: nowy kod po potwierdzeniu; stary przestaje działać od razu (rotate_qr_token w bazie).
   const rotate = el<HTMLButtonElement>(document, '[data-qr-rotate]');
