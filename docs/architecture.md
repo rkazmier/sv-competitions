@@ -142,7 +142,10 @@
   („Pokaż kolejne 30 dni”, do dziś + 90), dyżurny ze źródłem (`rpc/range_duty_schedule`), „Ustaw” / „Zmień” pod dniem (ten sam
   `OfficerPicker`) → `rpc/set_scheduled_range_duty`, „Usuń z grafiku” → `rpc/clear_scheduled_range_duty`; podpowiedzi AC-24, AC-25;
   logika `src/lib/range-duty-schedule.ts`, wyspa `src/lib/range-duty-schedule-ui.ts`. Dyżurny zawodów i wydarzeń
-  (`duty_range_officer_id` w formularzach, `rpc/admin_calendar_duty`); kolejność: książka → zawody / wydarzenie → grafik (`range_duty_for`).
+  (SPEC-007 AC-26…AC-30, #120): pole „Dyżurny Prowadzący (opcjonalnie)” w formularzach zawodów i wydarzeń
+  (`src/components/DutyOfficerField.astro` z `OfficerPicker`, wyspa `src/lib/calendar-duty-ui.ts`, logika `src/lib/calendar-duty.ts`);
+  odczyt `rpc/admin_calendar_duty`, zapis `duty_range_officer_id` razem z formularzem; zmiana samego dyżurnego nie uruchamia
+  `site-rebuild` (przebudowa tylko przy zmianie pól publicznych opublikowanego wpisu). Kolejność: książka → zawody / wydarzenie → grafik (`range_duty_for`).
   Zatwierdzanie (SPEC-007 AC-7…AC-10, #115): `/panel/prowadzacy/` dostępne też dla Obsługi (`PanelLayout access="staff"`) —
   sekcja „Do zatwierdzenia (n)” (`rpc/review_range_officer`, `src/lib/range-officer-review*.ts`), lista tylko do odczytu dla Obsługi,
   oznaczenia „Z konta” / „Ukryty dla innych”, zgłoszeń z kont admin nie edytuje (tylko „Ukryj” / „Przywróć”); „Prowadzący (n)” w menu
@@ -205,7 +208,8 @@
 - `supabase/seed.sql` — fikcyjne dane tylko lokalnie i w CI (`supabase start` / `db reset`; `db push` ich nie wczytuje):
   zawody i wydarzenia z datami liczonymi od dziś, dla strony publicznej i testów E2E. Testy pgTAP, które liczą wiersze,
   usuwają dane seed w swojej transakcji.
-- `created_by` w `rulebooks`, `competitions`, `calendar_events` nie ma uprawnienia `select` dla `anon` ani `authenticated`
+- `created_by` w `rulebooks`, `competitions`, `calendar_events` (oraz `duty_range_officer_id` w `competitions`, `calendar_events`)
+  nie ma uprawnienia `select` dla `anon` ani `authenticated`
   (uprawnienia kolumnowe). Zapytania z frontendu **wymieniają kolumny jawnie** — `select('*')` na tych tabelach kończy się błędem 42501.
   `created_by` ustawia wyzwalacz (`auth.uid()`), klient go nie podaje.
 - Wyzwalacze: `published_at` przy pierwszej publikacji (zawody, wydarzenia), `updated_at`, `slug` zawodów
@@ -303,8 +307,8 @@
     `invalid_decision`, `not_pending`.
   - Dyżurny Prowadzący (SPEC-007 §5, #116): `range_duty` (PK `day`, `source`; `source` `book` / `schedule`; `range_officer_id`
     `on delete cascade`, `set_by`, `set_at`), `select` obsługa i admin, zapis tylko przez funkcje. `range_duty_for(day)` —
-    wewnętrzna (bez `execute` dla API): pierwsze źródło z prowadzącym „na liście” w kolejności `book` → (#120: zawody /
-    wydarzenie) → `schedule`; zwraca `range_officer_id`, `full_name`, `source` (`book` / `event` / `schedule`), `event_name`.
+    wewnętrzna (bez `execute` dla API): pierwsze źródło z prowadzącym „na liście” w kolejności `book` → zawody / wydarzenie
+    trwające w tym dniu, także szkice (#120, `event_name` = nazwa) → `schedule`; zwraca `range_officer_id`, `full_name`, `source` (`book` / `event` / `schedule`), `event_name`.
     Obsługa i admin: `current_range_duty()` (= `range_duty_for(range_today())`), `set_range_duty(officer_id)` (upsert
     `range_today()`, `book`; błąd `range_officer_inactive`), `staff_search_range_officers(query)` (od 3 znaków, maks. 10,
     zatwierdzeni i aktywni — także ukryci; tylko `id`, `full_name`; `ilike` ze znakami wzorca dosłownie),
@@ -315,6 +319,12 @@
     grafiku; `invalid_day`), `range_duty_schedule(days)` (1…91 dni od dziś: dyżurny jak `current_range_duty()` oraz wpis grafiku
     `schedule_range_officer_id`, `schedule_full_name`, `schedule_on_list`).
     `purge_range_duty()` — `pg_cron` `purge-range-duty` (`20 2 * * *` UTC): usuwa dni sprzed `range_today()`.
+    Dyżurny zawodów i wydarzeń (#120): `competitions.duty_range_officer_id`, `calendar_events.duty_range_officer_id`
+    (FK `range_officers` `on delete set null`; bez `select` dla `anon` / `authenticated`; zapis — admin, istniejące polityki).
+    Wyzwalacz `check_calendar_duty` (`insert` / `update` dyżurnego lub dat): prowadzący „na liście” przy zmianie
+    (`range_officer_inactive`), nakładanie terminów z innym dyżurnym w obu tabelach (`range_duty_conflict`, `detail` = JSON
+    `day`, `name`; `pg_advisory_xact_lock`). `admin_calendar_duty(kind, id)` — admin; `kind` `competition` / `event`;
+    `range_officer_id`, `full_name`, `on_list`; błędy `forbidden`, `invalid_kind`.
   - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
     permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, prowadzący „na liście”,
     dane osoby (kopia z profilu albo podane dla osoby bez konta), uprawnienie `for update` + `pass_valid_on(dziś)`, wpis
