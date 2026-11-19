@@ -65,7 +65,7 @@ const fields = [
             </details>
           </section>
 
-          <section class="card" aria-labelledby="payments-heading">
+          <section class="card account-wide" aria-labelledby="payments-heading">
             <h2 id="payments-heading">{t('offer.paymentsTitle')}</h2>
             <p class="hint" data-orders-empty hidden>{t('offer.paymentsEmpty')}</p>
             <div class="table-scroll" data-orders-table hidden>
@@ -83,7 +83,7 @@ const fields = [
               </table>
             </div>
           </section>
-          <section class="card account-wide" aria-labelledby="entries-heading">
+          <section class="card" aria-labelledby="entries-heading">
             <h2 id="entries-heading">{t('rangeHistory.entriesTitle')}</h2>
             <p class="hint" data-entries-empty hidden>{t('rangeHistory.entriesEmpty')}</p>
             <div class="table-scroll" data-entries-table hidden>
@@ -223,7 +223,7 @@ const fields = [
 
   /*
    * Szerokie ekrany: panel na całą szerokość kontenera, karty jako kafelki.
-   * „Historia wejść” zajmuje dwie kolumny. Na telefonie bez zmian — jedna kolumna, kod QR zaraz po statusie.
+   * „Historia płatności” zajmuje dwie kolumny. Na telefonie bez zmian — jedna kolumna, kod QR zaraz po statusie.
    */
   @media (min-width: 48rem) {
     .container.account-page {
