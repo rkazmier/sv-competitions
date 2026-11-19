@@ -3,7 +3,8 @@
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` / `option.text` (bez HTML).
  *
  * Przebudowa strony publicznej (AC-29, lib/site-rebuild.ts): po publikacji, cofnięciu publikacji,
- * zapisie opublikowanego wydarzenia i usunięciu opublikowanego wydarzenia. Zmiany szkicu jej nie uruchamiają.
+ * zapisie opublikowanego wydarzenia i usunięciu opublikowanego wydarzenia. Zmiany szkicu jej nie uruchamiają,
+ * podobnie jak zmiana samego dyżurnego Prowadzącego (pole niepubliczne, SPEC-007 AC-30).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
@@ -21,6 +22,8 @@ import {
   type CalendarEventInput,
   type EventStatus,
 } from './calendar-events';
+import { calendarDutyError, needsRebuild } from './calendar-duty';
+import { mountDutyField } from './calendar-duty-ui';
 import { disciplineOptions, type DisciplineOption } from './competitions';
 import { requireAdmin, showLoadError } from './panel';
 import { priceInputValue } from './products';
@@ -96,12 +99,14 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
   const supabase: SupabaseClient = await requireAdmin();
   const isEdit = root.dataset.calendarEvent === 'edit';
   const id = isEdit ? new URLSearchParams(window.location.search).get('id') : null;
+  const duty = mountDutyField(query<HTMLElement>(form, '[data-duty-field]'), supabase, 'event');
 
-  const [loaded, categories] = await Promise.all([
+  const [loaded, categories, dutyLoaded] = await Promise.all([
     id ? supabase.from('calendar_events').select(COLUMNS).eq('id', id).maybeSingle() : { data: null, error: null },
     supabase.from('event_categories').select('id, name, is_active'),
+    duty.load(id),
   ]);
-  if (loaded.error || categories.error) return showLoadError();
+  if (loaded.error || categories.error || !dutyLoaded) return showLoadError();
   if (isEdit && !loaded.data) {
     form.hidden = true;
     query<HTMLElement>(root, '[data-preview]').hidden = true;
@@ -109,6 +114,8 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
     return;
   }
   let event = loaded.data as CalendarEvent | null;
+  /** Pola publiczne zapisanego wydarzenia — do decyzji o przebudowie (AC-30). */
+  let savedRow: ReturnType<typeof toEventRow> | null = null;
   const allCategories = (categories.data ?? []) as DisciplineOption[];
   const categoryName = (categoryId: string) => allCategories.find((c) => c.id === categoryId)?.name;
 
@@ -160,6 +167,7 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       publishButton.hidden = published;
       unpublishButton.hidden = !published;
       query<HTMLElement>(root, '[data-danger]').hidden = false;
+      savedRow = toEventRow(readInput());
     }
     renderPreview();
   }
@@ -184,6 +192,7 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
   /** „Zapisz” (AC-48…50) albo „Opublikuj” (AC-51). */
   async function save(publish: boolean, button: HTMLButtonElement): Promise<void> {
     announce('');
+    duty.showError(null);
     const input = readInput();
     const nextStatus: EventStatus = publish ? 'published' : (event?.status ?? 'draft');
     const errors = validateCalendarEvent(input, nextStatus);
@@ -197,12 +206,21 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
 
     button.disabled = true;
     const wasPublished = event?.status === 'published';
-    const row = { ...toEventRow(input), ...(publish ? { status: nextStatus } : {}) };
+    const publicRow = toEventRow(input);
+    const rebuild = needsRebuild(publish, wasPublished, savedRow, publicRow);
+    const row = { ...publicRow, duty_range_officer_id: duty.value(), ...(publish ? { status: nextStatus } : {}) };
     try {
       const { data, error } = event
         ? await supabase.from('calendar_events').update(row).eq('id', event.id).select(COLUMNS).single()
         : await supabase.from('calendar_events').insert(row).select(COLUMNS).single();
       if (error || !data) {
+        // SPEC-007 AC-28, AC-29: dyżurny spoza listy albo nakładający się termin z innym dyżurnym.
+        const dutyMessage = calendarDutyError(error);
+        if (dutyMessage) {
+          duty.showError(dutyMessage);
+          announce(dutyMessage);
+          return duty.focus();
+        }
         const check = eventCheckError(error);
         if (!check) return announce(t('panel.saveError'));
         showErrors({ [check.field]: check.code });
@@ -214,7 +232,8 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       }
       event = data as CalendarEvent;
       fillForm();
-      await announceChange(publish ? t('calendarEvent.published') : t('panel.saved'), publish || wasPublished);
+      await duty.load(event.id);
+      await announceChange(publish ? t('calendarEvent.published') : t('panel.saved'), rebuild);
     } catch {
       announce(t('panel.saveError'));
     } finally {

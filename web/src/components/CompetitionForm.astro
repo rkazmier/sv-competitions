@@ -3,10 +3,12 @@
  * Formularz zawodów + matchbook + harmonogram + usuwanie szkicu (SPEC-001 §6.2, AC-17…23).
  * Wspólny dla `/panel/zawody/nowe/` i `/panel/zawody/edytuj/?id=`; dane obsługuje lib/competition-form-ui.ts.
  * Matchbook i harmonogram wymagają `id` zawodów, więc pojawiają się po pierwszym zapisie.
+ * Pole „Dyżurny Prowadzący (opcjonalnie)” — SPEC-007 US-7 (DutyOfficerField.astro).
  */
 import { t } from '../i18n';
 import { COMPETITION_DESCRIPTION_MAX, COMPETITION_NAME_MAX, SCHEDULE_DESCRIPTION_MAX } from '../lib/competitions';
 import { PDF_MIME } from '../lib/rulebooks';
+import DutyOfficerField from './DutyOfficerField.astro';
 
 interface Props {
   mode: 'new' | 'edit';
@@ -59,6 +61,9 @@ const { mode } = Astro.props;
     </select>
     <p class="hint" id="c-rulebook-hint">{t('competition.rulebookHint')}</p>
     <p class="message-error field-error" id="c-rulebook-error" data-rulebook-error hidden></p>
+
+    <!-- SPEC-007 AC-26: dyżurny Prowadzący zawodów (niepubliczny) -->
+    <DutyOfficerField />
 
     <div class="button-row">
       <button type="submit" class="button button-primary" data-save>{t('competition.save')}</button>

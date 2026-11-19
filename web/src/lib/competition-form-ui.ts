@@ -5,10 +5,13 @@
  * Matchbook: nowy plik do Storage (`matchbooks/<id>/<uuid>.pdf`) → `matchbook_path` → usunięcie starego pliku.
  * Usuwanie zawodów: najpierw wiersz (RLS: tylko szkic; harmonogram kaskadowo), potem pliki z `matchbooks/<id>/`.
  * Publikacja (AC-25…28): „Opublikuj” zapisuje formularz ze stanem `published`; każda zmiana opublikowanych
- * zawodów (także matchbook i harmonogram) uruchamia przebudowę strony publicznej (AC-29, lib/site-rebuild.ts).
+ * zawodów (także matchbook i harmonogram) uruchamia przebudowę strony publicznej (AC-29, lib/site-rebuild.ts) —
+ * poza zmianą samego dyżurnego Prowadzącego (pole niepubliczne, SPEC-007 AC-30).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
+import { calendarDutyError, needsRebuild } from './calendar-duty';
+import { mountDutyField } from './calendar-duty-ui';
 import {
   COMPETITION_DESCRIPTION_MAX,
   COMPETITION_NAME_MAX,
@@ -115,14 +118,18 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
   const id = root.dataset.competition === 'edit' ? new URLSearchParams(window.location.search).get('id') : null;
   let competition: Competition | null = null;
   let items: ScheduleItem[] = [];
+  /** Pola publiczne zapisanych zawodów — do decyzji o przebudowie (SPEC-007 AC-30). */
+  let savedRow: ReturnType<typeof toRow> | null = null;
+  const duty = mountDutyField(query<HTMLElement>(form, '[data-duty-field]'), supabase, 'competition');
 
-  const [comp, disciplines, rulebooks, schedule] = await Promise.all([
+  const [comp, disciplines, rulebooks, schedule, dutyLoaded] = await Promise.all([
     id ? supabase.from('competitions').select(COLUMNS).eq('id', id).maybeSingle() : { data: null, error: null },
     supabase.from('disciplines').select('id, name, is_active'),
     supabase.from('rulebooks').select('id, title, is_archived, created_at'),
     id ? supabase.from('schedule_items').select(ITEM_COLUMNS).eq('competition_id', id) : { data: [], error: null },
+    duty.load(id),
   ]);
-  if (comp.error || disciplines.error || rulebooks.error || schedule.error) return showLoadError();
+  if (comp.error || disciplines.error || rulebooks.error || schedule.error || !dutyLoaded) return showLoadError();
   if (root.dataset.competition === 'edit' && !comp.data) {
     form.hidden = true;
     query<HTMLElement>(root, '[data-not-found]').hidden = false;
@@ -156,6 +163,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
     field('starts_on').value = c.starts_on;
     field('ends_on').value = c.ends_on ?? '';
     field('description').value = c.description ?? '';
+    savedRow = toRow(readInput(), field('rulebook_id').value);
     const preview = query<HTMLAnchorElement>(form, '[data-preview]');
     preview.href = `${PREVIEW_URL}?id=${encodeURIComponent(c.id)}`;
     preview.hidden = false;
@@ -207,6 +215,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
   /** Zapis formularza; `publish` = „Opublikuj” (AC-25, AC-26), inaczej „Zapisz” (AC-17, AC-28). */
   async function save(publish: boolean, button: HTMLButtonElement): Promise<void> {
     announce('');
+    duty.showError(null);
     const input = readInput();
     showFieldErrors(validateCompetition(input));
     const nextStatus = publish ? 'published' : (competition?.status ?? 'draft');
@@ -224,12 +233,21 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
 
     button.disabled = true;
     const wasPublished = competition?.status === 'published';
-    const row = { ...toRow(input, field('rulebook_id').value), ...(publish ? { status: nextStatus } : {}) };
+    const publicRow = toRow(input, field('rulebook_id').value);
+    const rebuild = needsRebuild(publish, wasPublished, savedRow, publicRow);
+    const row = { ...publicRow, duty_range_officer_id: duty.value(), ...(publish ? { status: nextStatus } : {}) };
     try {
       const { data, error } = competition
         ? await supabase.from('competitions').update(row).eq('id', competition.id).select(COLUMNS).single()
         : await supabase.from('competitions').insert(row).select(COLUMNS).single();
       if (error || !data) {
+        // SPEC-007 AC-28, AC-29: dyżurny spoza listy albo nakładający się termin z innym dyżurnym.
+        const dutyMessage = calendarDutyError(error);
+        if (dutyMessage) {
+          duty.showError(dutyMessage);
+          announce(dutyMessage);
+          return duty.focus();
+        }
         if (isScheduleRangeError(error)) return announce(t('schedule.dayOutOfRange'));
         if (isRulebookRequiredError(error)) {
           showRulebookError(true);
@@ -244,7 +262,8 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
       }
       competition = data as Competition;
       fillForm();
-      await announceChange(publish ? t('competition.published') : t('panel.saved'), publish || wasPublished);
+      await duty.load(competition.id);
+      await announceChange(publish ? t('competition.published') : t('panel.saved'), rebuild);
     } catch {
       announce(t('panel.saveError'));
     } finally {

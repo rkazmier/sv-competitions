@@ -1,0 +1,55 @@
+---
+/**
+ * Pole „Dyżurny Prowadzący (opcjonalnie)” w formularzach zawodów i wydarzeń (SPEC-007 US-7, AC-26, AC-28).
+ * Wybór z listy i wyszukiwarki (OfficerPicker); obsługa: lib/calendar-duty-ui.ts. Zapis razem z formularzem.
+ */
+import { t } from '../i18n';
+import OfficerPicker from './OfficerPicker.astro';
+---
+<fieldset class="duty" data-duty-field aria-describedby="duty-hint duty-error">
+  <legend class="field-label">{t('calendarDuty.label')}</legend>
+  <p class="duty-current" data-duty-current>{t('calendarDuty.none')}</p>
+  <p class="message-error" data-duty-unavailable hidden>{t('calendarDuty.unavailable')}</p>
+  <p class="hint" id="duty-hint">{t('calendarDuty.hint')}</p>
+  <p class="hint" data-duty-unsaved hidden>{t('calendarDuty.unsaved')}</p>
+  <div class="button-row" data-duty-actions>
+    <button type="button" class="button" data-duty-choose><span data-duty-choose-label>{t('calendarDuty.choose')}</span><span class="visually-hidden">{t('calendarDuty.actionSr')}</span></button>
+    <button type="button" class="button" data-duty-clear hidden>{t('calendarDuty.clear')}</button>
+  </div>
+  <div class="duty-picker" data-duty-picker hidden>
+    <OfficerPicker prefix="duty" />
+    <button type="button" class="button" data-duty-cancel>{t('calendarDuty.cancel')}</button>
+  </div>
+  <p class="message-error field-error" id="duty-error" role="alert" data-duty-error hidden></p>
+</fieldset>
+
+<style>
+  .duty {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    border: 0;
+  }
+
+  .duty > * {
+    margin: 0;
+  }
+
+  .duty-current {
+    font-weight: 600;
+  }
+
+  .duty-picker {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

@@ -3,10 +3,12 @@
  * Formularz wydarzenia w kalendarzu strzelnicy + podgląd karty + usuwanie (SPEC-001 §6.2, US-11, AC-48…53).
  * Wspólny dla `/panel/wydarzenia/nowe/` i `/panel/wydarzenia/edytuj/?id=`; dane obsługuje lib/calendar-event-form-ui.ts.
  * Podgląd to ten sam komponent karty co w kalendarzu (CalendarCard.astro bez `entry`).
+ * Pole „Dyżurny Prowadzący (opcjonalnie)” — SPEC-007 US-7 (DutyOfficerField.astro).
  */
 import { t } from '../i18n';
 import { ACCESS_MODES, EVENT_CAPACITY_MAX, EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EVENT_URL_MAX } from '../lib/calendar-events';
 import CalendarCard from './CalendarCard.astro';
+import DutyOfficerField from './DutyOfficerField.astro';
 
 interface Props {
   mode: 'new' | 'edit';
@@ -84,6 +86,9 @@ const MODE_LABELS = {
     <p class="hint" id="e-url-hint">{t('calendarEvent.urlHint')}</p>
     <p class="hint" id="e-url-publish">{t('calendarEvent.urlPublishHint')}</p>
     <p class="message-error field-error" id="e-url-error" data-error-for="external_url" hidden></p>
+
+    <!-- SPEC-007 AC-26: dyżurny Prowadzący wydarzenia (niepubliczny) -->
+    <DutyOfficerField />
 
     <div class="button-row">
       <button type="submit" class="button button-primary" data-save>{t('calendarEvent.save')}</button>
