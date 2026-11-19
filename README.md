@@ -49,7 +49,7 @@ otwierają PR-y i nadają etykiety osobnym tokenem.
 | Variable | `SUPABASE_PROJECT_REF` | ID projektu (z URL panelu) |
 | Variable | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | Variable | `SUPABASE_ANON_KEY` | klucz publiczny `sb_publishable_…` (Settings → API Keys) |
-| Variable | `APP_URL` | `https://events-staging.steel-valley.pl` / `https://events.steel-valley.pl` |
+| Variable | `APP_URL` | `https://events-staging.steel-valley.pl` / `https://events.steel-valley.pl` (deploy zapisuje go w Supabase jako sekret `SITE_URL`) |
 
 5. Retencja książki i podpisów (ADR-0006) — w każdym projekcie Supabase wygeneruj losowy sekret (np. `openssl rand -hex 32`) i:
    - Edge Functions → Secrets: `RETENTION_INVOKE_SECRET` = sekret;

@@ -42,14 +42,16 @@ jobs:
           TPAY_CLIENT_ID: ${{ secrets.TPAY_CLIENT_ID }}
           TPAY_CLIENT_SECRET: ${{ secrets.TPAY_CLIENT_SECRET }}
           TPAY_API_URL: ${{ vars.TPAY_API_URL }}
-          APP_URL: ${{ vars.APP_URL }}
+          # payments-create czyta adres strony jako SITE_URL, a powiadomienia Tpay kieruje na TPAY_NOTIFICATION_URL
+          SITE_URL: ${{ vars.APP_URL }}
+          TPAY_NOTIFICATION_URL: https://${{ vars.SUPABASE_PROJECT_REF }}.supabase.co/functions/v1/payments-notify
         run: |
           supabase link --project-ref "$PROJECT_REF"
           # --yes: CLI 3.x bez terminala nie zastosuje zmian na hostowanym projekcie bez potwierdzenia
           supabase db push --remote --yes
           # Puste wartości pomijamy, żeby nie nadpisać sekretów już zapisanych w Supabase
           secrets=()
-          for name in TPAY_CLIENT_ID TPAY_CLIENT_SECRET TPAY_API_URL APP_URL; do
+          for name in TPAY_CLIENT_ID TPAY_CLIENT_SECRET TPAY_API_URL SITE_URL TPAY_NOTIFICATION_URL; do
             if [ -n "${!name}" ]; then secrets+=("$name=${!name}"); else echo "::warning::$name jest pusty — nie ustawiam go w Supabase"; fi
           done
           if [ ${#secrets[@]} -gt 0 ]; then supabase secrets set --yes "${secrets[@]}"; fi
