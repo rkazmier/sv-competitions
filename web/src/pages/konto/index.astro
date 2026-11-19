@@ -83,7 +83,7 @@ const fields = [
               </table>
             </div>
           </section>
-          <section class="card" aria-labelledby="entries-heading">
+          <section class="card account-entries" aria-labelledby="entries-heading">
             <h2 id="entries-heading">{t('rangeHistory.entriesTitle')}</h2>
             <p class="hint" data-entries-empty hidden>{t('rangeHistory.entriesEmpty')}</p>
             <div class="table-scroll" data-entries-table hidden>
@@ -263,6 +263,15 @@ const fields = [
 
     .account .account-wide {
       grid-column: span 2;
+    }
+
+    /* Kolejność kafelków: „Twoje dane” obok karnetów, „Historia wejść” obok „Historii płatności” */
+    .account .account-entries {
+      order: 1;
+    }
+
+    .account .account-full {
+      order: 2;
     }
   }
 
