@@ -1,9 +1,9 @@
 ---
 /**
- * Klauzula informacyjna RODO (SPEC-002 AC-2, AC-3, §9). Tekst zastępczy do czasu dostarczenia treści
- * przez właściciela (#39) — wtedy podmień `privacy.placeholder` w i18n.
+ * Klauzula informacyjna RODO (SPEC-002 AC-2, AC-3, §9). Treść: `privacy.body` w i18n (#39).
  */
 import { t } from '../i18n';
+import PrivacyNoticeText from './PrivacyNoticeText.astro';
 
 interface Props {
   headingId: string;
@@ -12,4 +12,4 @@ interface Props {
 const { headingId } = Astro.props;
 ---
 <h2 id={headingId}>{t('privacy.title')}</h2>
-<p>{t('privacy.placeholder')}</p>
+<PrivacyNoticeText />

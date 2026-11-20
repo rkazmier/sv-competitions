@@ -12,6 +12,7 @@ import PanelLayout from '../../../layouts/PanelLayout.astro';
 import AnnotationForm from '../../../components/AnnotationForm.astro';
 import OfficerPicker from '../../../components/OfficerPicker.astro';
 import QrScanDialog from '../../../components/QrScanDialog.astro';
+import PrivacyNoticeText from '../../../components/PrivacyNoticeText.astro';
 import { t } from '../../../i18n';
 import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
 
@@ -172,7 +173,7 @@ const completeFields = [
         </dl>
         <section class="scroll-box" aria-labelledby="notice-heading" tabindex="0" data-guest-notice hidden>
           <h3 id="notice-heading">{t('rangeSign.noticeHeading')}</h3>
-          <p>{t('rangeSign.noticePlaceholder')}</p>
+          <PrivacyNoticeText />
         </section>
         <section class="scroll-box" aria-labelledby="rules-heading" tabindex="0">
           <h3 id="rules-heading">{t('rangeSign.rulesHeading')}</h3>

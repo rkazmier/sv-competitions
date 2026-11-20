@@ -54,13 +54,13 @@ async function fillLogin(page: Page, email: string, password = PASSWORD): Promis
   await page.getByRole('button', { name: 'Zaloguj się', exact: true }).click();
 }
 
-test('AC-2: „Załóż konto” nieaktywny bez zgody; link otwiera klauzulę (tekst zastępczy)', async ({ page }) => {
+test('AC-2: „Załóż konto” nieaktywny bez zgody; link otwiera klauzulę', async ({ page }) => {
   await page.goto('/rejestracja/');
   const submit = page.getByRole('button', { name: 'Załóż konto' });
   await expect(submit).toBeDisabled();
   await page.getByRole('link', { name: 'Informacja o przetwarzaniu danych' }).click();
   const dialog = page.getByRole('dialog', { name: 'Informacja o przetwarzaniu danych osobowych' });
-  await expect(dialog).toContainText('[TEKST DO UZUPEŁNIENIA]');
+  await expect(dialog).toContainText('Administratorem Twoich danych osobowych');
   await dialog.getByRole('button', { name: 'Zamknij' }).click();
   await expect(dialog).toBeHidden();
   await page.getByLabel('Zapoznałem(-am) się z informacją o przetwarzaniu danych osobowych').check();
@@ -120,7 +120,7 @@ test('AC-3: pierwsze logowanie bez potwierdzonej klauzuli (Google) → klauzula 
   await signInAs(page, email, PASSWORD);
   await page.goto('/konto/');
   await expect(page.getByRole('heading', { name: 'Informacja o przetwarzaniu danych osobowych' })).toBeVisible();
-  await expect(page.getByText('[TEKST DO UZUPEŁNIENIA]')).toBeVisible();
+  await expect(page.getByText(/^Administratorem Twoich danych osobowych/)).toBeVisible();
   await page.getByRole('button', { name: 'Rozumiem' }).click();
   await expect(page.getByRole('heading', { name: 'Moje konto' })).toBeVisible();
   const { data } = await admin().from('profiles').select('privacy_notice_ack_at').eq('id', id).single();

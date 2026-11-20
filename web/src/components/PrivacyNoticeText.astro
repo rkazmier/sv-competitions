@@ -1,0 +1,9 @@
+---
+/**
+ * Treść klauzuli informacyjnej RODO (#39) — wspólna dla rejestracji (SPEC-002 AC-2, AC-3)
+ * i wpisu osoby bez konta do książki (SPEC-005 AC-18). Akapity rozdziela pusta linia w `privacy.body`.
+ */
+import { t } from '../i18n';
+import { privacyParagraphs } from '../lib/privacy';
+---
+{privacyParagraphs(t('privacy.body')).map((paragraph) => <p>{paragraph}</p>)}
