@@ -325,6 +325,14 @@
     (`range_officer_inactive`), nakładanie terminów z innym dyżurnym w obu tabelach (`range_duty_conflict`, `detail` = JSON
     `day`, `name`; `pg_advisory_xact_lock`). `admin_calendar_duty(kind, id)` — admin; `kind` `competition` / `event`;
     `range_officer_id`, `full_name`, `on_list`; błędy `forbidden`, `invalid_kind`.
+  - Dyżurny Prowadzący w książce (SPEC-008, ADR-0007, #128): `is_range_duty_officer()` (`security definer`, `execute` dla
+    `authenticated`) — wywołujący ma zgłoszenie z konta będące dziś dyżurnym (`range_duty_for(range_today())`);
+    `can_keep_range_log()` = `is_staff() or is_range_duty_officer()`. Zastępuje `is_staff()` w funkcjach wpisu
+    (`staff_find_by_qr`, `staff_search_people`, `staff_person_by_id`, `staff_person_entry_data`, `staff_complete_profile`,
+    `passes_for_range_entry` — teraz `security definer`, `create_range_log_entry`, `current_range_duty`, `range_officer_choices`,
+    `staff_search_range_officers`) oraz w politykach `range_log` (dzisiejsze), `range_log_annotations` i `signatures` (`insert`).
+    Ustawianie dyżurnego, grafik, sprzedaż, zatwierdzanie i odczyt tabel — bez zmian (`is_staff()` / `is_admin()`).
+    Bramka panelu: stan `duty` (rola `user` + `rpc/is_range_duty_officer`) — tylko `/panel/ksiazka/`, bez „Zmień” i sprzedaży.
   - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
     permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, prowadzący „na liście”,
     dane osoby (kopia z profilu albo podane dla osoby bez konta), uprawnienie `for update` + `pass_valid_on(dziś)`, wpis

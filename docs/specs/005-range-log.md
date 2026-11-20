@@ -39,6 +39,8 @@ Admin przegląda książkę i eksportuje ją do PDF i CSV.
 Nikt nie może edytować ani usuwać wpisów (brak `update`/`delete` dla wszystkich ról); usuwa wyłącznie zadanie retencji.
 Podpis zawsze składa osobiście osoba wpisywana.
 
+> Od SPEC-008 (#128) wpisy jak Obsługa (bez sprzedaży na miejscu) prowadzi też dyżurny Prowadzący z konta w dniu dyżuru.
+
 ## 4. Historyjki i kryteria akceptacji
 
 ### US-1: Jako admin chcę prowadzić listę prowadzących strzelanie
