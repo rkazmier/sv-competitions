@@ -7,6 +7,9 @@
  * - `staff` — obsługa strzelnicy: menu obsługi, bez kalendarza i słowników (AC-26); treść tylko stron
  *   dostępnych dla obsługi (`PanelLayout access="staff"`, np. książka — SPEC-005),
  * - `admin` — treść strony i pełne menu panelu,
+ * - `duty` — rola `user`, która jest teraz dyżurnym Prowadzącym (`rpc/is_range_duty_officer`, SPEC-008 AC-2…AC-4):
+ *   menu tylko „Książka”, treść tylko stron `PanelLayout access="duty"` (`/panel/ksiazka/`); `/panel/` przekierowuje
+ *   do książki, pozostałe strony — `forbidden`. Uprawnienia i tak sprawdza baza przy każdym wywołaniu.
  * - `error` — błąd sieci przy sprawdzaniu roli.
  *
  * Rola z `profiles` (to samo źródło co RLS — `is_staff()` / `is_admin()`), nie z claimu JWT.
@@ -14,7 +17,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
 
-export type PanelState = 'loading' | 'signedOut' | 'forbidden' | 'staff' | 'admin' | 'error';
+export type PanelState = 'loading' | 'signedOut' | 'forbidden' | 'staff' | 'admin' | 'duty' | 'error';
 
 /** Rola konta → stan panelu (hierarchia admin ⊃ staff ⊃ user). */
 export function stateForRole(role: unknown): PanelState {
@@ -25,6 +28,18 @@ export function stateForRole(role: unknown): PanelState {
 
 /** Strona startowa panelu — tu wraca logowanie Google. */
 export const PANEL_HOME = '/panel/';
+/** Jedyna strona panelu dyżurnego Prowadzącego z konta (SPEC-008 §6). */
+export const DUTY_HOME = '/panel/ksiazka/';
+
+/**
+ * Stan pokazywany na danej stronie (SPEC-008 AC-2, AC-4): dyżurny widzi tylko strony dostępne dla dyżurnego;
+ * na pozostałych — „Nie masz uprawnień do panelu.”. `redirect` — `/panel/` prowadzi dyżurnego do książki.
+ */
+export function pageState(state: PanelState, dutyAllowed: boolean, pathname: string): { state: PanelState; redirect?: string } {
+  if (state !== 'duty' || dutyAllowed) return { state };
+  if (pathname === PANEL_HOME) return { state: 'loading', redirect: DUTY_HOME };
+  return { state: 'forbidden' };
+}
 
 export async function resolvePanelState(supabase: SupabaseClient): Promise<PanelState> {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -33,7 +48,12 @@ export async function resolvePanelState(supabase: SupabaseClient): Promise<Panel
   if (!session) return 'signedOut';
   const { data, error } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
   if (error) return 'error';
-  return stateForRole(data?.role);
+  const state = stateForRole(data?.role);
+  if (state !== 'forbidden' || data?.role !== 'user') return state;
+  // SPEC-008 §6: użytkownik, który teraz jest dyżurnym Prowadzącym (sprawdza baza).
+  const duty = await supabase.rpc('is_range_duty_officer');
+  if (duty.error) return 'error';
+  return duty.data === true ? 'duty' : 'forbidden';
 }
 
 function show(state: PanelState): void {
@@ -82,7 +102,13 @@ function startPanel(): Promise<{ supabase: SupabaseClient; state: PanelState }> 
       return new Promise<never>(() => {});
     }
     bindButtons(supabase);
-    const state = await resolvePanelState(supabase).catch((): PanelState => 'error');
+    const resolved = await resolvePanelState(supabase).catch((): PanelState => 'error');
+    const dutyAllowed = Boolean(document.querySelector('[data-panel-state~="duty"]'));
+    const { state, redirect } = pageState(resolved, dutyAllowed, window.location.pathname);
+    if (redirect) {
+      window.location.replace(redirect);
+      return new Promise<never>(() => {});
+    }
     show(state);
     return { supabase, state };
   })();
@@ -103,6 +129,16 @@ export async function requireAdmin(): Promise<SupabaseClient> {
 export async function requireStaff(): Promise<{ supabase: SupabaseClient; role: 'staff' | 'admin' }> {
   const { supabase, state } = await startPanel();
   if (state !== 'admin' && state !== 'staff') return new Promise<never>(() => {});
+  return { supabase, role: state };
+}
+
+/**
+ * Książka rejestru pobytu: obsługa, admin i dyżurny Prowadzący z konta (SPEC-005, SPEC-008). Zwraca rolę —
+ * `duty` ukrywa zmianę dyżurnego i sprzedaż na miejscu.
+ */
+export async function requireRangeLog(): Promise<{ supabase: SupabaseClient; role: 'staff' | 'admin' | 'duty' }> {
+  const { supabase, state } = await startPanel();
+  if (state !== 'admin' && state !== 'staff' && state !== 'duty') return new Promise<never>(() => {});
   return { supabase, role: state };
 }
 

@@ -7,6 +7,8 @@
  * i link do konta (AC-27); niezalogowany — logowanie Google (SPEC-001 AC-4).
  * Skrypt strony pobiera dane po `await requireAdmin()`; strony z `access="staff"` (książka — SPEC-005,
  * sprzedaż — SPEC-003 US-5) pokazują treść także obsłudze i pobierają dane po `await requireStaff()`.
+ * `access="duty"` (książka — SPEC-008) — także dyżurnemu Prowadzącemu z konta (menu tylko „Książka”, `requireRangeLog()`).
+ * `forbiddenNote` — dopisek pod „Nie masz uprawnień do panelu.” (SPEC-008 AC-3).
  */
 import BaseLayout from './BaseLayout.astro';
 import { t } from '../i18n';
@@ -14,10 +16,12 @@ import { t } from '../i18n';
 interface Props {
   title?: string;
   /** Kto widzi treść strony: tylko admin (domyślnie) albo także obsługa strzelnicy. */
-  access?: 'admin' | 'staff';
+  access?: 'admin' | 'staff' | 'duty';
+  forbiddenNote?: string;
 }
 
-const { title, access = 'admin' } = Astro.props;
+const { title, access = 'admin', forbiddenNote } = Astro.props;
+const contentStates = { admin: 'admin', staff: 'admin staff', duty: 'admin staff duty' }[access];
 const salesItem = { href: '/panel/sprzedaz/', label: t('panel.menu.sales') };
 const rangeLogItem = { href: '/panel/ksiazka/', label: t('panel.menu.rangeLog') };
 // SPEC-007 AC-7: „Prowadzący (n)” — liczba zgłoszeń z kont do zatwierdzenia; także w menu obsługi (AC-10).
@@ -71,6 +75,11 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
       }
       <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
     </ul>
+    <!-- SPEC-008 AC-2: dyżurny Prowadzący z konta — tylko „Książka”. -->
+    <ul data-panel-menu="duty" hidden>
+      <li><a href={rangeLogItem.href} aria-current={isCurrent(rangeLogItem.href)}>{rangeLogItem.label}</a></li>
+      <li><button type="button" class="nav-button" data-sign-out>{t('panel.signOut')}</button></li>
+    </ul>
   </Fragment>
   <section class="section panel">
     <div class="container">
@@ -85,6 +94,7 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
       <div data-panel-state="forbidden" hidden>
         <h1>{t('panel.title')}</h1>
         <p>{t('panel.forbidden')}</p>
+        {forbiddenNote && <p data-forbidden-note>{forbiddenNote}</p>}
         <div class="button-row">
           <a class="button button-primary" href="/konto/">{t('panel.goToAccount')}</a>
           <button type="button" class="button" data-sign-out>{t('panel.signOut')}</button>
@@ -102,7 +112,7 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
         <h1>{t('panel.title')}</h1>
         <p class="message-error" role="alert">{t('panel.loadError')}</p>
       </div>
-      <div data-panel-state={access === 'staff' ? 'admin staff' : 'admin'} hidden>
+      <div data-panel-state={contentStates} hidden>
         <slot />
       </div>
     </div>

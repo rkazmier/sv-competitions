@@ -149,7 +149,7 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     expect(actor?.role).toBe('staff');
 
     // AC-12: brak uprawnienia na dziś.
-    await expect(page.getByText('Brak ważnego karnetu lub wejścia na dziś.')).toBeVisible();
+    await expect(page.getByText('Brak ważnego karnetu lub wejścia na dziś.', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sprzedaj na miejscu' })).toHaveAttribute(
       'href',
       `/panel/sprzedaz/?osoba=${person.id}&powrot=ksiazka`,

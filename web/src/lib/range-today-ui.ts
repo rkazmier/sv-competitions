@@ -1,12 +1,12 @@
 /**
  * `/panel/ksiazka/` — lista dzisiejszych wpisów (SPEC-005 §6) z adnotacjami (US-7, AC-21, AC-22).
- * Obsługa: RLS zwraca tylko dzisiejsze wpisy i przyjmuje adnotacje tylko do nich; admin widzi tu też tylko dzisiejsze
+ * Obsługa i dyżurny Prowadzący z konta (SPEC-008 AC-11): RLS zwraca tylko dzisiejsze wpisy i przyjmuje adnotacje tylko do nich; admin widzi tu też tylko dzisiejsze
  * (cała książka — `/panel/ksiazka/przeglad/`, #63). Wpis jest niezmienny — korekta wyłącznie adnotacją.
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */
 import { t } from '../i18n';
 import { todayInWarsaw } from './calendar';
-import { requireStaff } from './panel';
+import { requireRangeLog } from './panel';
 import { bindAnnotationForm } from './range-annotation-ui';
 import { entryTime } from './range-entry';
 import {
@@ -32,7 +32,7 @@ export async function mountRangeToday(root: HTMLElement): Promise<void> {
   const empty = el(section, '[data-today-empty]');
   const loadError = el(section, '[data-today-error]');
   const template = el<HTMLTemplateElement>(root, 'template[data-today-template]');
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireRangeLog();
 
   async function load(): Promise<void> {
     // Admin widzi całą książkę — zawężenie do ostatnich 36 h w zapytaniu, dzień Europe/Warsaw po stronie klienta.

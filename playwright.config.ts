@@ -39,7 +39,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /range-duty(-schedule)?\.spec\.ts$/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /(range-duty(-schedule)?|duty-officer-range-log)\.spec\.ts$/ },
     // SPEC-007 US-4: dyżurny Prowadzący jest jeden dla całej bazy — testy, które go zmieniają, po pozostałych
     // (testy wpisów używają wspólnego dyżurnego `ensureRangeDuty()`).
     {
@@ -54,6 +54,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testMatch: /range-duty-schedule\.spec\.ts$/,
       dependencies: ['range-duty'],
+    },
+    // SPEC-008: dyżurny Prowadzący z konta w książce — zmienia dyżurnego dziś, po grafiku.
+    {
+      name: 'duty-officer-range-log',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /duty-officer-range-log\.spec\.ts$/,
+      dependencies: ['range-duty-schedule'],
     },
   ],
   webServer: {

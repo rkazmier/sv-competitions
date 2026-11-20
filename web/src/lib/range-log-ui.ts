@@ -3,11 +3,21 @@
  * Bez dyżurnego na dziś: „Kto prowadzi dziś strzelanie?” z listą widocznych prowadzących i wyszukiwarką
  * „Szukaj prowadzącego” (także ukrytych dla innych) — lib/range-officer-picker-ui.ts. Wybór zapisuje dyżurnego
  * w bazie dla całej strzelnicy (`set_range_duty`). Z dyżurnym: „Dyżurny: …” (+ źródło) i „Zmień”.
+ * Dyżurny Prowadzący z konta (SPEC-008, `role = 'duty'`): „Dyżurny: …” bez „Zmień” i nigdy ekran wyboru (AC-2, AC-3);
+ * gdy przestał być dyżurnym — „Nie jesteś już dyżurnym Prowadzącym…” i „Odśwież” (AC-14, `DUTY_LOST_EVENT`).
  * Przebieg wpisu — lib/range-entry-ui.ts. Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */
 import { t } from '../i18n';
-import { showLoadError, requireStaff } from './panel';
-import { DUTY_CHANGED_EVENT, DUTY_MISSING_EVENT, dutyErrorKey, dutyFromRows, dutySourceNote, type RangeDuty } from './range-duty';
+import { showLoadError, requireRangeLog } from './panel';
+import {
+  DUTY_CHANGED_EVENT,
+  DUTY_LOST_EVENT,
+  DUTY_MISSING_EVENT,
+  dutyErrorKey,
+  isForbidden,   dutyFromRows,
+  dutySourceNote,
+  type RangeDuty,
+} from './range-duty';
 import { mountOfficerPicker } from './range-officer-picker-ui';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
@@ -25,9 +35,27 @@ export async function mountRangeLog(root: HTMLElement): Promise<void> {
   const sourceNote = query<HTMLElement>(shift, '[data-duty-source]');
   const change = query<HTMLButtonElement>(shift, '[data-change-officer]');
 
-  const { supabase } = await requireStaff();
+  const lostBox = query<HTMLElement>(root, '[data-duty-lost]');
+
+  const { supabase, role } = await requireRangeLog();
+  const isDuty = role === 'duty';
   let duty: RangeDuty | null = null;
   let picking = false;
+  let lost = false;
+  // SPEC-008 AC-2: dyżurny z konta nie zmienia dyżurnego.
+  change.hidden = isDuty;
+
+  /** AC-14: koniec pracy w książce na tej stronie — tylko komunikat i „Odśwież” (po odświeżeniu stan z AC-3). */
+  function showLost(): void {
+    if (lost) return;
+    lost = true;
+    picker.hidden = shift.hidden = true;
+    lostBox.hidden = false;
+    document.body.classList.remove('handover');
+    query<HTMLElement>(lostBox, '[data-duty-lost-text]').focus();
+  }
+  root.addEventListener(DUTY_LOST_EVENT, showLost);
+  query<HTMLButtonElement>(lostBox, '[data-duty-refresh]').addEventListener('click', () => window.location.reload());
   // AC-15: lista jak AC-18 bez osoby wpisywanej (`range_officer_choices`) i wyszukiwarka (AC-19).
   const officers = mountOfficerPicker(query<HTMLElement>(picker, '[data-officer-picker]'), supabase, (officer) => {
     void choose(officer.id);
@@ -35,12 +63,17 @@ export async function mountRangeLog(root: HTMLElement): Promise<void> {
 
   async function loadDuty(): Promise<boolean> {
     const { data, error } = await supabase.rpc('current_range_duty');
+    if (error && isDuty && isForbidden(error)) {
+      duty = null;
+      return true;
+    }
     if (error) return false;
     duty = dutyFromRows(data);
     return true;
   }
 
   function render(): void {
+    if (lost) return;
     const showPicker = picking || !duty;
     picker.hidden = !showPicker;
     shift.hidden = showPicker;
@@ -89,7 +122,10 @@ export async function mountRangeLog(root: HTMLElement): Promise<void> {
   });
 
   async function refresh(): Promise<void> {
+    if (lost) return;
     if (!(await loadDuty())) return showLoadError();
+    // SPEC-008 AC-3, AC-14: dyżurny z konta nigdy nie widzi „Kto prowadzi dziś strzelanie?”.
+    if (isDuty && !duty) return showLost();
     if (!duty) await openPicker();
     else render();
   }

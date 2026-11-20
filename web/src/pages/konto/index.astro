@@ -138,6 +138,11 @@ const fields = [
                 <label for="ro-hide-current">{t('rangeOfficerAccount.hide')}</label>
               </div>
               <p class="hint" id="ro-hide-current-hint">{t('rangeOfficerAccount.hideHint')}</p>
+              <!-- SPEC-008 AC-1: dziś dyżurny Prowadzący — wejście do książki. -->
+              <div class="account-officer" data-officer-duty hidden>
+                <p class="account-officer-state">{t('rangeOfficerAccount.dutyToday')}</p>
+                <a class="button button-primary" href="/panel/ksiazka/">{t('rangeOfficerAccount.openRangeLog')}</a>
+              </div>
               <div class="button-row">
                 <button type="button" class="button" data-officer-edit>{t('rangeOfficerAccount.edit')}</button>
                 <button type="button" class="button" data-officer-remove>{t('rangeOfficerAccount.remove')}</button>

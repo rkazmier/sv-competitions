@@ -5,6 +5,7 @@
  * (zmiana w książce → zawody / wydarzenie → grafik) i warunek „na liście” liczy baza (`current_range_duty`);
  * urządzenie niczego nie zapamiętuje i pobiera dyżurnego przy każdym nowym wpisie (§7).
  */
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MessageKey } from '../i18n';
 
 export interface RangeOfficer {
@@ -24,6 +25,24 @@ export interface RangeDuty {
 /** Zdarzenia na korzeniu `/panel/ksiazka/` między wyspą dyżurnego a przebiegiem wpisu. */
 export const DUTY_CHANGED_EVENT = 'range-duty:changed';
 export const DUTY_MISSING_EVENT = 'range-duty:missing';
+/** SPEC-008 AC-14: dyżurny z konta przestał być dyżurnym — komunikat i „Odśwież” (lib/range-log-ui.ts). */
+export const DUTY_LOST_EVENT = 'range-duty:lost';
+
+/** Odmowa bazy (`raise 'forbidden'`, errcode 42501; także odrzucenie przez RLS / politykę Storage). */
+export function isForbidden(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === '42501' || error?.message === 'forbidden';
+}
+
+/**
+ * SPEC-008 AC-14: czy błąd wywołania dyżurnego z konta wynika z utraty dyżuru. `forbidden` — od razu; inny błąd
+ * (np. odrzucony plik podpisu w Storage) — pytamy bazę, czy wywołujący nadal jest dyżurnym.
+ */
+export async function dutyLost(supabase: SupabaseClient, error: { code?: string; message?: string } | null | undefined): Promise<boolean> {
+  if (!error) return false;
+  if (isForbidden(error)) return true;
+  const { data, error: checkError } = await supabase.rpc('is_range_duty_officer');
+  return !checkError && data === false;
+}
 
 /** AC-19: wyszukiwarka prowadzących od 3 znaków (jak `staff_search_range_officers`). */
 export const OFFICER_SEARCH_MIN_LENGTH = 3;
