@@ -2,8 +2,8 @@
  * Wyspa `/panel/ksiazka/` — dyżurny Prowadzący (SPEC-007 US-4, AC-15…AC-17, AC-19). Obsługa i admin (`requireStaff`).
  * Bez dyżurnego na dziś: „Kto prowadzi dziś strzelanie?” z listą widocznych prowadzących i wyszukiwarką
  * „Szukaj prowadzącego” (także ukrytych dla innych) — lib/range-officer-picker-ui.ts. Wybór zapisuje dyżurnego
- * w bazie dla całej strzelnicy (`set_range_duty`). Z dyżurnym: „Dyżurny: …” (+ źródło) i „Zmień”.
- * Dyżurny Prowadzący z konta (SPEC-008, `role = 'duty'`): „Dyżurny: …” bez „Zmień” i nigdy ekran wyboru (AC-2, AC-3);
+ * w bazie dla całej strzelnicy (`set_range_duty`). Z dyżurnym: „Prowadzący strzelanie: …” (+ źródło) i „Zmień”.
+ * Dyżurny Prowadzący z konta (SPEC-008, `role = 'duty'`): „Prowadzący strzelanie: …” bez „Zmień” i nigdy ekran wyboru (AC-2, AC-3);
  * gdy przestał być dyżurnym — „Nie jesteś już dyżurnym Prowadzącym…” i „Odśwież” (AC-14, `DUTY_LOST_EVENT`).
  * Przebieg wpisu — lib/range-entry-ui.ts. Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */

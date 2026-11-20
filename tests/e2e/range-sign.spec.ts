@@ -36,7 +36,7 @@ async function seedPersonWithPass(): Promise<{ id: string; fullName: string; pas
 async function openRangeLog(page: Page, path: string): Promise<string> {
   const officer = await ensureRangeDuty();
   await page.goto(path);
-  await expect(page.getByRole('main').getByText('Dyżurny:')).toContainText(officer);
+  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(officer);
   return officer;
 }
 

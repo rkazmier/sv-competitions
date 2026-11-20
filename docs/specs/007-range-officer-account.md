@@ -169,7 +169,7 @@ Stany zgłoszenia z konta:
 | `/konto/` — „Twoje dane” | „Dodaj uprawnienia prowadzącego” albo status („czekają na zatwierdzenie” / „zatwierdzone” / „odrzucone…”), nr legitymacji, instytucja, przełącznik „Ukryj mnie dla innych”, „Edytuj”, „Usuń” |
 | `/konto/dane/` lub okno `<dialog>` w `/konto/` | Formularz AC-2 (implementator wybiera wariant spójny z „Edytuj dane”) |
 | `/panel/prowadzacy/` | + „Do zatwierdzenia (n)” (Obsługa i admin), oznaczenia „Z konta”, „Ukryty dla innych”; Obsługa — odczyt |
-| `/panel/ksiazka/` | „Dyżurny: …” + „Zmień” (zamiast prowadzącego zapamiętanego na urządzeniu); w kroku podpisu „Prowadzący: …” + „Zmień” z listą i wyszukiwarką |
+| `/panel/ksiazka/` | „Prowadzący strzelanie: …” + „Zmień” (zamiast prowadzącego zapamiętanego na urządzeniu); w kroku podpisu „Prowadzący: …” + „Zmień” z listą i wyszukiwarką |
 | `/panel/dyzury/` | Grafik dyżurów: 30 dni (do 90), dyżurny i źródło, „Ustaw” / „Zmień”, „Usuń z grafiku” (Obsługa i admin) |
 | Formularze zawodów i wydarzeń | Pole „Dyżurny Prowadzący (opcjonalnie)” z wyborem i wyszukiwarką (admin) |
 | Menu panelu | „Prowadzący (n)” i „Dyżury” widoczne także dla Obsługi |

@@ -25,7 +25,7 @@ describe('dyżurny Prowadzący (SPEC-007 US-4)', () => {
     expect(t(schedule.key, schedule.params)).toBe('(z grafiku)');
     const event = dutySourceNote(duty({ source: 'event', event_name: 'Puchar Stali' }))!;
     expect(t(event.key, event.params)).toBe('(Puchar Stali)');
-    expect(t('rangeLog.officerLabel')).toBe('Dyżurny:');
+    expect(t('rangeLog.officerLabel')).toBe('Prowadzący strzelanie:');
   });
 
   it('AC-17: prowadzący spoza listy przy zapisie — komunikat i ponowny wybór', () => {

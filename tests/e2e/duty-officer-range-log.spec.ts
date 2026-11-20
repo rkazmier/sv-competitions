@@ -60,7 +60,7 @@ const menu = (page: Page) => page.locator('[data-panel-menu="duty"]');
 test.beforeEach(clearDuty);
 test.afterAll(clearDuty);
 
-test('AC-1, AC-2: dyżurny z konta — wejście z /konto/, „Dyżurny: …” bez „Zmień”, menu tylko „Książka”', async ({ page }) => {
+test('AC-1, AC-2: dyżurny z konta — wejście z /konto/, „Prowadzący strzelanie: …” bez „Zmień”, menu tylko „Książka”', async ({ page }) => {
   const name = unique('Dyżurna Z Konta');
   const { email, officerId } = await accountOfficer(name);
   await setDuty(officerId);
@@ -72,7 +72,7 @@ test('AC-1, AC-2: dyżurny z konta — wejście z /konto/, „Dyżurny: …” b
   await data.getByRole('link', { name: 'Otwórz książkę rejestru pobytu' }).click();
 
   await expect(page).toHaveURL(/\/panel\/ksiazka\/$/);
-  await expect(main(page).getByText('Dyżurny:')).toBeVisible();
+  await expect(main(page).getByText('Prowadzący strzelanie:')).toBeVisible();
   await expect(main(page).locator('[data-officer-name]')).toHaveText(name);
   await expect(main(page).locator('[data-change-officer]')).toBeHidden();
   await expect(main(page).getByRole('heading', { name: 'Kto prowadzi dziś strzelanie?' })).toBeHidden();

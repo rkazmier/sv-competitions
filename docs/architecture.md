@@ -133,7 +133,7 @@
   bez usuwania (zmiana nazwiska nie zmienia wpisów — kopia w `range_log.range_officer_name`). `/panel/ksiazka/` (obsługa i admin) —
   dyżurny Prowadzący w bazie (SPEC-007 AC-15…AC-17, AC-19, #116; zastąpił wybór w localStorage `sv-range-shift`):
   bez dyżurnego „Kto prowadzi dziś strzelanie?” z widocznymi prowadzącymi (`rpc/range_officer_choices`) i wyszukiwarką
-  (`rpc/staff_search_range_officers`, także ukryci), wybór → `rpc/set_range_duty`; z dyżurnym „Dyżurny: …” (+ „(z grafiku)” /
+  (`rpc/staff_search_range_officers`, także ukryci), wybór → `rpc/set_range_duty`; z dyżurnym „Prowadzący strzelanie: …” (+ „(z grafiku)” /
   „(<nazwa>)”) i „Zmień” (`rpc/current_range_duty`). Prowadzący wpisu (SPEC-007 AC-18…AC-21, #117) = dyżurny pobrany przy
   otwarciu kroku podpisu; tam „Prowadzący: …” + „Zmień” — lista `rpc/range_officer_choices(person_id)` (osoba wpisywana
   z zatwierdzonymi uprawnieniami pierwsza, także ukryta) i wyszukiwarka; wybór dotyczy tylko tego wpisu (dyżurny bez zmian).

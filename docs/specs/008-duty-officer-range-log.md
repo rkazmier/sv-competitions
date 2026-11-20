@@ -22,7 +22,7 @@ w książce).
 - Wejście do książki z `/konto/` („Twoje dane”).
 
 **Poza zakresem:**
-- Zmiana dyżurnego: „Zmień” przy „Dyżurny: …”, ekran „Kto prowadzi dziś strzelanie?”, grafik `/panel/dyzury/`, dyżurny zawodów i wydarzeń.
+- Zmiana dyżurnego: „Zmień” przy „Prowadzący strzelanie: …”, ekran „Kto prowadzi dziś strzelanie?”, grafik `/panel/dyzury/`, dyżurny zawodów i wydarzeń.
 - Sprzedaż na miejscu (`/panel/sprzedaz/`, „Sprzedaj na miejscu” w książce), zamówienia, zwroty, anulowanie.
 - Zatwierdzanie zgłoszeń prowadzących (`/panel/prowadzacy/`), przegląd całej książki i eksport (`/panel/ksiazka/przeglad/` — admin).
 - Cofanie zużycia karnetu (SPEC-005 AC-23 — admin).
@@ -105,7 +105,7 @@ Bez zmian (nadal `is_staff()` / `is_admin()`): `set_range_duty`, `set_scheduled_
 | `/konto/` — „Twoje dane” | Przy zatwierdzonych uprawnieniach prowadzącego, gdy `rpc/is_range_duty_officer` = `true`: „Dziś jesteś dyżurnym Prowadzącym.” + „Otwórz książkę rejestru pobytu” |
 | Bramka panelu (`web/src/lib/panel.ts`) | Nowy stan `duty`: rola `user` + `rpc/is_range_duty_officer` = `true`; dostęp tylko do stron oznaczonych jako dostępne dla dyżurnego (`/panel/ksiazka/`); pozostałe — `forbidden`; `/panel/` przekierowuje dyżurnego do `/panel/ksiazka/` |
 | Menu panelu (stan `duty`) | Tylko „Książka” |
-| `/panel/ksiazka/` (stan `duty`) | „Dyżurny: …” bez „Zmień”; bez ekranu „Kto prowadzi dziś strzelanie?”; bez „Sprzedaj na miejscu” (AC-8); reszta jak Obsługa |
+| `/panel/ksiazka/` (stan `duty`) | „Prowadzący strzelanie: …” bez „Zmień”; bez ekranu „Kto prowadzi dziś strzelanie?”; bez „Sprzedaj na miejscu” (AC-8); reszta jak Obsługa |
 
 Komunikaty (i18n):
 - „Dziś jesteś dyżurnym Prowadzącym.”
@@ -152,7 +152,7 @@ Brak nowych. Storage `signatures` — zmiana polityki `insert` (§5).
 | Uzupełnianie danych osoby | 5-A: tak, jak Obsługa, z `audit_log` | 2026-11-20 (#128) |
 
 Założenia analityka (zatwierdzane razem ze specyfikacją): dyżurny widzi w panelu tylko „Książka”; nie ma „Zmień” przy
-„Dyżurny: …”, ekranu „Kto prowadzi dziś strzelanie?”, `/panel/dyzury/`, `/panel/prowadzacy/`; uprawnienia sprawdza baza
+„Prowadzący strzelanie: …”, ekranu „Kto prowadzi dziś strzelanie?”, `/panel/dyzury/`, `/panel/prowadzacy/`; uprawnienia sprawdza baza
 (nowe funkcje w RLS i `security definer`); wejście z `/konto/` (bez linku w nagłówku); dostęp tylko dla prowadzących z kontem.
 
 Otwarte: brak.
