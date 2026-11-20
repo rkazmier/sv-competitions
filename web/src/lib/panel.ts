@@ -15,6 +15,7 @@
  * Rola z `profiles` (to samo źródło co RLS — `is_staff()` / `is_admin()`), nie z claimu JWT.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { forgetDuty, rememberDuty } from './duty-link-ui';
 import { getSupabase } from './supabase';
 
 export type PanelState = 'loading' | 'signedOut' | 'forbidden' | 'staff' | 'admin' | 'duty' | 'error';
@@ -53,6 +54,8 @@ export async function resolvePanelState(supabase: SupabaseClient): Promise<Panel
   // SPEC-008 §6: użytkownik, który teraz jest dyżurnym Prowadzącym (sprawdza baza).
   const duty = await supabase.rpc('is_range_duty_officer');
   if (duty.error) return 'error';
+  // SPEC-009 AC-9, AC-11: wynik dla linku „Książka” w nagłówku stron publicznych (np. `false` po utracie dyżuru).
+  rememberDuty(session.user.id, duty.data === true);
   return duty.data === true ? 'duty' : 'forbidden';
 }
 
@@ -84,6 +87,7 @@ function bindButtons(supabase: SupabaseClient): void {
     button.addEventListener('click', async () => {
       button.disabled = true;
       await supabase.auth.signOut();
+      forgetDuty(); // SPEC-009 AC-10
       window.location.assign(PANEL_HOME);
     });
   }

@@ -21,6 +21,7 @@ export const pl = {
     signIn: 'Zaloguj się',
     account: 'Moje konto',
     panel: 'Panel',
+    rangeLog: 'Książka',
   },
   auth: {
     emailLabel: 'E-mail',

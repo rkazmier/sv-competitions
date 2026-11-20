@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DUTY_LINK_KEY, parseDutyMemory } from './duty-link';
 import { DUTY_HOME, PANEL_HOME, pageState, resolvePanelState, stateForRole } from './panel';
 
 /** Minimalny klient: sesja i odpowiedź `profiles.select('role')`. */
@@ -81,5 +82,28 @@ describe('dyżurny Prowadzący z konta w panelu (SPEC-008)', () => {
   it('inne stany bez zmian', () => {
     expect(pageState('staff', false, PANEL_HOME)).toEqual({ state: 'staff' });
     expect(pageState('forbidden', true, DUTY_HOME)).toEqual({ state: 'forbidden' });
+  });
+});
+
+describe('bramka panelu zapisuje dyżur dla nagłówka (SPEC-009)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('AC-9, AC-11: wynik is_range_duty_officer trafia do pamięci; błąd i Obsługa — bez zapisu', async () => {
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+      removeItem: (key: string) => void data.delete(key),
+    };
+    vi.stubGlobal('window', { sessionStorage: storage, localStorage: storage });
+
+    await resolvePanelState(client({ role: 'user', duty: true }));
+    expect(parseDutyMemory(data.get(DUTY_LINK_KEY) ?? null)).toMatchObject({ sub: 'u1', duty: true });
+    await resolvePanelState(client({ role: 'user', duty: false }));
+    expect(parseDutyMemory(data.get(DUTY_LINK_KEY) ?? null)).toMatchObject({ sub: 'u1', duty: false });
+    data.clear();
+    await resolvePanelState(client({ role: 'user', duty: 'error' }));
+    await resolvePanelState(client({ role: 'staff' }));
+    expect(data.has(DUTY_LINK_KEY)).toBe(false);
   });
 });
