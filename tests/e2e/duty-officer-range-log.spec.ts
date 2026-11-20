@@ -36,7 +36,13 @@ async function setDuty(officerId: string): Promise<void> {
 async function accountOfficer(name: string): Promise<{ email: string; officerId: string }> {
   const db = admin();
   const email = `${unique('dyzurny-konto').replace(/\s/g, '-')}@example.test`;
-  const { data: user, error: userError } = await db.auth.admin.createUser({ email, password: PASSWORD, email_confirm: true });
+  // Klauzula potwierdzona — inaczej `/konto/` pokazuje ekran pierwszego logowania zamiast „Twoje dane”.
+  const { data: user, error: userError } = await db.auth.admin.createUser({
+    email,
+    password: PASSWORD,
+    email_confirm: true,
+    user_metadata: { privacy_notice_ack: true },
+  });
   if (userError || !user.user) throw userError ?? new Error('Brak konta');
   await db.from('profiles').update({ full_name: name }).eq('id', user.user.id);
   const { data, error } = await db
