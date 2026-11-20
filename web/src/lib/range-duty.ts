@@ -53,7 +53,7 @@ export function dutyFromRows(data: unknown): RangeDuty | null {
   return row?.range_officer_id ? row : null;
 }
 
-/** AC-16: dopisek przy „Dyżurny: …” — „(z grafiku)”, „(<nazwa zawodów lub wydarzenia>)”; zmiana w książce bez dopisku. */
+/** AC-16: dopisek przy „Prowadzący strzelanie: …” — „(z grafiku)”, „(<nazwa zawodów lub wydarzenia>)”; zmiana w książce bez dopisku. */
 export function dutySourceNote(duty: RangeDuty): { key: MessageKey; params?: Record<string, string> } | null {
   if (duty.source === 'schedule') return { key: 'rangeLog.dutyFromSchedule' };
   if (duty.source === 'event' && duty.event_name) return { key: 'rangeLog.dutyFromEvent', params: { name: duty.event_name } };

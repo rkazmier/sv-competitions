@@ -673,7 +673,7 @@ export const pl = {
     shiftQuestion: 'Kto prowadzi dziś strzelanie?',
     shiftHint: 'Wybór obowiązuje do końca dnia na wszystkich urządzeniach.',
     noOfficers: 'Brak aktywnych prowadzących. Admin dodaje ich w zakładce „Prowadzący”.',
-    officerLabel: 'Dyżurny:',
+    officerLabel: 'Prowadzący strzelanie:',
     dutyFromSchedule: '(z grafiku)',
     dutyFromEvent: '({name})',
     change: 'Zmień',
