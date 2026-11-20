@@ -82,6 +82,7 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Ukryj mnie dla innych | `hide_from_others` | Zatwierdzony Prowadzący z konta nie jest na listach wyboru; Obsługa znajdzie go tylko wyszukiwarką; przy własnym wpisie jest pierwszy |
 | Dyżurny Prowadzący | `range_duty` | Prowadzący na dany dzień dla całej strzelnicy; domyślny Prowadzący każdego wpisu. Wynika ze zmiany w książce, dyżurnego zawodów / wydarzenia albo grafiku (w tej kolejności) |
 | Grafik dyżurów | `range_duty` (`source = schedule`) | Dyżurni ustawieni z wyprzedzeniem na kolejne dni (do 90), `/panel/dyzury/` |
+| Dostęp dyżurnego do książki | `can_keep_range_log` | Dyżurny Prowadzący z konta prowadzi wpisy w `/panel/ksiazka/` tylko w czasie dyżuru, bez zmiany dyżurnego i sprzedaży (SPEC-008) |
 | Dyżurny Prowadzący zawodów / wydarzenia | `duty_range_officer_id` | Opcjonalny dyżurny na wszystkie dni zawodów lub wydarzenia; ma pierwszeństwo przed grafikiem |
 | Nr legitymacji | `license_number` | Numer legitymacji prowadzącego strzelanie |
 | Instytucja | `institution` | Wydawca legitymacji prowadzącego: PZSS, LOK, PZŁ, Inne (z nazwą wpisaną ręcznie — `institution_other`) |

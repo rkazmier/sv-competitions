@@ -41,6 +41,8 @@ innych”, nie pojawia się na listach wyboru.
 
 Zgłoszeń z kont nie edytuje admin ani Obsługa (dane wpisuje właściciel konta; imię i nazwisko z profilu).
 
+> Od SPEC-008 (#128) dyżurny Prowadzący z konta prowadzi w dniu dyżuru wpisy w `/panel/ksiazka/`, ale nie zmienia dyżurnego ani grafiku.
+
 ## 4. Historyjki i kryteria akceptacji
 
 ### US-1: Jako użytkownik z legitymacją chcę zgłosić uprawnienia prowadzącego z konta
