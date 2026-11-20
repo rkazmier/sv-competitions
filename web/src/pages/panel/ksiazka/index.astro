@@ -5,6 +5,8 @@
  * wybór uprawnienia (AC-5…AC-12, lib/range-entry-ui.ts); osoba bez konta ze sprzedażą na miejscu, podpis,
  * zapis wpisu i osoba towarzysząca (AC-13…AC-20); lista dzisiejszych wpisów z adnotacjami (AC-21, AC-22,
  * lib/range-today-ui.ts).
+ * SPEC-008: także dyżurny Prowadzący z konta (`access="duty"`) — bez „Zmień” przy dyżurnym, bez wyboru dyżurnego
+ * i bez sprzedaży na miejscu (AC-2, AC-8); utrata dyżuru w trakcie — komunikat i „Odśwież” (AC-14).
  */
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import AnnotationForm from '../../../components/AnnotationForm.astro';
@@ -20,7 +22,7 @@ const completeFields = [
   { name: 'address', label: t('profile.address'), autocomplete: 'street-address' },
 ];
 ---
-<PanelLayout title={t('rangeLog.title')} access="staff">
+<PanelLayout title={t('rangeLog.title')} access="duty" forbiddenNote={t('rangeLog.dutyForbiddenNote')}>
   <div class="range-log" data-range-log>
     <h1>{t('rangeLog.title')}</h1>
 
@@ -30,6 +32,11 @@ const completeFields = [
       <OfficerPicker prefix="o" />
       <p class="message-error" role="alert" data-picker-error hidden></p>
       <button type="button" class="button" data-picker-cancel hidden>{t('rangeLog.cancel')}</button>
+    </section>
+
+    <section class="card stack" data-duty-lost hidden>
+      <p class="message-error" role="alert" tabindex="-1" data-duty-lost-text>{t('rangeLog.dutyLost')}</p>
+      <button type="button" class="button button-primary" data-duty-refresh>{t('rangeLog.refresh')}</button>
     </section>
 
     <div data-shift hidden>
@@ -70,8 +77,12 @@ const completeFields = [
           </div>
         ))}
         <p class="message-error" role="alert" data-guest-error hidden></p>
+        <div class="stack" role="alert" data-guest-no-pass hidden>
+          <p>{t('rangeEntry.noPassDuty')}</p>
+          <button type="button" class="button button-primary" data-guest-companion>{t('rangeEntry.companion')}</button>
+        </div>
         <div class="button-row">
-          <button type="submit" class="button button-primary">{t('rangeEntry.next')}</button>
+          <button type="submit" class="button button-primary" data-guest-submit>{t('rangeEntry.next')}</button>
           <button type="button" class="button" data-back>{t('rangeEntry.otherPerson')}</button>
         </div>
       </form>
@@ -128,7 +139,7 @@ const completeFields = [
           </fieldset>
           <p class="message-error" role="alert" data-passes-error hidden>{t('rangeEntry.passesError')}</p>
           <div class="stack" data-no-pass hidden>
-            <p>{t('rangeEntry.noPass')}</p>
+            <p data-no-pass-text>{t('rangeEntry.noPass')}</p>
             <div class="button-row">
               <a class="button" data-sell>{t('rangeEntry.sell')}</a>
               <button type="button" class="button" data-companion>{t('rangeEntry.companion')}</button>

@@ -1,6 +1,8 @@
 /**
  * „Twoje dane” w `/konto/` — uprawnienia prowadzącego z konta (SPEC-007 US-1, US-3; AC-1…AC-4, AC-11…AC-13).
  * Formularz AC-2 w oknie `<dialog>` na tej samej stronie (status, przełącznik i „Usuń” są w „Twoje dane”).
+ * SPEC-008 AC-1: przy zatwierdzonych uprawnieniach i dyżurze dziś (`is_range_duty_officer`) — „Dziś jesteś dyżurnym
+ * Prowadzącym.” i „Otwórz książkę rejestru pobytu”.
  * Odczyt i zapis wyłącznie przez funkcje bazy (lib/range-officer-account.ts); tekst z bazy tylko przez `textContent`.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -57,6 +59,12 @@ export async function mountRangeOfficerAccount(supabase: SupabaseClient, fullNam
   }
   show(firstRow(data));
   root.hidden = false;
+
+  // AC-1 (SPEC-008): dyżurny dziś — wejście do książki; w innym wypadku (także przy błędzie) nic się nie pokazuje (AC-3).
+  if (visibleSubmission(firstRow(data))?.status === 'approved') {
+    const duty = await supabase.rpc('is_range_duty_officer');
+    el(current, '[data-officer-duty]').hidden = Boolean(duty.error) || duty.data !== true;
+  }
 
   /** AC-2 (nowe — „Ukryj mnie dla innych” zaznaczone) albo AC-11 (edycja — dane zgłoszenia). */
   const openForm = (row: MyRangeOfficer | null) => {

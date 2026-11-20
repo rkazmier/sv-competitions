@@ -112,6 +112,8 @@ export const pl = {
     removed: 'Usunięto uprawnienia prowadzącego.',
     saveError: 'Nie udało się zapisać. Spróbuj ponownie.',
     loadError: 'Nie udało się wczytać uprawnień prowadzącego. Odśwież stronę.',
+    dutyToday: 'Dziś jesteś dyżurnym Prowadzącym.',
+    openRangeLog: 'Otwórz książkę rejestru pobytu',
   },
   offer: {
     title: 'Oferta',
@@ -683,6 +685,10 @@ export const pl = {
     officerIsPerson: '{name} (osoba wpisywana)',
     officerInactive: 'Ten prowadzący nie jest już dostępny — wybierz innego.',
     dutySaveError: 'Nie udało się zapisać. Spróbuj ponownie.',
+    dutyForbiddenNote: 'Książkę może prowadzić dyżurny Prowadzący w dniu dyżuru albo Obsługa strzelnicy.',
+    dutyLost:
+      'Nie jesteś już dyżurnym Prowadzącym — wpis nie został zapisany. Książkę prowadzi teraz Obsługa lub nowy dyżurny.',
+    refresh: 'Odśwież',
   },
   rangeDutySchedule: {
     title: 'Grafik dyżurów',
@@ -739,6 +745,7 @@ export const pl = {
     effectEntries: '{name} — zostanie {left}',
     effectSingle: '{name} — zostanie wykorzystane',
     noPass: 'Brak ważnego karnetu lub wejścia na dziś.',
+    noPassDuty: 'Brak ważnego karnetu lub wejścia na dziś. Sprzedaż na miejscu prowadzi Obsługa.',
     sell: 'Sprzedaj na miejscu',
     companion: 'Wpisz jako osobę towarzyszącą',
     next: 'Dalej',

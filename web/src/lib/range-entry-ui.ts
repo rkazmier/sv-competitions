@@ -6,16 +6,25 @@
  * na miejscu (`create_on_site_order`), potem jej uprawnienie bez właściciela. Podpis i zapis (AC-13…AC-17) —
  * lib/range-sign-ui.ts; osoba towarzysząca (AC-20) — ten sam przebieg bez kroku uprawnienia. Prowadzący wpisu:
  * domyślnie dyżurny, „Zmień” w kroku podpisu (SPEC-007 AC-18…AC-21, lib/range-officer-picker-ui.ts).
+ * Dyżurny Prowadzący z konta (SPEC-008): bez sprzedaży na miejscu — bez uprawnienia tylko osoba towarzysząca (AC-8);
+ * błąd wywołania po utracie dyżuru → `DUTY_LOST_EVENT` (AC-14, komunikat w lib/range-log-ui.ts).
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent`.
  */
 import { t } from '../i18n';
 import { todayInWarsaw } from './calendar';
 import { SALE_EVENT_COLUMNS, SEARCH_MIN_LENGTH, itemArgs, saleErrorKey, saleItems, type PersonHit, type TicketEvent } from './on-site-sales';
 import { PRODUCT_COLUMNS, formatPrice, type Product } from './products';
-import { requireStaff } from './panel';
+import { requireRangeLog } from './panel';
 import { LIMITS } from './profile';
 import { scanQrCode } from './qr-scanner';
-import { DUTY_CHANGED_EVENT, DUTY_MISSING_EVENT, dutyFromRows, type RangeDuty } from './range-duty';
+import {
+  DUTY_CHANGED_EVENT,
+  DUTY_LOST_EVENT,
+  DUTY_MISSING_EVENT,
+  dutyFromRows,
+  dutyLost,
+  type RangeDuty,
+} from './range-duty';
 import { mountOfficerPicker } from './range-officer-picker-ui';
 import { ENTRY_SAVED_EVENT } from './range-history';
 import { entryDateTime, permitOrAddress, saveErrorKey, signaturePath, type EntryPerson } from './range-sign';
@@ -64,7 +73,19 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   const done = query(root, '[data-done]');
   const dialog = query<HTMLDialogElement>(document, '[data-scan-dialog]');
 
-  const { supabase } = await requireStaff();
+  const { supabase, role } = await requireRangeLog();
+  const isDuty = role === 'duty';
+  /** SPEC-008 AC-14: dyżurny z konta stracił dyżur — wyspa dyżurnego pokazuje komunikat; zwraca `true`. */
+  async function lostDuty(error: { code?: string; message?: string } | null | undefined): Promise<boolean> {
+    if (!isDuty || !(await dutyLost(supabase, error))) return false;
+    root.dispatchEvent(new CustomEvent(DUTY_LOST_EVENT));
+    return true;
+  }
+  // SPEC-008 AC-8: dyżurny nie sprzedaje na miejscu — bez „Sprzedaj na miejscu”, komunikat o Obsłudze.
+  if (isDuty) {
+    query(noPass, '[data-sell]').hidden = true;
+    query(noPass, '[data-no-pass-text]').textContent = t('rangeEntry.noPassDuty');
+  }
   let person: PersonSummary | null = null;
   let passes: EntryPass[] = [];
   /** AC-20: kolejna osoba wpisywana jako towarzysząca (bez kroku uprawnienia). */
@@ -123,6 +144,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   async function loadPasses(): Promise<void> {
     const error = query(card, '[data-passes-error]');
     const result = await supabase.rpc('passes_for_range_entry', { p_user_id: person!.id });
+    if (await lostDuty(result.error)) return;
     error.hidden = !result.error;
     passes = result.error ? [] : ((result.data ?? []) as EntryPass[]);
     if (!result.error) renderPasses();
@@ -184,6 +206,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     findStatus.textContent = t('sales.searching');
     const { data, error } = await supabase.rpc('staff_search_people', { p_query: text });
     searchButton.disabled = false;
+    if (await lostDuty(error)) return;
     if (error) {
       findStatus.textContent = t('sales.searchError');
       return;
@@ -211,6 +234,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     const { data, error } = await supabase.rpc(fn, args);
     const found = ((data ?? []) as PersonSummary[])[0];
     if (found) return selectPerson(found);
+    if (await lostDuty(error)) return;
     showStep('find');
     findStatus.textContent = error ? t('rangeEntry.qrError') : t(fn === 'staff_find_by_qr' ? 'rangeEntry.qrNotFound' : 'rangeEntry.errorPerson');
   }
@@ -273,6 +297,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
       p_address: values.address ?? null,
     });
     submit.disabled = false;
+    if (await lostDuty(error)) return;
     const updated = ((data ?? []) as PersonSummary[])[0];
     if (error || !updated) {
       formError.textContent = t(completeErrorKey(error));
@@ -334,6 +359,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
    */
   async function loadEntryOfficer(): Promise<boolean> {
     const { data, error } = await supabase.rpc('current_range_duty');
+    if (await lostDuty(error)) return false;
     const duty = error ? null : dutyFromRows(data);
     setOfficer(duty);
     if (duty) return true;
@@ -367,7 +393,8 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   async function goNext(asCompanion: boolean): Promise<void> {
     companion ||= asCompanion;
     const pass = companion ? undefined : passes.find((item) => item.id === chosenPass());
-    const { data } = await supabase.rpc('staff_person_entry_data', { p_id: person!.id });
+    const { data, error } = await supabase.rpc('staff_person_entry_data', { p_id: person!.id });
+    if (await lostDuty(error)) return;
     entryData = ((data ?? []) as EntryPerson[])[0] ?? { full_name: person!.full_name, permit_number: null, permit_authority: null, address: null };
     entryPassId = pass?.id ?? null;
     const effect = pass && passEffect(pass, todayInWarsaw());
@@ -377,8 +404,10 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   query(card, '[data-companion]').addEventListener('click', () => void goNext(true));
 
   // AC-18: osoba bez konta — imię i nazwisko oraz decyzja z organem albo adres (walidacja SPEC-002).
+  const guestNoPass = query(guestForm, '[data-guest-no-pass]');
   query(find, '[data-guest-open]').addEventListener('click', () => {
     guestForm.reset();
+    guestNoPass.hidden = true;
     showStep('guest');
     query(guestForm, '#guest-heading').focus();
   });
@@ -399,7 +428,16 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     guest = entryData = values as EntryPerson;
     entryPassId = null;
     if (companion) return void openSign(t('rangeSign.companionPass'));
+    // SPEC-008 AC-8: osoba bez konta nie ma uprawnienia, a dyżurny nie sprzedaje — tylko osoba towarzysząca.
+    if (isDuty) {
+      guestNoPass.hidden = false;
+      return query(guestNoPass, '[data-guest-companion]').focus();
+    }
     void openSale();
+  });
+  query(guestNoPass, '[data-guest-companion]').addEventListener('click', () => {
+    companion = true;
+    void openSign(t('rangeSign.companionPass'));
   });
 
   // AC-19: osoba bez konta płaci na miejscu — wejście jednorazowe na dziś albo wejściówka na dzisiejsze wydarzenie.
@@ -468,6 +506,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     save.disabled = !pad.complete;
     save.textContent = t('rangeSign.save');
     if ('error' in result) {
+      if (await lostDuty(result.error)) return;
       const key = saveErrorKey(result.error);
       // AC-17, §7: wybrany prowadzący zniknął z listy w trakcie wpisu — domyślnie aktualny dyżurny i lista wyboru;
       // podpis zostaje na ekranie.
