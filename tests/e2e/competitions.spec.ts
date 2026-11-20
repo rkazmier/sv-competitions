@@ -40,7 +40,11 @@ async function addPoint(page: Page, day: string, time: string, description: stri
   await page.getByLabel('Dzień', { exact: true }).fill(day);
   await page.getByLabel('Godzina (opcjonalnie)').fill(time);
   await page.getByLabel('Opis', { exact: true }).last().fill(description);
-  await page.getByRole('button', { name: 'Dodaj punkt' }).click();
+  const submit = page.getByRole('button', { name: 'Dodaj punkt' });
+  await submit.click();
+  // Przycisk jest wyłączony do końca zapisu; po nim formularz się resetuje.
+  // Bez czekania kolejne addPoint wpisuje dane, które reset potem czyści.
+  await expect(submit).toBeEnabled();
 }
 
 test.describe('organizator', () => {

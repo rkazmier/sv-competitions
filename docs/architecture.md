@@ -340,7 +340,7 @@
     Ponowienie z tym samym `id` przez tę samą osobę zwraca istniejący wpis. Błędy: `forbidden`, `invalid_signature_path`,
     `signature_missing`, `range_officer_inactive`, `person_not_found`, `person_data_incomplete`, `pass_required`,
     `pass_not_allowed`, `pass_not_valid` (AC-16: „Uprawnienie zostało właśnie wykorzystane”), `entry_exists`.
-  - `passes_for_range_entry(user_id)` — invoker, uprawnienia ważne dziś z `priority` 0–4 (AC-10) i nazwą z zamówienia.
+  - `passes_for_range_entry(user_id)` — `security definer`, `can_keep_range_log()` (SPEC-008), uprawnienia ważne dziś z `priority` 0–4 (AC-10) i nazwą z zamówienia.
     `pass_valid_on(pass, date)` — reguły ważności jednego uprawnienia (używa jej też `passes_valid_on`).
   - `staff_find_by_qr(token)`, `staff_search_people(query)` (od 3 znaków, maks. 10, e-mail częściowo) — obsługa; minimum danych:
     imię i nazwisko, `is_range_ready`, `missing_fields` (`full_name`, `permit_or_address`), godzina dzisiejszego wpisu.
