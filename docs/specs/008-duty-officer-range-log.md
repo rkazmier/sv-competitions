@@ -37,7 +37,7 @@ przy każdym wywołaniu — nie ma osobnej roli ani zapisu uprawnienia.
 
 | Rola | Widzi | Może zmienić |
 | --- | --- | --- |
-| Dyżurny z konta (rola `user`) | `/panel/ksiazka/`: „Dyżurny: <on sam>” (bez „Zmień”), dzisiejsze wpisy (bez podpisów) z adnotacjami; przy wpisie — dane i ważne dziś uprawnienia obsługiwanej osoby (jak Obsługa, przez funkcje); lista Prowadzących do wyboru i wyszukiwarka (SPEC-007 AC-18, AC-19) | Tworzy wpisy (osoba z kontem z ważnym uprawnieniem, osoba towarzysząca z kontem lub bez), uzupełnia brakujące dane osoby (z `audit_log`), wybiera Prowadzącego wpisu, dodaje adnotacje do dzisiejszych wpisów |
+| Dyżurny z konta (rola `user`) | `/panel/ksiazka/`: „Prowadzący strzelanie: <on sam>” (bez „Zmień”), dzisiejsze wpisy (bez podpisów) z adnotacjami; przy wpisie — dane i ważne dziś uprawnienia obsługiwanej osoby (jak Obsługa, przez funkcje); lista Prowadzących do wyboru i wyszukiwarka (SPEC-007 AC-18, AC-19) | Tworzy wpisy (osoba z kontem z ważnym uprawnieniem, osoba towarzysząca z kontem lub bez), uzupełnia brakujące dane osoby (z `audit_log`), wybiera Prowadzącego wpisu, dodaje adnotacje do dzisiejszych wpisów |
 | Obsługa, admin | Bez zmian (SPEC-005, SPEC-007) | Bez zmian; nadal jedyni, którzy ustawiają dyżurnego i sprzedają na miejscu |
 
 Dyżurny z konta **nie** dostaje odczytu tabel `profiles`, `range_officers`, `range_duty`, `orders`, `user_passes`, `pass_usages` —
@@ -48,7 +48,7 @@ Użytkownik z rolą `staff` / `admin` będący dyżurnym korzysta z uprawnień s
 
 ### US-1: Jako dyżurny Prowadzący chcę wejść do książki
 - **AC-1**: Given jestem zalogowany, moje zgłoszenie prowadzącego jest „na liście” i dziś jestem dyżurnym (dowolne źródło: zmiana w książce, zawody / wydarzenie, grafik) When otwieram `/konto/` Then w „Twoje dane” przy uprawnieniach prowadzącego widzę „Dziś jesteś dyżurnym Prowadzącym.” i przycisk „Otwórz książkę rejestru pobytu” (→ `/panel/ksiazka/`).
-- **AC-2**: Given warunki AC-1 When otwieram `/panel/ksiazka/` Then widzę książkę; menu panelu zawiera tylko „Książka”; na górze „Dyżurny: <moje imię i nazwisko>” z dopiskiem źródła jak w SPEC-007 AC-16, **bez** przycisku „Zmień”.
+- **AC-2**: Given warunki AC-1 When otwieram `/panel/ksiazka/` Then widzę książkę; menu panelu zawiera tylko „Książka”; na górze „Prowadzący strzelanie: <moje imię i nazwisko>” z dopiskiem źródła jak w SPEC-007 AC-16, **bez** przycisku „Zmień”.
 - **AC-3**: Given nie jestem dziś dyżurnym (inny dyżurny, brak dyżurnego, zgłoszenie `pending` / `rejected` / usunięte / ukryte przez admina) When otwieram `/panel/ksiazka/` lub inną stronę panelu Then widzę „Nie masz uprawnień do panelu.” (stan `forbidden` jak dziś) — na `/panel/ksiazka/` z dopiskiem „Książkę może prowadzić dyżurny Prowadzący w dniu dyżuru albo Obsługa strzelnicy.”; nigdy nie widzę ekranu „Kto prowadzi dziś strzelanie?”. W `/konto/` nie ma AC-1.
 - **AC-4**: Given dyżurny z konta When otwiera `/panel/dyzury/`, `/panel/prowadzacy/`, `/panel/sprzedaz/` albo `/panel/ksiazka/przeglad/` Then widzi „Nie masz uprawnień do panelu.”, a funkcje bazy `set_range_duty`, `set_scheduled_range_duty`, `clear_scheduled_range_duty`, `range_duty_schedule`, `review_range_officer`, `create_on_site_order`, `staff_on_site_sales_today`, `admin_range_log` odrzucają go (`forbidden`).
 
