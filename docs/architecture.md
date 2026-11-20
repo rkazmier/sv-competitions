@@ -70,7 +70,10 @@
   (`PrivacyNotice.astro`) z „Rozumiem”, potem przejście do `?next=`. Rejestracja e-mailem przekazuje `privacy_notice_ack: true`
   w metadanych konta, a wyzwalacz `handle_new_user` zapisuje czas potwierdzenia. Linki w e-mailach Auth niosą `token_hash`
   (szablony `supabase/templates/`, `verifyOtp`), więc działają też na innym urządzeniu. Nagłówek stron publicznych
-  (`HeaderAuthLinks.astro`): „Zaloguj się” / „Moje konto” / „Panel” z sesji w localStorage i claimu `app_role` — bez zapytań.
+  (`HeaderAuthLinks.astro`): „Zaloguj się” / „Moje konto” / „Panel” z sesji w localStorage i claimu `app_role` — bez zapytań;
+  wyjątek (SPEC-009, ADR-0008): rola `user` pyta raz na kartę i dzień `rpc/is_range_duty_officer` (`fetch` z tokenem sesji)
+  i pokazuje „Książka” → `/panel/ksiazka/` dyżurnemu; wynik w `sessionStorage` `sv-duty-link` (`sub`, dzień Europe/Warsaw),
+  nadpisywany przez `/konto/` i bramkę panelu, usuwany przy wylogowaniu.
 - Panel użytkownika (SPEC-002 AC-7…AC-15): `/konto/` — blok braków albo „Gotowy do wpisu do książki” (z kolumny
   `is_range_ready`), kod QR, „Twoje dane”; `/konto/dane/` — formularz danych (zapis tylko kolumn z uprawnieniami
   kolumnowymi, własny wiersz). Walidacja i lista braków bez DOM w `src/lib/profile.ts` (te same limity co `check` w bazie),

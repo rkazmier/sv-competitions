@@ -27,7 +27,7 @@ w książce).
 - Zatwierdzanie zgłoszeń prowadzących (`/panel/prowadzacy/`), przegląd całej książki i eksport (`/panel/ksiazka/przeglad/` — admin).
 - Cofanie zużycia karnetu (SPEC-005 AC-23 — admin).
 - Dostęp prowadzącego dodanego przez admina (bez konta) i dostęp w innym dniu niż dzień dyżuru.
-- Link do książki w nagłówku strony (claim `app_role` w JWT się nie zmienia — wejście przez `/konto/` lub `/panel/ksiazka/`).
+- Link do książki w nagłówku strony (claim `app_role` w JWT się nie zmienia — wejście przez `/konto/` lub `/panel/ksiazka/`). **Zmienione przez SPEC-009 (#134):** link „Książka” w nagłówku dla dyżurnego.
 
 ## 3. Role i uprawnienia
 
