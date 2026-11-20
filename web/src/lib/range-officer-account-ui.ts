@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import type { DictionaryItem } from './dictionary';
 import { wireOfficerFields } from './dictionary-ui';
+import { rememberDuty } from './duty-link-ui';
 import {
   firstRow,
   institutionText,
@@ -64,6 +65,9 @@ export async function mountRangeOfficerAccount(supabase: SupabaseClient, fullNam
   if (visibleSubmission(firstRow(data))?.status === 'approved') {
     const duty = await supabase.rpc('is_range_duty_officer');
     el(current, '[data-officer-duty]').hidden = Boolean(duty.error) || duty.data !== true;
+    // SPEC-009 AC-9: wynik dla linku „Książka” w nagłówku — zapis i od razu widoczność na tej stronie.
+    const sub = (await supabase.auth.getSession()).data.session?.user.id;
+    if (!duty.error && sub) rememberDuty(sub, duty.data === true);
   }
 
   /** AC-2 (nowe — „Ukryj mnie dla innych” zaznaczone) albo AC-11 (edycja — dane zgłoszenia). */

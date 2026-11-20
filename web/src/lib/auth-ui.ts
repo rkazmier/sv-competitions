@@ -22,6 +22,7 @@ import {
 } from './auth';
 import { ACCOUNT_COLUMNS, renderAccount } from './account-ui';
 import type { AccountProfile } from './profile';
+import { forgetDuty } from './duty-link-ui';
 import { getSupabase } from './supabase';
 
 const nextParam = () => new URLSearchParams(window.location.search).get('next');
@@ -235,6 +236,7 @@ export async function mountAccount(): Promise<void> {
   };
   el(document, '[data-sign-out]').addEventListener('click', async () => {
     await supabase.auth.signOut();
+    forgetDuty(); // SPEC-009 AC-10
     window.location.assign('/');
   });
 
