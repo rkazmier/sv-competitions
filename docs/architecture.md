@@ -252,6 +252,13 @@
     `already_paid` / `refunded` / `already_refunded` / `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
   Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`,
   `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`.
+- Przyznanie karnetu (SPEC-010, tylko admin): `orders.payment_method = 'gift'` z `amount = 0` (`check orders_gift_amount`), bez faktury
+  (`check orders_gift_no_invoice`); powód i notatka anulowania w `order_grants` (PK = `order_id`, RLS: `select` tylko admin — klient czyta
+  cały własny wiersz `orders`, więc powodu tam nie ma). `grant_pass(user_id, product_id | event_id, reason, expires_on, request_key)` — zamówienie
+  `paid` + `order_grants` + `fulfil_order` + `expires_on` z formularza (produkt: dziś…dziś + 5 lat) + `audit_log` `pass_grant` w jednej transakcji;
+  produkt także ukryty, wejściówka jak w `create_on_site_order` (limit z blokadą wiersza). `cancel_pass_grant(order_id, note)` — `gift` `paid` →
+  `cancelled`, uprawnienie `active` → `cancelled` mimo zużyć, `audit_log` `pass_grant_cancel`. `cancel_order` odrzuca `gift` (`order_is_gift`),
+  `set_order_invoice_details` — `invoice_not_available`. UI: `/panel/zamowienia/przyznaj/` (`requireAdmin`), metoda „Prezent” w `/panel/zamowienia/` i `/konto/`.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
@@ -449,6 +456,7 @@ auth.users 1──1 profiles (role: user | staff | admin; dane do książki; qr_
 profiles 1──0..1 billing_details                                                  — SPEC-004
 profiles 1──* orders *──0..1 products | calendar_events (wejściówka)              — SPEC-003
 orders 1──1 user_passes 1──* pass_usages 0..1──1 range_log                        — SPEC-003 / SPEC-005
+orders 1──0..1 order_grants (prezent: powód, notatka anulowania)                  — SPEC-010
 range_officers 1──* range_log 1──* range_log_annotations                          — SPEC-005
 profiles 1──0..1 range_officers (zgłoszenie z konta: status, hide_from_others)     — SPEC-007
 range_officers 1──* range_duty (dyżurny: książka / grafik, wiersz na dzień i źródło) — SPEC-007
@@ -464,10 +472,11 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007) | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007, `pass_grant`, `pass_grant_cancel` — SPEC-010) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
+| `order_grants` | powód przyznania karnetu i notatka anulowania (SPEC-010) | możliwe (tekst swobodny) | nie (admin) |
 | `user_passes`, `pass_usages` | uprawnienia i ich zużycie | tak (powiązanie z kontem) | nie (własne; obsługa, admin) |
 | `billing_details` | dane do faktury | tak | nie (własne; obsługa, admin) |
 | `company_lookup_requests` | limit zapytań `company-lookup` (konto, czas; bez NIP-u; ostatnia godzina) | powiązanie z kontem | nie (tylko funkcja `company_lookup_take_quota`) |

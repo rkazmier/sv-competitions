@@ -109,9 +109,9 @@ Okres ważności uprawnienia: stała `public.pass_validity()` = `interval '1 yea
 | | `product_id` | `uuid` FK → `products.id` on delete restrict | nie | nie | dokładnie jedno z `product_id`, `calendar_event_id` |
 | | `calendar_event_id` | `uuid` FK → `calendar_events.id` on delete restrict | nie | nie | wejściówka |
 | | `item_name` | `text` | tak | nie | kopia nazwy produktu / „Wejściówka: <nazwa wydarzenia>” |
-| | `amount` | `integer` | tak | nie | kopia ceny w chwili zamówienia |
+| | `amount` | `integer` | tak | nie | kopia ceny w chwili zamówienia; `0` tylko dla `gift` (SPEC-010) |
 | | `currency` | `text` | tak | nie | `PLN` |
-| | `payment_method` | `text` check in (`tpay`, `on_site`) | tak | nie | |
+| | `payment_method` | `text` check in (`tpay`, `on_site`) | tak | nie | + `gift` (prezent) — SPEC-010 |
 | | `on_site_method` | `text` check in (`cash`, `terminal`) | dla `on_site` | nie | |
 | | `status` | `text` check in (`pending`, `paid`, `cancelled`, `refund_pending`, `refunded`) | tak | nie | stany poniżej |
 | | `tpay_transaction_id` | `text` unikalny | nie | nie | |
