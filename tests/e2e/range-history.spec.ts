@@ -49,7 +49,7 @@ test('AC-21, AC-22: obsługa widzi dzisiejszy wpis na liście i dodaje adnotacj�
   await signIn(page, 'staff');
   const officer = await ensureRangeDuty();
   await page.goto(`/panel/ksiazka/?osoba=${person.id}`);
-  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(officer);
+  await expect(page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toContainText(officer);
   await page.getByRole('button', { name: 'Dalej' }).click();
   // Ekran podpisu (tryb „podaj urządzenie”) nie pokazuje listy wpisów innych osób.
   await expect(page.getByRole('heading', { name: 'Dzisiejsze wpisy' })).toBeHidden();

@@ -75,7 +75,7 @@ async function fakeCamera(page: Page, code: string): Promise<void> {
 async function openRangeLog(page: Page, path = '/panel/ksiazka/'): Promise<void> {
   const officer = await ensureRangeDuty();
   await page.goto(path);
-  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(officer);
+  await expect(page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toContainText(officer);
 }
 
 const passOptions = (page: Page) => page.getByRole('group', { name: 'Uprawnienie do wykorzystania' }).getByRole('radio');

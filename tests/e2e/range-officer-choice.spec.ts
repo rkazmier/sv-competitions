@@ -65,7 +65,7 @@ test('AC-18, AC-20, AC-21: osoba wpisywana pierwsza na liście; wybór zapisuje 
   const other = await seedAccountOfficer('Ukryty Inny');
 
   await page.goto(`/panel/ksiazka/?osoba=${person.id}`);
-  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(duty);
+  await expect(page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toContainText(duty);
   await page.getByRole('button', { name: 'Dalej' }).click();
 
   // AC-18, AC-21: nad danymi wpisu „Prowadzący: <dyżurny>” — osoba wpisywana nie jest wybierana automatycznie.
@@ -86,7 +86,7 @@ test('AC-18, AC-20, AC-21: osoba wpisywana pierwsza na liście; wybór zapisuje 
   const { data: entry } = await admin().from('range_log').select('range_officer_name').eq('profile_id', person.id).single();
   expect(entry!.range_officer_name).toBe(person.fullName);
   expect(await dutyOfficerId()).toBe(dutyId);
-  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(duty);
+  await expect(page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toContainText(duty);
 
   // AC-20, AC-18: kolejny wpis (osoba towarzysząca bez konta) znów domyślnie z dyżurnym; bez osoby wpisywanej na liście.
   await page.getByRole('button', { name: 'Dodaj osobę towarzyszącą' }).click();
@@ -110,7 +110,7 @@ test('AC-19, AC-20: wyszukanie ukrytego prowadzącego; prowadzący niedostępny 
   const hidden = await seedAccountOfficer('Szukany Ukryty');
 
   await page.goto(`/panel/ksiazka/?osoba=${person.id}`);
-  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(duty);
+  await expect(page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toContainText(duty);
   await page.getByRole('button', { name: 'Dalej' }).click();
   await sign(page).getByRole('button', { name: /^Zmień/ }).click();
 
