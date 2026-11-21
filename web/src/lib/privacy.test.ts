@@ -23,9 +23,10 @@ describe('klauzula informacyjna RODO (#39)', () => {
     expect(text).not.toContain('patrz pytanie w #39');
   });
 
-  it('podaje dane administratora: imię i nazwisko, adres i NIP (#39)', () => {
+  it('podaje dane administratora: imię i nazwisko, adres, NIP i e-mail (#39)', () => {
     const text = t('privacy.body');
     expect(text).toContain('Administratorem Twoich danych osobowych jest Rafał Kaźmierowski, ul. Lęborska 22E/39, 80-387 Gdańsk, NIP 9581488219');
-    expect(text).not.toContain('pełna nazwa firmy prowadzącej strzelnicę');
+    expect(text).toContain('Kontakt w sprawach danych osobowych: rkazmierowski@gmail.com');
+    expect(text).not.toContain('DO UZUPEŁNIENIA');
   });
 });
