@@ -238,6 +238,7 @@
   - `admin_list_orders(from, to, status, method, product_id, event_id, person)` — admin (AC-24): zamówienia z filtrami (dni
     w Europe/Warsaw, osoba — fragment imienia i nazwiska lub e-maila z `auth.users`), osoba, sprzedający, `pass_used` (AC-26), `invoice_requested` (SPEC-004 AC-14),
     `order_number`; `person` w formie numeru zamówienia → tylko to zamówienie, pozostałe filtry pominięte (SPEC-006 AC-10).
+    Metoda `gift` (SPEC-010) — filtr jak inne metody; wynik + `grant_reason`, `grant_cancel_note` z `order_grants` (null dla innych metod).
   - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
     `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
@@ -258,7 +259,8 @@
   `paid` + `order_grants` + `fulfil_order` + `expires_on` z formularza (produkt: dziś…dziś + 5 lat) + `audit_log` `pass_grant` w jednej transakcji;
   produkt także ukryty, wejściówka jak w `create_on_site_order` (limit z blokadą wiersza). `cancel_pass_grant(order_id, note)` — `gift` `paid` →
   `cancelled`, uprawnienie `active` → `cancelled` mimo zużyć, `audit_log` `pass_grant_cancel`. `cancel_order` odrzuca `gift` (`order_is_gift`),
-  `set_order_invoice_details` — `invoice_not_available`. UI: `/panel/zamowienia/przyznaj/` (`requireAdmin`), metoda „Prezent” w `/panel/zamowienia/` i `/konto/`.
+  `set_order_invoice_details` — `invoice_not_available`. `grant_pass` zwraca `{order_id, order_number, duplicate}`; ten sam `request_key`
+  → istniejące zamówienie; wejściówka z `expires_on` → `invalid_request`. `audit_log.changes.expires_on` — dla wejściówki ostatni dzień wydarzenia. UI: `/panel/zamowienia/przyznaj/` (`requireAdmin`), metoda „Prezent” w `/panel/zamowienia/` i `/konto/`.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
