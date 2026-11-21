@@ -62,7 +62,16 @@ export const pl = {
   },
   privacy: {
     title: 'Informacja o przetwarzaniu danych osobowych',
-    placeholder: '[TEKST DO UZUPEŁNIENIA] Treść klauzuli informacyjnej dostarczy Steel Valley.',
+    // Klauzula informacyjna RODO (#39) — projekt; akapity rozdziela pusta linia. Bez IOD (decyzja 2A w #39).
+    body:
+      'Administratorem Twoich danych osobowych jest Rafał Kaźmierowski, ul. Lęborska 22E/39, 80-387 Gdańsk, NIP 9581488219 (dalej: Steel Valley). Kontakt w sprawach danych osobowych: rkazmierowski@gmail.com.\n\n' +
+      'Przetwarzamy Twoje dane w następujących celach: (1) prowadzenie konta w serwisie events.steel-valley.pl i sprzedaż wejść, karnetów i wejściówek — na podstawie umowy (art. 6 ust. 1 lit. b RODO); (2) prowadzenie książki rejestru pobytu na strzelnicy — w wykonaniu obowiązku prawnego ciążącego na strzelnicy (art. 6 ust. 1 lit. c RODO); (3) wystawianie faktur i przechowywanie dokumentacji księgowej — obowiązek prawny (art. 6 ust. 1 lit. c RODO); (4) zapewnienie bezpieczeństwa serwisu i rozliczalności zmian danych oraz ustalenie, dochodzenie lub obrona roszczeń — nasz prawnie uzasadniony interes (art. 6 ust. 1 lit. f RODO).\n\n' +
+      'Przetwarzamy: imię i nazwisko, adres e-mail, numer telefonu (dobrowolnie), numer decyzji o pozwoleniu na broń wraz z organem wydającym albo adres zamieszkania, podpis złożony przy wpisie do książki, a jeśli prosisz o fakturę — NIP, nazwę i adres firmy. Nie zbieramy numeru PESEL ani daty urodzenia. Osoba wpisywana do książki bez konta podaje wyłącznie dane potrzebne do wpisu i podpis — nie zapisujemy ich nigdzie poza książką.\n\n' +
+      'Podanie imienia i nazwiska oraz numeru decyzji z organem albo adresu zamieszkania jest warunkiem wpisu do książki, a więc wejścia na strzelnicę. Podanie adresu e-mail jest warunkiem założenia konta. Pozostałe dane są dobrowolne.\n\n' +
+      'Odbiorcy danych: dostawcy usług, z których korzystamy w naszym imieniu — hosting bazy danych i logowania (Supabase, serwery w Unii Europejskiej, Frankfurt), obsługa płatności (Tpay — otrzymuje imię i nazwisko oraz e-mail płatnika), a przy logowaniu przez Google — Google. Dane mogą też otrzymać uprawnione organy państwowe, gdy wynika to z przepisów. Dostawcy mogą mieć dostęp do danych z państw spoza Europejskiego Obszaru Gospodarczego (EOG); odbywa się to na podstawie standardowych klauzul umownych lub decyzji Komisji Europejskiej o adekwatności (EU–US Data Privacy Framework).\n\n' +
+      'Okres przechowywania: dane konta — do czasu usunięcia konta; wpisy w książce rejestru pobytu wraz z podpisem — 1 rok od dnia wpisu, potem są automatycznie usuwane; historia zmian danych — 1 rok; zamówienia i dane do faktur — 5 lat od końca roku, w którym dokonano zakupu (przepisy podatkowe).\n\n' +
+      'Masz prawo dostępu do swoich danych, ich sprostowania, usunięcia lub ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu wobec przetwarzania opartego na prawnie uzasadnionym interesie. Usunięcie danych nie obejmuje danych, które musimy przechowywać z mocy prawa (książka, faktury) — do końca okresu ich przechowywania. Masz prawo wnieść skargę do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa).\n\n' +
+      'Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, w tym profilowaniu.',
     close: 'Zamknij',
     ackIntro: 'Zanim przejdziesz dalej, zapoznaj się z informacją o przetwarzaniu danych osobowych.',
     ack: 'Rozumiem',
@@ -768,7 +777,6 @@ export const pl = {
     // Treść od właściciela (#39, SPEC-005 12-A) — do tego czasu tekst zastępczy.
     rulesPlaceholder: '[TEKST DO UZUPEŁNIENIA]',
     noticeHeading: 'Klauzula informacyjna',
-    noticePlaceholder: '[TEKST DO UZUPEŁNIENIA]',
     confirm: 'Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.',
     padLabel: 'Pole podpisu — podpisz się palcem lub rysikiem',
     save: 'Zapisz wpis',

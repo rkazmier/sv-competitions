@@ -180,6 +180,7 @@ test.describe('obsługa — podpis i zapis wpisu', () => {
     const sign = page.locator('[data-sign]');
     await expect(sign.locator('[data-sign-field="permit"]')).toHaveText('GG 777, KWP Kraków');
     await expect(sign.getByRole('heading', { name: 'Klauzula informacyjna' })).toBeVisible();
+    await expect(sign.getByRole('region', { name: 'Klauzula informacyjna' })).toContainText('Administratorem Twoich danych osobowych');
     await drawSignature(page);
     await save(page).click();
     await expect(page.getByText(new RegExp(`^Wpisano do książki: ${guest}, `))).toBeVisible();

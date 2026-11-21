@@ -65,6 +65,5 @@ describe('podpis i zapis wpisu (SPEC-005 US-5, US-6)', () => {
     const ok = validateCompletion(all, { full_name: ' Jan Gość ', address: 'ul. Stalowa 1, Katowice' });
     expect(ok.complete).toBe(true);
     expect(ok.values).toEqual({ full_name: 'Jan Gość', permit_number: null, permit_authority: null, address: 'ul. Stalowa 1, Katowice' });
-    expect(t('rangeSign.noticePlaceholder')).toBe('[TEKST DO UZUPEŁNIENIA]');
   });
 });
