@@ -61,6 +61,10 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Uprawnienie (karnet w koncie) | `user_pass` | To, co powstaje z opłaconego zamówienia; ważne 1 rok od zakupu |
 | Zużycie | `pass_usage` | Wykorzystanie uprawnienia przy wpisie do książki (historia karnetu) |
 | Zwrot | `refund` | Anulowanie niewykorzystanego uprawnienia i zwrot pieniędzy |
+| Przyznanie karnetu | `pass grant` (`grant_pass`) | Wydanie przez admina produktu lub wejściówki osobie z kontem bez płatności: zamówienie 0,00 zł z metodą „Prezent” (SPEC-010) |
+| Prezent | `gift` | Metoda zamówienia przyznanego przez admina (`orders.payment_method`); bez faktury |
+| Powód przyznania | `order_grants.reason` | Wymagany opis, dlaczego przyznano karnet; widoczny tylko dla admina |
+| Anulowanie przyznania | `cancel_pass_grant` | Anulowanie prezentu przez admina, także częściowo wykorzystanego; bez zwrotu pieniędzy |
 
 ## Faktury (SPEC-004)
 
