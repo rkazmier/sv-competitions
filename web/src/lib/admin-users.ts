@@ -93,10 +93,29 @@ export function describeChanges(entry: Pick<AuditEntry, 'action' | 'changes'>): 
     const usedOn = (entry.changes as Record<string, unknown> | null)?.used_on;
     return [t('rangeHistory.auditRevert', { date: typeof usedOn === 'string' ? formatDate(usedOn) : '—' })];
   }
+  // SPEC-010 AC-16: przyznanie i anulowanie przyznania — opis zdarzenia z nazwą karnetu (bez powodu w tytule).
+  if (entry.action === 'pass_grant' || entry.action === 'pass_grant_cancel') {
+    const itemName = (entry.changes as Record<string, unknown> | null)?.item_name;
+    const key = entry.action === 'pass_grant' ? 'users.auditPassGrant' : 'users.auditPassGrantCancel';
+    return [t(key, { name: typeof itemName === 'string' ? itemName : '—' })];
+  }
   return Object.entries(entry.changes ?? {}).map(([field, [before, after]]) => {
     const label = field === 'role' ? t('users.role') : field in FIELD_LABEL ? t(FIELD_LABEL[field as ProfileField]) : field;
     return t('users.change', { field: label, before: valueText(field, before), after: valueText(field, after) });
   });
+}
+
+/** Zamówienie karnetu w karcie osoby z powodem przyznania (`order_grants`, RLS: admin); jeden do jednego — obiekt albo tablica. */
+export interface CardPassOrder {
+  item_name: string;
+  order_grants?: { reason: string } | { reason: string }[] | null;
+}
+
+/** SPEC-010 AC-16: „Prezent: <powód>” przy karnecie z prezentu; inne karnety — `null`. */
+export function passGiftText(order: CardPassOrder | null): string | null {
+  const grants = order?.order_grants;
+  const grant = Array.isArray(grants) ? grants[0] : grants;
+  return grant?.reason ? t('users.passGift', { reason: grant.reason }) : null;
 }
 
 /** AC-21: „kto” — imię i nazwisko autora; konto bez danych lub usunięte → opis zastępczy. */

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
+import { invoiceStatus } from './invoice';
 import {
+  ORDER_COLUMNS,
   ORDER_STATUS_TEXT,
   PAYMENT_METHOD_TEXT,
   buyHref,
   eventOrderPath,
   firstUsedOn,
   idParam,
+  orderStatusKey,
   passHistoryState,
   passValidTo,
   paymentView,
@@ -186,5 +189,44 @@ describe('/konto/ — historia płatności', () => {
       'Zwrot w toku',
       'Zwrócone',
     ]);
+  });
+});
+
+describe('SPEC-010: prezent w /konto/', () => {
+  const gift = (fields: Partial<UserOrder> = {}): UserOrder => ({
+    id: 'g1',
+    order_number: 'SV-2026-000124',
+    item_name: 'Karnet 10 wejść',
+    amount: 0,
+    payment_method: 'gift',
+    status: 'paid',
+    created_at: '2026-11-21T10:00:00Z',
+    invoice_requested: false,
+    invoice_number: null,
+    ...fields,
+  });
+
+  it('AC-12: przyznany karnet w „Twoje karnety” jak kupiony; „Ważny do” = data ustawiona przez admina', () => {
+    const granted = pass({ expires_on: '2027-03-31', orders: { item_name: 'Karnet ukryty' } });
+    expect(splitPasses([granted], '2026-11-21').active).toEqual([granted]);
+    expect(passValidTo(granted)).toBe('2027-03-31');
+  });
+
+  it('AC-13: „Historia płatności” — 0,00 zł, „Prezent”, „Opłacone” / po anulowaniu „Anulowane”, bez statusu faktury i powodu', () => {
+    expect(formatPrice(gift().amount)).toBe(`0,00${NBSP}zł`);
+    expect(t(PAYMENT_METHOD_TEXT[gift().payment_method])).toBe('Prezent');
+    expect(t(orderStatusKey(gift()))).toBe('Opłacone');
+    expect(t(orderStatusKey(gift({ status: 'cancelled' })))).toBe('Anulowane');
+    expect(t(orderStatusKey({ payment_method: 'tpay', status: 'cancelled' }))).toBe('Nieopłacone — anulowane');
+    expect(invoiceStatus(gift({ invoice_requested: true }))).toBeNull();
+    expect(ORDER_COLUMNS).not.toMatch(/reason|order_grants/);
+  });
+
+  it('AC-20: anulowany karnet z prezentu — tylko w „Historia karnetów” jako „Anulowany”', () => {
+    const cancelled = pass({ status: 'cancelled', entries_left: 4 });
+    const { active, history } = splitPasses([cancelled], '2026-11-21');
+    expect(active).toEqual([]);
+    expect(history).toEqual([cancelled]);
+    expect(t(passHistoryState(cancelled))).toBe('Anulowany');
   });
 });

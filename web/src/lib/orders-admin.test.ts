@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
+import { PAYMENT_METHOD_TEXT } from './offer';
 import {
+  canCancelGrant,
   csvCell,
   csvFileName,
   defaultFilters,
   filterArgs,
+  grantCancelErrorKey,
+  grantDetails,
   invoiceAction,
+  methodKeys,
+  PAYMENT_METHODS,
   ordersCsv,
   numberSearchKey,
   ordersTotal,
@@ -14,6 +20,7 @@ import {
   refundErrorKey,
   type AdminOrder,
 } from './orders-admin';
+import { formatPrice, NBSP } from './products';
 
 const ID = '00000000-0000-0000-0000-0000000000f1';
 
@@ -33,6 +40,8 @@ const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   seller_name: null,
   pass_used: false,
   invoice_requested: false,
+  grant_reason: null,
+  grant_cancel_note: null,
   ...fields,
 });
 
@@ -101,9 +110,9 @@ describe('AC-24: eksport CSV', () => {
     );
     const lines = csv.replace('﻿', '').trimEnd().split('\r\n');
     expect(csv.startsWith('﻿')).toBe(true);
-    expect(lines[0]).toBe('"Numer zamówienia";"Data";"Produkt";"Kwota";"Metoda";"Status";"Osoba";"Sprzedał(a)";"Uwagi"');
-    expect(lines[1]).toBe('"SV-2026-000123";"18.11.2026, 09:05";"Karnet 10 wejść";"1200,00";"Online";"Opłacone";"Jan Kowalski";"";""');
-    expect(lines[2]).toContain('"Na miejscu / gotówka";"Zwrócone";"Bez konta";"Anna";"Zwrot gotówki / na terminal"');
+    expect(lines[0]).toBe('"Numer zamówienia";"Data";"Produkt";"Kwota";"Metoda";"Status";"Osoba";"Sprzedał(a)";"Uwagi";"Powód przyznania"');
+    expect(lines[1]).toBe('"SV-2026-000123";"18.11.2026, 09:05";"Karnet 10 wejść";"1200,00";"Online";"Opłacone";"Jan Kowalski";"";"";""');
+    expect(lines[2]).toContain('"Na miejscu / gotówka";"Zwrócone";"Bez konta";"Anna";"Zwrot gotówki / na terminal";""');
   });
 
   it('cudzysłowy podwojone, formuły arkusza zneutralizowane', () => {
@@ -147,5 +156,61 @@ describe('SPEC-004 AC-14: dane do faktury po zakupie', () => {
     expect(invoiceAction(order({ invoice_requested: true }))).toBe('requested');
     expect(invoiceAction(order({ status: 'refunded' }))).toBeNull();
     expect(invoiceAction(order({ status: 'pending' }))).toBeNull();
+  });
+});
+
+describe('SPEC-010: prezent w zamówieniach', () => {
+  const gift = (fields: Partial<AdminOrder> = {}) =>
+    order({ payment_method: 'gift', amount: 0, seller_name: 'Admin Adamski', grant_reason: 'Nagroda — zawody X', ...fields });
+
+  it('AC-14: filtr „Metoda” — Online, Na miejscu, Prezent; `gift` trafia do p_method', () => {
+    expect(PAYMENT_METHODS.map((method) => t(PAYMENT_METHOD_TEXT[method]))).toEqual(['Online', 'Na miejscu', 'Prezent']);
+    expect(filterArgs({ ...defaultFilters('2026-11-21'), method: 'gift' }).p_method).toBe('gift');
+  });
+
+  it('AC-14: lista — kwota 0,00 zł, metoda „Prezent”, „Kto” = admin; szczegóły z powodem i notatką anulowania', () => {
+    expect(formatPrice(gift().amount)).toBe(`0,00${NBSP}zł`);
+    expect(methodKeys(gift()).map((key) => t(key))).toEqual(['Prezent']);
+    expect(gift().seller_name).toBe('Admin Adamski');
+    expect(grantDetails(gift())).toEqual(['Powód: Nagroda — zawody X']);
+    expect(grantDetails(gift({ status: 'cancelled', grant_cancel_note: 'Pomyłka' }))).toEqual([
+      'Powód: Nagroda — zawody X',
+      'Notatka anulowania: Pomyłka',
+    ]);
+    expect(grantDetails(order())).toEqual([]);
+  });
+
+  it('AC-14: CSV — metoda „Prezent”, kolumna „Powód przyznania” (pusta dla innych metod); suma bez zmian', () => {
+    const lines = ordersCsv([gift(), order()], (key) => t(key)).replace('﻿', '').trimEnd().split('\r\n');
+    expect(lines[0].endsWith('"Uwagi";"Powód przyznania"')).toBe(true);
+    expect(lines[1]).toContain('"0,00";"Prezent";"Opłacone";"Jan Kowalski";"Admin Adamski";"";"Nagroda — zawody X"');
+    expect(lines[2].endsWith('"";""')).toBe(true);
+    expect(ordersTotal([gift(), order()])).toBe(ordersTotal([order()]));
+  });
+
+  it('AC-17: prezent — bez „Anuluj i zwróć” i „Dodaj dane do faktury”', () => {
+    expect(refundAction(gift())).toBeNull();
+    expect(refundAction(gift({ pass_used: true }))).toBeNull();
+    expect(invoiceAction(gift())).toBeNull();
+  });
+
+  it('AC-18: „Anuluj przyznanie” przy opłaconym prezencie, także używanym; nie przy innych metodach', () => {
+    expect(canCancelGrant(gift())).toBe(true);
+    expect(canCancelGrant(gift({ pass_used: true }))).toBe(true);
+    expect(canCancelGrant(order())).toBe(false);
+    expect(t('orders.cancelGrantText')).toBe(
+      'Karnet zostanie anulowany. Niewykorzystane wejścia i dni przepadają, historia wejść zostaje. Tej operacji nie można cofnąć.',
+    );
+  });
+
+  it('AC-19: po anulowaniu — „Przyznanie anulowane.”', () => {
+    expect(t('orders.grantCancelled')).toBe('Przyznanie anulowane.');
+  });
+
+  it('AC-21: anulowany prezent — bez przycisku; ponowne wywołanie → „Przyznanie zostało już anulowane.”', () => {
+    expect(canCancelGrant(gift({ status: 'cancelled' }))).toBe(false);
+    expect(t(grantCancelErrorKey('order_not_paid'))).toBe('Przyznanie zostało już anulowane.');
+    expect(grantCancelErrorKey('invalid_note')).toBe('orders.grantNoteTooLong');
+    expect(grantCancelErrorKey(null)).toBe('orders.grantCancelError');
   });
 });

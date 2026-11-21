@@ -8,11 +8,13 @@ import {
   formatDateTime,
   isDeleteConfirmed,
   pageCount,
+  passGiftText,
   roleErrorKey,
   roleLabel,
   searchTerm,
   userCardHref,
   userIdFromSearch,
+  type AuditEntry,
 } from './admin-users';
 
 describe('lista kont', () => {
@@ -58,6 +60,22 @@ describe('historia zmian', () => {
     expect(
       describeChanges({ action: 'profile_update', changes: { phone: [null, '600 100 200'], full_name: ['Jan', 'Jan Nowak'] } }),
     ).toEqual(['Telefon: nie podano → 600 100 200', 'Imię i nazwisko: Jan → Jan Nowak']);
+  });
+
+  it('SPEC-010 AC-16: „Przyznano karnet: <nazwa>”, „Anulowano przyznanie: <nazwa>” (pass_grant, pass_grant_cancel)', () => {
+    const event = (action: string, changes: Record<string, unknown>) =>
+      describeChanges({ action, changes: changes as unknown as AuditEntry['changes'] });
+    const changes = { order_id: 'o1', order_number: 'SV-2026-000123', item_name: 'Karnet 10 wejść', expires_on: '2027-11-21' };
+    expect(event('pass_grant', { ...changes, reason: 'Nagroda — zawody X' })).toEqual(['Przyznano karnet: Karnet 10 wejść']);
+    expect(event('pass_grant_cancel', { ...changes, note: null })).toEqual(['Anulowano przyznanie: Karnet 10 wejść']);
+  });
+
+  it('SPEC-010 AC-16: przy karnecie z prezentu „Prezent: <powód>”; zwykły karnet — nic', () => {
+    expect(passGiftText({ item_name: 'Karnet', order_grants: { reason: 'Nagroda — zawody X' } })).toBe('Prezent: Nagroda — zawody X');
+    expect(passGiftText({ item_name: 'Karnet', order_grants: [{ reason: 'Barter' }] })).toBe('Prezent: Barter');
+    expect(passGiftText({ item_name: 'Karnet', order_grants: null })).toBeNull();
+    expect(passGiftText({ item_name: 'Karnet', order_grants: [] })).toBeNull();
+    expect(passGiftText(null)).toBeNull();
   });
 
   it('AC-21: kto — imię i nazwisko autora albo opis zastępczy', () => {

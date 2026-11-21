@@ -6,13 +6,13 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
-import { formatDateTime } from './admin-users';
+import { formatDateTime, passGiftText, type CardPassOrder } from './admin-users';
 import { revertErrorKey, usageHistory, type PassUsage } from './range-history';
 
 interface CardPass {
   id: string;
   created_at: string;
-  orders: { item_name: string } | null;
+  orders: CardPassOrder | null;
   pass_usages: PassUsage[];
 }
 
@@ -33,7 +33,8 @@ export async function mountPassUsages(
   async function load(): Promise<void> {
     const { data, error: loadError } = await supabase
       .from('user_passes')
-      .select('id, created_at, orders(item_name), pass_usages(id, used_on, created_at, reverted_at)')
+      // SPEC-010 AC-16: powód przyznania z `order_grants` (RLS: tylko admin — ta karta jest tylko dla admina).
+      .select('id, created_at, orders(item_name, order_grants(reason)), pass_usages(id, used_on, created_at, reverted_at)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (loadError) {
@@ -74,7 +75,15 @@ export async function mountPassUsages(
     const none = document.createElement('p');
     none.className = 'hint';
     none.textContent = t('rangeHistory.usageEmpty');
-    item.append(name, usages.length ? rows : none);
+    item.append(name);
+    const gift = passGiftText(pass.orders);
+    if (gift) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = gift;
+      item.append(p);
+    }
+    item.append(usages.length ? rows : none);
     return item;
   }
 

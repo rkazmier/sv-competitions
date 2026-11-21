@@ -12,7 +12,6 @@ import { formatDateTime, formatDay } from './admin-users';
 import {
   OFFER_COLUMNS,
   ORDER_COLUMNS,
-  ORDER_STATUS_TEXT,
   PASS_COLUMNS,
   PAYMENT_METHOD_TEXT,
   PAYMENT_POLL_INTERVAL_MS,
@@ -22,6 +21,7 @@ import {
   firstUsedOn,
   idParam,
   orderPath,
+  orderStatusKey,
   passHistoryState,
   passValidTo,
   paymentView,
@@ -304,7 +304,7 @@ function entryRow(entry: MyRangeEntry): HTMLTableRowElement {
 
 function orderRow(order: UserOrder): HTMLTableRowElement {
   const row = node('tr');
-  const status = node('td', t(ORDER_STATUS_TEXT[order.status]));
+  const status = node('td', t(orderStatusKey(order)));
   // SPEC-004 AC-7: „Faktura: w przygotowaniu” / „Faktura: <numer>” (bez pliku — faktura przez KSeF).
   const invoice = invoiceStatus(order);
   if (invoice) status.append(node('span', t(invoice.key, 'number' in invoice ? { number: invoice.number } : {}), 'invoice-status'));

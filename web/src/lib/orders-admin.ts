@@ -1,14 +1,17 @@
 /**
  * Zamówienia w panelu admina (`/panel/zamowienia/`, SPEC-003 US-6: AC-24…AC-27). Logika bez DOM:
  * filtry → argumenty `admin_list_orders`, suma, eksport CSV, kiedy pokazać „Anuluj i zwróć”, komunikaty błędów.
+ * Prezent (SPEC-010 AC-14, AC-17…AC-21): filtr „Prezent”, powód i notatka anulowania, „Anuluj przyznanie” zamiast zwrotu i faktury.
  * Interfejs: lib/orders-admin-ui.ts.
  */
-import type { MessageKey } from '../i18n';
-import { ORDER_STATUS_TEXT, PAYMENT_METHOD_TEXT, type OrderStatus } from './offer';
+import { t, type MessageKey } from '../i18n';
+import { orderStatusKey, PAYMENT_METHOD_TEXT, type OrderStatus } from './offer';
 import { normalizeOrderNumber } from './order-number';
 import { priceInputValue } from './products';
 
 export type PaymentMethod = 'tpay' | 'on_site';
+/** Metoda zamówienia w panelu: płatność albo `gift` — przyznanie karnetu (SPEC-010). */
+export type OrderMethod = PaymentMethod | 'gift';
 
 /** Wiersz `admin_list_orders`. */
 export interface AdminOrder {
@@ -18,8 +21,7 @@ export interface AdminOrder {
   created_at: string;
   item_name: string;
   amount: number;
-  /** `gift` — przyznanie karnetu (SPEC-010); filtr „Prezent” — #145. */
-  payment_method: PaymentMethod | 'gift';
+  payment_method: OrderMethod;
   on_site_method: 'cash' | 'terminal' | null;
   status: OrderStatus;
   refund_note: string | null;
@@ -29,10 +31,14 @@ export interface AdminOrder {
   seller_name: string | null;
   pass_used: boolean;
   invoice_requested: boolean;
+  /** SPEC-010: powód przyznania i notatka anulowania (`order_grants`); `null` dla innych metod. */
+  grant_reason: string | null;
+  grant_cancel_note: string | null;
 }
 
 export const ORDER_STATUSES: readonly OrderStatus[] = ['paid', 'pending', 'cancelled', 'refund_pending', 'refunded'];
-export const PAYMENT_METHODS: readonly PaymentMethod[] = ['tpay', 'on_site'];
+/** SPEC-010 AC-14: filtr „Metoda” — „Online”, „Na miejscu”, „Prezent”. */
+export const PAYMENT_METHODS: readonly OrderMethod[] = ['tpay', 'on_site', 'gift'];
 
 /** Wartości pól filtra (puste = bez filtra). `item` jak w sprzedaży: `product:<id>` albo `event:<id>`. */
 export interface OrderFilters {
@@ -80,16 +86,36 @@ export function ordersTotal(orders: readonly AdminOrder[]): number {
   return orders.reduce((sum, order) => sum + order.amount, 0);
 }
 
-/** AC-25, AC-26: co pokazać przy zamówieniu — przycisk zwrotu, informację o używanym karnecie albo nic. */
+export const isGift = (order: Pick<AdminOrder, 'payment_method'>) => order.payment_method === 'gift';
+
+/**
+ * AC-25, AC-26: co pokazać przy zamówieniu — przycisk zwrotu, informację o używanym karnecie albo nic.
+ * SPEC-010 AC-17: prezent nie ma „Anuluj i zwróć” (zamiast tego `canCancelGrant`).
+ */
 export function refundAction(order: AdminOrder): 'refund' | 'used' | null {
-  if (order.status !== 'paid') return null;
+  if (order.status !== 'paid' || isGift(order)) return null;
   return order.pass_used ? 'used' : 'refund';
 }
 
-/** SPEC-004 AC-14: opłacone bez faktury — „Dodaj dane do faktury”; z fakturą — informacja; pozostałe — nic. */
+/** SPEC-010 AC-18, AC-21: „Anuluj przyznanie” przy prezencie w stanie `paid` — także przy używanym karnecie. */
+export function canCancelGrant(order: AdminOrder): boolean {
+  return isGift(order) && order.status === 'paid';
+}
+
+/** SPEC-004 AC-14: opłacone bez faktury — „Dodaj dane do faktury”; z fakturą — informacja; pozostałe — nic. SPEC-010 AC-17: prezent — nic. */
 export function invoiceAction(order: AdminOrder): 'add' | 'requested' | null {
+  if (isGift(order)) return null;
   if (order.invoice_requested) return 'requested';
   return order.status === 'paid' ? 'add' : null;
+}
+
+/** SPEC-010 AC-14: szczegóły prezentu w kolumnie „Uwagi” — „Powód: …” i „Notatka anulowania: …” (jeśli jest). */
+export function grantDetails(order: AdminOrder): string[] {
+  if (!isGift(order)) return [];
+  const lines: string[] = [];
+  if (order.grant_reason) lines.push(t('orders.grantReason', { reason: order.grant_reason }));
+  if (order.grant_cancel_note) lines.push(t('orders.grantCancelNote', { note: order.grant_cancel_note }));
+  return lines;
 }
 
 /** Osoba w liście i CSV: imię i nazwisko, inaczej e-mail; bez konta — `null`. */
@@ -118,8 +144,9 @@ export function methodKeys(order: AdminOrder): MessageKey[] {
   return keys;
 }
 
-export function statusKey(status: OrderStatus): MessageKey {
-  return ORDER_STATUS_TEXT[status];
+/** Status po polsku; anulowany prezent — „Anulowane” (SPEC-010, jak w `/konto/`). */
+export function statusKey(order: Pick<AdminOrder, 'payment_method' | 'status'>): MessageKey {
+  return orderStatusKey(order);
 }
 
 /** Komórka CSV: cudzysłowy, a tekst zaczynający się od `= + - @` poprzedzony apostrofem (formuły w arkuszu). */
@@ -135,7 +162,7 @@ export function csvCell(value: string): string {
 export function ordersCsv(orders: readonly AdminOrder[], text: (key: MessageKey) => string): string {
   const header: MessageKey[] = [
     'orders.csvNumber', 'orders.colDate', 'orders.colItem', 'orders.colAmount', 'orders.colMethod', 'orders.colStatus',
-    'orders.colPerson', 'orders.colSeller', 'orders.colNote',
+    'orders.colPerson', 'orders.colSeller', 'orders.colNote', 'orders.csvGrantReason',
   ];
   const rows = orders.map((order) => [
     order.order_number,
@@ -143,10 +170,12 @@ export function ordersCsv(orders: readonly AdminOrder[], text: (key: MessageKey)
     order.item_name,
     priceInputValue(order.amount),
     methodKeys(order).map(text).join(' / '),
-    text(statusKey(order.status)),
+    text(statusKey(order)),
     personLabel(order) ?? text('orders.noAccount'),
     order.seller_name ?? '',
-    order.refund_note ?? '',
+    // SPEC-010 AC-14: notatka anulowania prezentu w „Uwagi”, powód w osobnej kolumnie (pusta dla innych metod).
+    order.refund_note ?? order.grant_cancel_note ?? '',
+    order.grant_reason ?? '',
   ]);
   return '﻿' + [header.map(text), ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n') + '\r\n';
 }
@@ -163,6 +192,17 @@ const REFUND_ERRORS: Record<string, MessageKey> = {
   order_not_found: 'orders.errorNotPaid',
   refund_failed: 'orders.errorTpay',
 };
+
+const GRANT_CANCEL_ERRORS: Record<string, MessageKey> = {
+  order_not_paid: 'orders.grantAlreadyCancelled',
+  order_not_found: 'orders.grantAlreadyCancelled',
+  invalid_note: 'orders.grantNoteTooLong',
+};
+
+/** SPEC-010 AC-21: błąd `cancel_pass_grant` → komunikat dla admina. */
+export function grantCancelErrorKey(code: string | null | undefined): MessageKey {
+  return GRANT_CANCEL_ERRORS[code ?? ''] ?? 'orders.grantCancelError';
+}
 
 /** Błąd `payments-refund` / `cancel_order` → komunikat dla admina. */
 export function refundErrorKey(code: string | null | undefined): MessageKey {
