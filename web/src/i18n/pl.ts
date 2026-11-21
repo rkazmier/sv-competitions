@@ -62,9 +62,9 @@ export const pl = {
   },
   privacy: {
     title: 'Informacja o przetwarzaniu danych osobowych',
-    // Klauzula informacyjna RODO (#39) — projekt; akapity rozdziela pusta linia. Fragmenty [DO UZUPEŁNIENIA: …] (dane administratora) uzupełnia właściciel. Bez IOD (decyzja 2A w #39).
+    // Klauzula informacyjna RODO (#39) — projekt; akapity rozdziela pusta linia. Fragment [DO UZUPEŁNIENIA: …] (e-mail kontaktowy) uzupełnia właściciel. Bez IOD (decyzja 2A w #39).
     body:
-      'Administratorem Twoich danych osobowych jest [DO UZUPEŁNIENIA: pełna nazwa firmy prowadzącej strzelnicę Steel Valley, adres, NIP] (dalej: Steel Valley). Kontakt w sprawach danych osobowych: [DO UZUPEŁNIENIA: adres e-mail].\n\n' +
+      'Administratorem Twoich danych osobowych jest Rafał Kaźmierowski, ul. Lęborska 22E/39, 80-387 Gdańsk, NIP 9581488219 (dalej: Steel Valley). Kontakt w sprawach danych osobowych: [DO UZUPEŁNIENIA: adres e-mail].\n\n' +
       'Przetwarzamy Twoje dane w następujących celach: (1) prowadzenie konta w serwisie events.steel-valley.pl i sprzedaż wejść, karnetów i wejściówek — na podstawie umowy (art. 6 ust. 1 lit. b RODO); (2) prowadzenie książki rejestru pobytu na strzelnicy — w wykonaniu obowiązku prawnego ciążącego na strzelnicy (art. 6 ust. 1 lit. c RODO); (3) wystawianie faktur i przechowywanie dokumentacji księgowej — obowiązek prawny (art. 6 ust. 1 lit. c RODO); (4) zapewnienie bezpieczeństwa serwisu i rozliczalności zmian danych oraz ustalenie, dochodzenie lub obrona roszczeń — nasz prawnie uzasadniony interes (art. 6 ust. 1 lit. f RODO).\n\n' +
       'Przetwarzamy: imię i nazwisko, adres e-mail, numer telefonu (dobrowolnie), numer decyzji o pozwoleniu na broń wraz z organem wydającym albo adres zamieszkania, podpis złożony przy wpisie do książki, a jeśli prosisz o fakturę — NIP, nazwę i adres firmy. Nie zbieramy numeru PESEL ani daty urodzenia. Osoba wpisywana do książki bez konta podaje wyłącznie dane potrzebne do wpisu i podpis — nie zapisujemy ich nigdzie poza książką.\n\n' +
       'Podanie imienia i nazwiska oraz numeru decyzji z organem albo adresu zamieszkania jest warunkiem wpisu do książki, a więc wejścia na strzelnicę. Podanie adresu e-mail jest warunkiem założenia konta. Pozostałe dane są dobrowolne.\n\n' +
