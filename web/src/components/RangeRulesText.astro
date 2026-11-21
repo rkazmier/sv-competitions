@@ -1,0 +1,30 @@
+---
+/**
+ * Treść regulaminu strzelnicy (#39) pokazywana przed podpisem przy wpisie do książki (SPEC-005 AC-13).
+ * Źródło: `rangeSign.rulesBody` w i18n; format opisuje `rulesChapters`.
+ */
+import { t } from '../i18n';
+import { rulesChapters } from '../lib/range-rules';
+---
+<div class="range-rules">
+  {
+    rulesChapters(t('rangeSign.rulesBody')).map((chapter) => (
+      <>
+        {chapter.title && <h4>{chapter.title}</h4>}
+        {chapter.points.map((point) => <p>{point}</p>)}
+      </>
+    ))
+  }
+</div>
+
+<style>
+  .range-rules h4 {
+    margin: var(--space-3) 0 var(--space-2);
+    font-size: var(--text-base);
+  }
+
+  .range-rules p {
+    margin: 0 0 var(--space-2);
+    white-space: pre-line;
+  }
+</style>

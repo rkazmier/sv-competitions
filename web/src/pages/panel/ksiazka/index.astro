@@ -12,6 +12,7 @@ import PanelLayout from '../../../layouts/PanelLayout.astro';
 import AnnotationForm from '../../../components/AnnotationForm.astro';
 import OfficerPicker from '../../../components/OfficerPicker.astro';
 import QrScanDialog from '../../../components/QrScanDialog.astro';
+import RangeRulesText from '../../../components/RangeRulesText.astro';
 import PrivacyNoticeText from '../../../components/PrivacyNoticeText.astro';
 import { t } from '../../../i18n';
 import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
@@ -177,7 +178,7 @@ const completeFields = [
         </section>
         <section class="scroll-box" aria-labelledby="rules-heading" tabindex="0">
           <h3 id="rules-heading">{t('rangeSign.rulesHeading')}</h3>
-          <p>{t('rangeSign.rulesPlaceholder')}</p>
+          <RangeRulesText />
         </section>
         <p id="sign-hint"><strong>{t('rangeSign.confirm')}</strong></p>
         <canvas class="signature" role="img" aria-label={t('rangeSign.padLabel')} aria-describedby="sign-hint" data-pad></canvas>
