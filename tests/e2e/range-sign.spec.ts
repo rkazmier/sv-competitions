@@ -74,6 +74,10 @@ test.describe('obsługa — podpis i zapis wpisu', () => {
     await expect(sign.locator('[data-sign-field="officer"]')).toHaveText(officer);
     await expect(sign.getByRole('heading', { name: 'Regulamin strzelnicy' })).toBeVisible();
     await expect(sign.getByRole('region', { name: 'Regulamin strzelnicy' })).toContainText('Strzelanie rozpoczyna się wyłącznie na komendę prowadzącego strzelanie.');
+    // #39: regulamin na samym dole — pod polem podpisu i przyciskami.
+    const rulesBox = await sign.getByRole('region', { name: 'Regulamin strzelnicy' }).boundingBox();
+    const saveBox = await sign.getByRole('button', { name: 'Zapisz wpis' }).boundingBox();
+    expect(rulesBox!.y).toBeGreaterThan(saveBox!.y);
     await expect(sign.getByText('Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.')).toBeVisible();
     await expect(sign.getByRole('heading', { name: 'Klauzula informacyjna' })).toBeHidden();
     await expect(page.locator('.site-header')).toBeHidden();

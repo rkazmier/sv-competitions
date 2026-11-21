@@ -176,10 +176,6 @@ const completeFields = [
           <h3 id="notice-heading">{t('rangeSign.noticeHeading')}</h3>
           <PrivacyNoticeText />
         </section>
-        <section class="scroll-box" aria-labelledby="rules-heading" tabindex="0">
-          <h3 id="rules-heading">{t('rangeSign.rulesHeading')}</h3>
-          <RangeRulesText />
-        </section>
         <p id="sign-hint"><strong>{t('rangeSign.confirm')}</strong></p>
         <canvas class="signature" role="img" aria-label={t('rangeSign.padLabel')} aria-describedby="sign-hint" data-pad></canvas>
         <p class="message-error" role="alert" data-sign-error hidden></p>
@@ -189,6 +185,11 @@ const completeFields = [
           <button type="button" class="button" data-other-pass hidden>{t('rangeSign.otherPass')}</button>
           <button type="button" class="button" data-back>{t('rangeSign.cancel')}</button>
         </div>
+        <!-- Regulamin na dole (#39): pole podpisu i przyciski mieszczą się na ekranie bez przewijania. -->
+        <section class="scroll-box" aria-labelledby="rules-heading" tabindex="0">
+          <h3 id="rules-heading">{t('rangeSign.rulesHeading')}</h3>
+          <RangeRulesText />
+        </section>
       </section>
 
       <section class="card stack" data-done hidden>
