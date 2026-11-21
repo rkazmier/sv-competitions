@@ -50,7 +50,7 @@ async function setDuty(source: 'book' | 'schedule', officerId: string): Promise<
   if (error) throw error;
 }
 
-const dutyBar = (page: Page) => page.getByRole('main').getByText('Prowadzący strzelanie:');
+const dutyBar = (page: Page) => page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' });
 // Druga wyszukiwarka prowadzących jest w kroku podpisu (AC-18) — tu tylko wybór dyżurnego.
 const dutyPicker = (page: Page) => page.locator('[data-shift-picker]');
 

@@ -67,7 +67,7 @@ Podpis zawsze składa osobiście osoba wpisywana.
 - **AC-12**: Given osoba nie ma uprawnienia ważnego dziś When przechodzę do wyboru Then widzę „Brak ważnego karnetu lub wejścia na dziś.” i przycisk „Sprzedaj na miejscu” (SPEC-003 AC-21, po sprzedaży wracam do wpisu z nowym uprawnieniem) oraz „Wpisz jako osobę towarzyszącą”.
 
 ### US-5: Jako osoba wpisywana chcę podpisać się na ekranie
-- **AC-13**: Given wybrane uprawnienie When przechodzę do podpisu Then widzę dane wpisu (data i godzina, imię i nazwisko, decyzja i organ albo adres, prowadzący), regulamin strzelnicy (przewijany; do czasu dostarczenia — tekst zastępczy „[TEKST DO UZUPEŁNIENIA]”) i pole podpisu z tekstem „Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.”.
+- **AC-13**: Given wybrane uprawnienie When przechodzę do podpisu Then widzę dane wpisu (data i godzina, imię i nazwisko, decyzja i organ albo adres, prowadzący), regulamin strzelnicy (przewijany; treść od właściciela z #39 — „Regulamin użytkowania strzelnicy w miejscowości Morawy Wielkie”, rozdziały 1–4; ramka na samym dole ekranu, pod przyciskami, żeby pole podpisu i „Zapisz wpis” były widoczne bez przewijania) i pole podpisu z tekstem „Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.”.
 - **AC-14**: Given pole podpisu When podpis jest pusty lub za krótki (< 20 punktów ścieżki) Then „Zapisz wpis” jest nieaktywny; „Wyczyść” czyści pole.
 - **AC-15**: Given podpis When klikam „Zapisz wpis” Then podpis (PNG, białe tło, maks. 200 KB) trafia do prywatnego bucketu `signatures`, a funkcja `create_range_log_entry` w jednej transakcji: tworzy wpis z kopią danych osoby i prowadzącego, zapisuje zużycie w `pass_usages` (zgodnie z wyborem: aktywacja `first_used_on`/`valid_until`, licznik −1, `used_up`), sprawdza ponownie ważność uprawnienia z blokadą wiersza.
 - **AC-16**: Given zapis się nie udał (sieć, uprawnienie zużyte w międzyczasie) When wraca błąd Then wpis i zużycie nie powstają (transakcja), widzę „Nie udało się zapisać wpisu. Spróbuj ponownie.” lub „Uprawnienie zostało właśnie wykorzystane — wybierz inne.”, a podpis pozostaje na ekranie do ponowienia.
@@ -188,7 +188,7 @@ Nie zawiera rodzaju osoby, wersji regulaminu ani informacji rozliczeniowych — 
 | Kolejność zużycia uprawnień | Z issue #38; wejściówka przed karnetami (7-A) | 2026-11-17 |
 | Karnet imienny, osoby towarzyszące nie zużywają karnetu | 8-A | 2026-11-17 |
 | Osoba bez konta płaci na miejscu, dane tylko w książce | 10-A | 2026-11-17 |
-| Regulamin strzelnicy i klauzula informacyjna | 12-A: teksty od właściciela, do tego czasu zastępcze | 2026-11-17 |
+| Regulamin strzelnicy i klauzula informacyjna | 12-A: teksty od właściciela, do tego czasu zastępcze; oba dostarczone w #39 (regulamin 2026-11-21) — klauzula RODO pozostaje osobnym tekstem (`privacy.body`) | 2026-11-17 |
 | Nr legitymacji i instytucja prowadzącego | #104: obowiązkowe; tylko na liście prowadzących (nie we wpisach); „Inne” z polem na nazwę instytucji | 2026-11-18 |
 
 Założenia analityka (zatwierdzane razem ze specyfikacją): prowadzący zapamiętywany na urządzeniu do końca dnia; obsługa widzi tylko dzisiejsze wpisy

@@ -774,8 +774,42 @@ export const pl = {
     permitOrAddress: 'Nr decyzji i organ wydający / Adres zamieszkania',
     officer: 'Prowadzący strzelanie',
     rulesHeading: 'Regulamin strzelnicy',
-    // Treść od właściciela (#39, SPEC-005 12-A) — do tego czasu tekst zastępczy.
-    rulesPlaceholder: '[TEKST DO UZUPEŁNIENIA]',
+    // Regulamin strzelnicy od właściciela (#39, SPEC-005 AC-13) — treść 1:1 z PDF „Regulamin_strzelnicy”.
+    // Bloki rozdziela pusta linia; linia „## …” to tytuł rozdziału; podpunkty w osobnych liniach.
+    rulesBody:
+      'Regulamin użytkowania strzelnicy w miejscowości Morawy Wielkie\n\n' +
+      '## Rozdział 1. Warunki korzystania ze strzelnicy\n\n' +
+      '1. Prowadzący strzelanie:\n1) odpowiada za bezpieczeństwo użytkowników strzelnicy oraz osób im towarzyszących,\n2) wyznacza korzystającym ze strzelnicy stanowiska strzeleckie, a osobom towarzyszącym — miejsce bezpiecznego pobytu,\n3) prowadzi książkę rejestru pobytu na strzelnicy, w której zamieszcza się następujące dane:\n   a) imię i nazwisko korzystającego ze strzelnicy,\n   b) kaliber broni, z której przeprowadzono strzelanie,\n   c) numer pozwolenia na broń oraz nazwę organu, który je wydał, albo adres korzystającego ze strzelnicy, jeśli nie posiada on pozwolenia na broń,\n   d) godzinę przyjścia na strzelnicę,\n   e) oświadczenie korzystającego ze strzelnicy o zapoznaniu się z regulaminem strzelnicy i przepisami bezpieczeństwa, potwierdzone własnoręcznym podpisem lub zatwierdza zapoznanie się z regulaminem strzelnicy w przypadku elektronicznej wersji książki pobytu na strzelnicy.\n4) jest zobowiązany do posiadania sprawnego i naładowanego telefonu komórkowego oraz apteczki pierwszej pomocy.\n\n' +
+      '2. Na strzelnicy zabrania się:\n1) osobom towarzyszącym osobom korzystającym ze strzelnicy wchodzenia na stanowiska strzeleckie oraz styczności z bronią,\n2) używania broni innych osób korzystających ze strzelnicy, bez zgody jej użytkownika,\n3) spożywania alkoholu lub używania środków odurzających oraz przebywania na terenie strzelnicy osób będących pod ich wpływem.\n\n' +
+      '3. Na strzelnicy, w miejscu widocznym, umieszcza się:\n1) regulamin strzelnicy,\n2) plan strzelnicy z oznaczeniem:\n   a) stanowisk strzeleckich,\n   b) punktu sanitarnego,\n   c) dróg ewakuacji,\n3) wykaz sygnałów alarmowych,\n4) informację o możliwości i sposobie połączenia się z najbliższym punktem pomocy medycznej.\n\n' +
+      '4. Za szkody powstałe podczas strzelania oraz spowodowanie wypadku odpowiada zarządca strzelnicy, prowadzący strzelanie lub trening strzelecki albo korzystający ze strzelnicy, na zasadach określonych w odrębnych przepisach.\n\n' +
+      '5. Korzystanie ze strzelnicy możliwe jest tylko za wiedzą i zgodą właściciela lub zarządzającego strzelnicą lub osób przez niego upoważnionych.\n\n' +
+      '## Rozdział 2. Sposób obchodzenia się z bronią\n\n' +
+      '1. Broń palną na terenie strzelnicy poza stanowiskiem strzeleckim przenosi się broń rozładowaną z otwartymi komorami nabojowymi skierowaną w górę lub dół. Dopuszcza się stosowanie flag bezpieczeństwa wskazujących pustą komorę nabojową. W przypadku pistoletów i rewolwerów dozwolone jest ich noszenie w kaburach. Dopuszcza się inny sposób przenoszenia broni, jeśli tak stanowi regulamin zawodów.\n\n' +
+      '2. Wyjmowanie broni odbywa się wyłącznie na stanowisku strzeleckim lub treningowym tylko na polecenie prowadzącego strzelanie lub trening strzelecki.\n\n' +
+      '3. Wszelkich czynności związanych z obsługą broni dokonuje się wyłącznie z lufą skierowaną w kierunku kulochwytu, tarcz bądź przedmiotów będących celem na strzelnicy.\n\n' +
+      '4. Strzelanie rozpoczyna się wyłącznie na komendę prowadzącego strzelanie.\n\n' +
+      '5. Zakończenie strzelania zgłasza się prowadzącemu strzelanie.\n\n' +
+      '6. Po zakończeniu strzelania broń rozładowuje się i przedstawia do kontroli prowadzącemu strzelanie oraz opuszcza się stanowisko strzeleckie z bronią rozładowaną.\n\n' +
+      '7. Strzelanie i celowanie na strzelnicy odbywa się wyłącznie na wyznaczonych stanowiskach, do tarcz lub innych przedmiotów będących celem strzeleckim na strzelnicy. Tarcze (cele strzeleckie) umieszcza się na tle kulochwytu, gdzie górna krawędź jest nie wyżej niż 160 cm od ziemi.\n\n' +
+      '8. Broń można odłożyć wyłącznie w stanie rozładowanym w miejscu i na kierunku bezpiecznym wskazanym przez prowadzącego strzelanie.\n\n' +
+      '## Rozdział 3. Sposób zachowania się osób przebywających na strzelnicy\n\n' +
+      '1. Korzystający ze strzelnicy jest obowiązany ściśle przestrzegać poleceń wydawanych przez prowadzącego strzelanie.\n\n' +
+      '2. Zabrania się wchodzenia przed stanowisko strzeleckie bez zgody prowadzącego strzelanie.\n\n' +
+      '3. Korzystający ze strzelnicy, z wyjątkiem osoby niepełnosprawnej, obowiązany jest przestrzegać przepisów dotyczących postaw strzeleckich.\n\n' +
+      '4. Po komendzie „STOP” lub „PRZERWIJ OGIEŃ” lub innej podobnej komendy nakazującej zaprzestanie strzelania, wydanej przez dowolną osobę, strzelający bezzwłocznie przerywają strzelanie.\n\n' +
+      '5. Każda osoba przebywająca na strzelnicy musi niezwłocznie powiadomić prowadzącego strzelanie o sytuacji, która może być niebezpieczna, lub spowodować wypadek.\n\n' +
+      '6. Na teren strzelnicy zwierzęta mogą być wprowadzone tylko w wyjątkowych przypadkach oraz obowiązkowo powinny być trzymane na uwięzi i pod ścisłym nadzorem opiekuna.\n\n' +
+      '7. Osobę naruszającą regulamin można usunąć ze strzelnicy.\n\n' +
+      '8. Dzieci mogą przebywać na strzelnicy wyłącznie pod bezpośrednim nadzorem rodziców lub opiekunów.\n\n' +
+      '9. Każda osoba jest zobowiązana zabrać ze sobą wyprodukowane przez siebie śmieci.\n\n' +
+      '## Rozdział 4. Dodatkowe warunki bezpieczeństwa\n\n' +
+      '1. Osoba korzystająca ze strzelnicy, nie stosująca się do zasad określonych w regulaminie strzelnicy ponosi wszelką odpowiedzialność za wyrządzone szkody.\n\n' +
+      '2. Osoba która narusza przepisy regulaminu określającego zasady zachowania bezpieczeństwa na strzelnicy podlega karze aresztu lub grzywny, zgodnie z ustawą o broni i amunicji.\n\n' +
+      '3. Osoby przebywające na strzelnicy powinny stosować ochronniki słuchu.\n\n' +
+      '4. Wyjmowanie broni dozwolone jest w miejscach do tego wyznaczonych, stosując się do zasad opisanych w rozdziale nr 2, punkt nr 3.\n\n' +
+      '5. Prowadzący strzelanie może odmówić możliwości korzystania ze strzelnicy wobec konkretnej osoby lub grupy osób, jeśli uzna, że osoby te z dużym prawdopodobieństwem mogą spowodować powstanie zagrożenia. Decyzja ta jest decyzją subiektywną i autonomiczną prowadzącego strzelanie. Decyzja ta jest decyzją ostateczną.\n\n' +
+      '6. Gospodarz strzelnicy nie ponosi odpowiedzialności za rzeczy pozostawione na terenie strzelnicy bez nadzoru.',
     noticeHeading: 'Klauzula informacyjna',
     confirm: 'Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.',
     padLabel: 'Pole podpisu — podpisz się palcem lub rysikiem',

@@ -24,7 +24,7 @@ describe('podpis i zapis wpisu (SPEC-005 US-5, US-6)', () => {
       'ul. Stalowa 1',
     );
     expect(entryDateTime('2026-11-18T09:32:00Z')).toBe('18.11.2026, 10:32');
-    expect(t('rangeSign.rulesPlaceholder')).toBe('[TEKST DO UZUPEŁNIENIA]');
+    expect(t('rangeSign.rulesBody')).toContain('Regulamin użytkowania strzelnicy w miejscowości Morawy Wielkie');
     expect(t('rangeSign.confirm')).toBe('Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.');
   });
 

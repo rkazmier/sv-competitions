@@ -163,7 +163,7 @@
   danych i wybranym uprawnieniu. Logika `src/lib/range-entry.ts`, wyspa `src/lib/range-entry-ui.ts`.
 - Książka — podpis i zapis (SPEC-005 AC-13…AC-20): ekran podpisu w trybie „podaj urządzenie” (`body.handover` ukrywa
   nawigację): dane wpisu (osoba z kontem — `rpc/staff_person_entry_data`), regulamin strzelnicy i — dla osoby bez konta —
-  klauzula informacyjna (`PrivacyNoticeText.astro`, treść `privacy.body`; regulamin — tekst zastępczy `rangeSign.rulesPlaceholder` do czasu #39), pole podpisu `<canvas>` (`touch-action: none`,
+  klauzula informacyjna (`PrivacyNoticeText.astro`, treść `privacy.body`; regulamin strzelnicy osobno — `RangeRulesText.astro`, treść `rangeSign.rulesBody` z #39, podział na rozdziały `src/lib/range-rules.ts`), pole podpisu `<canvas>` (`touch-action: none`,
   „Zapisz wpis” od 20 punktów ścieżki). Zapis: klient nadaje `id` wpisu, PNG (białe tło, ≤ 200 KB) → `signatures/<RRRR>/<MM>/<id>.png`,
   potem `rpc/create_range_log_entry`; ponowienie z tym samym podpisem używa tego samego `id` (plik „już istnieje” = OK),
   po zmianie podpisu — nowe `id` (stary plik usuwa retencja po 24 h, AC-31). „Osoba bez konta”: formularz (walidacja SPEC-002),

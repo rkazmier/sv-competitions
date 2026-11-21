@@ -72,7 +72,7 @@ test('AC-1, AC-2: dyżurny z konta — wejście z /konto/, „Prowadzący strzel
   await data.getByRole('link', { name: 'Otwórz książkę rejestru pobytu' }).click();
 
   await expect(page).toHaveURL(/\/panel\/ksiazka\/$/);
-  await expect(main(page).getByText('Prowadzący strzelanie:')).toBeVisible();
+  await expect(main(page).locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toBeVisible();
   await expect(main(page).locator('[data-officer-name]')).toHaveText(name);
   await expect(main(page).locator('[data-change-officer]')).toBeHidden();
   await expect(main(page).getByRole('heading', { name: 'Kto prowadzi dziś strzelanie?' })).toBeHidden();

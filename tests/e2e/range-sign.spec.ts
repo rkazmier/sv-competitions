@@ -36,7 +36,7 @@ async function seedPersonWithPass(): Promise<{ id: string; fullName: string; pas
 async function openRangeLog(page: Page, path: string): Promise<string> {
   const officer = await ensureRangeDuty();
   await page.goto(path);
-  await expect(page.getByRole('main').getByText('Prowadzący strzelanie:')).toContainText(officer);
+  await expect(page.getByRole('main').locator('p.shift-officer', { hasText: 'Prowadzący strzelanie:' })).toContainText(officer);
   return officer;
 }
 
@@ -65,7 +65,7 @@ test.describe('obsługa — podpis i zapis wpisu', () => {
     const officer = await openRangeLog(page, `/panel/ksiazka/?osoba=${person.id}`);
     await page.getByRole('button', { name: 'Dalej' }).click();
 
-    // AC-13: dane wpisu, regulamin (tekst zastępczy), zdanie nad polem podpisu; bez nawigacji panelu.
+    // AC-13: dane wpisu, regulamin strzelnicy (#39), zdanie nad polem podpisu; bez nawigacji panelu.
     const sign = page.locator('[data-sign]');
     await expect(sign.getByRole('heading', { name: 'Wpis do książki rejestru pobytu' })).toBeVisible();
     await expect(sign.locator('[data-sign-field="time"]')).toHaveText(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
@@ -73,7 +73,11 @@ test.describe('obsługa — podpis i zapis wpisu', () => {
     await expect(sign.locator('[data-sign-field="permit"]')).toHaveText(ADDRESS);
     await expect(sign.locator('[data-sign-field="officer"]')).toHaveText(officer);
     await expect(sign.getByRole('heading', { name: 'Regulamin strzelnicy' })).toBeVisible();
-    await expect(sign.getByRole('region', { name: 'Regulamin strzelnicy' })).toContainText('[TEKST DO UZUPEŁNIENIA]');
+    await expect(sign.getByRole('region', { name: 'Regulamin strzelnicy' })).toContainText('Strzelanie rozpoczyna się wyłącznie na komendę prowadzącego strzelanie.');
+    // #39: regulamin na samym dole — pod polem podpisu i przyciskami.
+    const rulesBox = await sign.getByRole('region', { name: 'Regulamin strzelnicy' }).boundingBox();
+    const saveBox = await sign.getByRole('button', { name: 'Zapisz wpis' }).boundingBox();
+    expect(rulesBox!.y).toBeGreaterThan(saveBox!.y);
     await expect(sign.getByText('Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.')).toBeVisible();
     await expect(sign.getByRole('heading', { name: 'Klauzula informacyjna' })).toBeHidden();
     await expect(page.locator('.site-header')).toBeHidden();
