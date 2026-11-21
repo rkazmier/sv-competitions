@@ -4,6 +4,7 @@
  * Filtry (zakres dat, status, metoda, produkt lub wejściówka, osoba lub nr zamówienia — SPEC-006 AC-10), suma, eksport CSV bieżącego widoku,
  * „Anuluj i zwróć” dla opłaconych zamówień bez zużycia uprawnienia, „Dodaj dane do faktury” (SPEC-004 AC-14).
  * „Przyznaj karnet” → `/panel/zamowienia/przyznaj/` (SPEC-010 AC-1); `?numer=SV-…` — wyszukanie po numerze (SPEC-010 AC-8).
+ * Prezent: filtr „Prezent”, powód i notatka w „Uwagi”, „Anuluj przyznanie” (`rpc/cancel_pass_grant`) — SPEC-010 AC-14, AC-17…AC-19.
  * Dane obsługuje lib/orders-admin-ui.ts.
  */
 import InvoiceFields from '../../../components/InvoiceFields.astro';
@@ -98,6 +99,20 @@ import { GRANT_URL } from '../../../lib/pass-grant';
         <textarea class="input" id="o-note" name="note" maxlength="300" rows="2" data-note></textarea>
         <div class="actions">
           <button type="submit" class="button button-primary" value="confirm" data-confirm>{t('orders.confirm')}</button>
+          <button type="submit" class="button" value="cancel" formnovalidate>{t('orders.back')}</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="card confirm" aria-labelledby="grant-cancel-heading" data-grant-dialog>
+      <form method="dialog" class="stack">
+        <h2 id="grant-cancel-heading">{t('orders.cancelGrant')}</h2>
+        <p data-grant-item></p>
+        <p>{t('orders.cancelGrantText')}</p>
+        <label class="field-label" for="o-grant-note">{t('orders.grantNote')}</label>
+        <textarea class="input" id="o-grant-note" name="note" maxlength="300" rows="2" data-grant-note></textarea>
+        <div class="actions">
+          <button type="submit" class="button button-primary" value="confirm">{t('orders.cancelGrant')}</button>
           <button type="submit" class="button" value="cancel" formnovalidate>{t('orders.back')}</button>
         </div>
       </form>

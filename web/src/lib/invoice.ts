@@ -108,11 +108,11 @@ export const SOURCE_TEXT: Record<InvoiceSource, MessageKey> = {
   manual: 'invoice.sourceManual',
 };
 
-/** AC-7: status faktury w „Historii płatności”; `null` — zamówienie bez faktury. */
-export function invoiceStatus(order: { invoice_requested?: boolean; invoice_number?: string | null }):
+/** AC-7: status faktury w „Historii płatności”; `null` — zamówienie bez faktury. SPEC-010 AC-13: prezent nigdy nie ma statusu faktury. */
+export function invoiceStatus(order: { payment_method?: string; invoice_requested?: boolean; invoice_number?: string | null }):
   | { key: 'invoice.statusPending' }
   | { key: 'invoice.statusIssued'; number: string }
   | null {
-  if (!order.invoice_requested) return null;
+  if (!order.invoice_requested || order.payment_method === 'gift') return null;
   return order.invoice_number ? { key: 'invoice.statusIssued', number: order.invoice_number } : { key: 'invoice.statusPending' };
 }

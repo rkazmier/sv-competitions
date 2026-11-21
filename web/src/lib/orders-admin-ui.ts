@@ -2,14 +2,18 @@
  * Wyspa zamówień w panelu (`/panel/zamowienia/`, SPEC-003 US-6, AC-24…AC-27). Tylko admin (`requireAdmin`).
  * Lista z `admin_list_orders`; „Anuluj i zwróć”: Tpay — Edge Function `payments-refund` (zlecenie zwrotu w Tpay),
  * na miejscu — `cancel_order` (od razu `refunded`). Obie drogi zapisują `order_refund` w `audit_log` (AC-27).
+ * Prezent (SPEC-010): „Anuluj przyznanie” — `cancel_pass_grant` (`audit_log` `pass_grant_cancel` w bazie).
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` (bez HTML).
  */
 import { t, type MessageKey } from '../i18n';
 import { todayInWarsaw } from './calendar';
 import {
+  canCancelGrant,
   csvFileName,
   defaultFilters,
   filterArgs,
+  grantCancelErrorKey,
+  grantDetails,
   invoiceAction,
   methodKeys,
   numberSearchKey,
@@ -98,11 +102,26 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
       cell(row, order.item_name);
       cell(row, formatPrice(order.amount));
       cell(row, methodKeys(order).map((key) => t(key)).join(' / '));
-      cell(row, t(statusKey(order.status)));
+      cell(row, t(statusKey(order)));
       cell(row, personLabel(order) ?? t('orders.noAccount'));
       cell(row, order.seller_name ?? '—');
-      cell(row, order.refund_note ?? '');
+      const notes = cell(row, order.refund_note ?? '');
+      // SPEC-010 AC-14: „Powód: …”, „Notatka anulowania: …” przy prezencie.
+      for (const line of grantDetails(order)) {
+        const p = document.createElement('p');
+        p.textContent = line;
+        notes.append(p);
+      }
       const actions = cell(row, '');
+      if (canCancelGrant(order)) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button';
+        button.textContent = t('orders.cancelGrant');
+        button.setAttribute('aria-label', t('orders.cancelGrantLabel', { item: order.item_name }));
+        button.addEventListener('click', () => openGrantCancel(order));
+        actions.append(button);
+      }
       const action = refundAction(order);
       if (action === 'refund') {
         const button = document.createElement('button');
@@ -217,6 +236,47 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     const order = pending;
     pending = null;
     if (order && dialog.returnValue === 'confirm') void refund(order, note.value.trim());
+  });
+
+  // SPEC-010 AC-18…AC-21: anulowanie przyznania — bez zwrotu pieniędzy, zużycia zostają (wszystko w `cancel_pass_grant`).
+  const grantDialog = query<HTMLDialogElement>(root, '[data-grant-dialog]');
+  const grantNote = query<HTMLTextAreaElement>(grantDialog, '[data-grant-note]');
+  let grantOrder: AdminOrder | null = null;
+
+  function openGrantCancel(order: AdminOrder): void {
+    grantOrder = order;
+    status.textContent = '';
+    showError(null);
+    grantNote.value = '';
+    query<HTMLElement>(grantDialog, '[data-grant-item]').textContent = t('orders.confirmItem', {
+      number: order.order_number,
+      item: order.item_name,
+      person: personLabel(order) ?? t('orders.noAccount'),
+      date: orderDateTime(order.created_at),
+    });
+    grantDialog.showModal();
+  }
+
+  async function cancelGrant(order: AdminOrder, cancelNote: string): Promise<void> {
+    status.textContent = t('orders.grantCancelling');
+    let code: string | null = null;
+    let ok = false;
+    try {
+      const { error } = await supabase.rpc('cancel_pass_grant', { p_order_id: order.id, p_note: cancelNote || null });
+      ok = !error;
+      code = error?.message ?? null;
+    } catch {
+      // błąd sieci — komunikat ogólny
+    }
+    status.textContent = ok ? t('orders.grantCancelled') : '';
+    await load();
+    if (!ok) showError(grantCancelErrorKey(code));
+  }
+
+  grantDialog.addEventListener('close', () => {
+    const order = grantOrder;
+    grantOrder = null;
+    if (order && grantDialog.returnValue === 'confirm') void cancelGrant(order, grantNote.value.trim());
   });
 
   // SPEC-004 AC-14: dane do faktury po zakupie — kroki AC-2…AC-5 bez nadpisywania `billing_details` klienta.

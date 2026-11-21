@@ -129,6 +129,10 @@
   „Anuluj i zwróć” (okno `<dialog>` z opcjonalną notatką) przy `paid` bez zużycia uprawnienia; Tpay → Edge Function
   `payments-refund`, na miejscu → `rpc/cancel_order`. Używany karnet: „Karnet był używany — zwrot poza systemem.”.
   Logika bez DOM: `src/lib/orders-admin.ts`, wyspa `src/lib/orders-admin-ui.ts`.
+  Prezent (SPEC-010 AC-14, AC-17…AC-21): filtr „Prezent”, „Powód: …” / „Notatka anulowania: …” w „Uwagi”, kolumna CSV „Powód przyznania”;
+  zamiast „Anuluj i zwróć” i „Dodaj dane do faktury” — „Anuluj przyznanie” (okno z notatką) → `rpc/cancel_pass_grant`.
+  Anulowany prezent ma status „Anulowane” (`orderStatusKey`, także w `/konto/`). Profil osoby: „Prezent: <powód>” przy karnecie
+  (`orders(order_grants(reason))`, RLS: admin) i wpisy `pass_grant` / `pass_grant_cancel` w „Historia zmian”.
 - `src/lib/site.ts` — adres produkcyjny: `link rel=canonical`, `og:url` i `og:image` (`public/og-default.png`) zawsze na produkcję.
 - Komponenty `.astro`: test przez Container API (`astro/container`, `vitest.config.ts` z `getViteConfig`).
 - `src/components/DictionaryList.astro` + `src/lib/dictionary*.ts` — wspólna lista słownikowa (dyscypliny, kategorie,

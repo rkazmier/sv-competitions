@@ -168,6 +168,11 @@ export const PAYMENT_METHOD_TEXT: Record<UserOrder['payment_method'], MessageKey
   gift: 'offer.methodGift',
 };
 
+/** Status zamówienia po polsku; SPEC-010 AC-13: anulowany prezent — „Anulowane” (nie „Nieopłacone — anulowane”). */
+export function orderStatusKey(order: Pick<UserOrder, 'payment_method' | 'status'>): MessageKey {
+  return order.payment_method === 'gift' && order.status === 'cancelled' ? 'offer.statusGiftCancelled' : ORDER_STATUS_TEXT[order.status];
+}
+
 /** Od najnowszych (AC-13). */
 export function sortOrders(orders: readonly UserOrder[]): UserOrder[] {
   return [...orders].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
