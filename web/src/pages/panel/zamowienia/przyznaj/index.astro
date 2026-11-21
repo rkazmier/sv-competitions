@@ -1,0 +1,146 @@
+---
+/**
+ * Panel: przyznanie karnetu (prezent) przez admina (SPEC-010 US-1, AC-1…AC-11). Tylko admin (`requireAdmin`).
+ * Osoba z kontem (wyszukiwanie / kod QR, bez „Osoba bez konta”), „Co przyznać” (wszystkie produkty, także ukryte, i wejściówki
+ * na trwające płatne wydarzenia), „Ważny do” (produkt), „Powód”; zapis `rpc/grant_pass` z `request_key`.
+ * `?osoba=<id>` (z profilu osoby) — osoba wybrana od razu. Dane obsługuje lib/pass-grant-ui.ts.
+ */
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import QrScanDialog from '../../../../components/QrScanDialog.astro';
+import { t } from '../../../../i18n';
+import { GRANT_REASON_MAX } from '../../../../lib/pass-grant';
+import { SEARCH_MIN_LENGTH } from '../../../../lib/on-site-sales';
+---
+<PanelLayout title={t('grant.title')}>
+  <div class="grant" data-grant>
+    <p><a href="/panel/zamowienia/">{t('grant.back')}</a></p>
+    <h1>{t('grant.title')}</h1>
+    <p>{t('grant.intro')}</p>
+
+    <section class="card stack" role="status" data-result hidden>
+      <p class="selected" data-result-text></p>
+      <div class="button-row">
+        <button type="button" class="button button-primary" data-another>{t('grant.another')}</button>
+        <a class="button" data-show-order>{t('grant.showOrder')}</a>
+      </div>
+    </section>
+
+    <form class="card stack" data-form novalidate>
+      <p class="hint">{t('grant.requiredHint')}</p>
+      <fieldset>
+        <legend>{t('grant.personHeading')}</legend>
+        <div data-search-box>
+          <p><button type="button" class="button button-primary" data-scan>{t('rangeEntry.scan')}</button></p>
+          <label class="field-label" for="g-query">{t('sales.searchLabel')}</label>
+          <div class="search-row">
+            <input class="input" id="g-query" type="search" autocomplete="off" minlength={SEARCH_MIN_LENGTH} aria-describedby="g-query-hint" data-query />
+            <button type="button" class="button" data-search>{t('sales.search')}</button>
+          </div>
+          <p class="hint" id="g-query-hint">{t('sales.searchHint', { min: SEARCH_MIN_LENGTH })}</p>
+          <p class="hint" role="status" data-search-status></p>
+          <ul class="card-list" data-results></ul>
+        </div>
+        <div data-selected hidden>
+          <p class="selected" data-selected-name></p>
+          <button type="button" class="button" data-change>{t('sales.change')}</button>
+        </div>
+        <p class="message-error field-error" data-error-for="person" hidden></p>
+      </fieldset>
+
+      <div>
+        <label class="field-label" for="g-item">{t('grant.itemLabel')}</label>
+        <select class="input" id="g-item" name="item" required aria-describedby="g-item-price g-item-error" data-item>
+          <option value="">{t('grant.itemChoose')}</option>
+        </select>
+        <p class="hint" id="g-item-price" data-price></p>
+        <p class="hint" data-items-empty hidden>{t('grant.itemsEmpty')}</p>
+        <p class="message-error field-error" id="g-item-error" data-error-for="item" hidden></p>
+      </div>
+
+      <div data-expires-box hidden>
+        <label class="field-label" for="g-expires">{t('grant.expiresLabel')}</label>
+        <input class="input" id="g-expires" name="expires" type="date" required aria-describedby="g-expires-hint g-expires-error" data-expires />
+        <p class="hint" id="g-expires-hint" data-expires-hint></p>
+        <p class="message-error field-error" id="g-expires-error" data-error-for="expiresOn" hidden></p>
+      </div>
+      <p class="hint" data-ticket-validity hidden>{t('grant.ticketValidity')}</p>
+
+      <div>
+        <label class="field-label" for="g-reason">{t('grant.reasonLabel')}</label>
+        <textarea class="input" id="g-reason" name="reason" rows="2" maxlength={GRANT_REASON_MAX} required aria-describedby="g-reason-count g-reason-hint g-reason-error" data-reason></textarea>
+        <p class="hint" id="g-reason-count" aria-live="polite" data-reason-count></p>
+        <p class="hint" id="g-reason-hint">{t('grant.reasonHint')}</p>
+        <p class="message-error field-error" id="g-reason-error" data-error-for="reason" hidden></p>
+      </div>
+
+      <p class="message-error" role="alert" data-form-error hidden></p>
+      <button type="submit" class="button button-primary" data-submit>{t('grant.submit')}</button>
+    </form>
+  </div>
+  <QrScanDialog />
+</PanelLayout>
+
+<script>
+  import { mountPassGrant } from '../../../../lib/pass-grant-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-grant]');
+  if (root) void mountPassGrant(root);
+</script>
+
+<style>
+  .grant {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .grant > *,
+  .stack > * {
+    margin: 0;
+  }
+
+  .stack {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  legend {
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .search-row {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .search-row .input {
+    flex: 1;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .hint:empty {
+    display: none;
+  }
+
+  .field-error {
+    display: block;
+  }
+
+  .selected {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .button {
+    min-height: 44px;
+  }
+</style>

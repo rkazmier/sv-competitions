@@ -18,7 +18,8 @@ export interface AdminOrder {
   created_at: string;
   item_name: string;
   amount: number;
-  payment_method: PaymentMethod;
+  /** `gift` — przyznanie karnetu (SPEC-010); filtr „Prezent” — #145. */
+  payment_method: PaymentMethod | 'gift';
   on_site_method: 'cash' | 'terminal' | null;
   status: OrderStatus;
   refund_note: string | null;

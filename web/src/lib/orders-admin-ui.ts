@@ -27,6 +27,7 @@ import { invoiceArgs } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
 import { invoiceErrorKey } from './invoices-admin';
 import { requireAdmin } from './panel';
+import { orderNumberFromSearch } from './pass-grant';
 import { formatPrice } from './products';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
@@ -59,6 +60,9 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
   const field = (name: string) => filtersForm.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement;
   const initial = defaultFilters(todayInWarsaw());
   for (const [name, value] of Object.entries(initial)) field(name).value = value;
+  // SPEC-010 AC-8: „Pokaż zamówienie” po przyznaniu karnetu → wyszukanie po numerze (SPEC-006 AC-10).
+  const presetNumber = orderNumberFromSearch(window.location.search);
+  if (presetNumber) field('person').value = presetNumber;
 
   const supabase = await requireAdmin();
   let orders: AdminOrder[] = [];

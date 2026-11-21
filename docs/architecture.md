@@ -121,6 +121,11 @@
 - Zamówienia (SPEC-003 AC-24…AC-27, tylko admin): `/panel/zamowienia/` (`requireAdmin`, pozycja „Zamówienia” w menu admina).
   Filtry (zakres dat — domyślnie bieżący miesiąc, status, metoda, produkt lub wejściówka, osoba) → `rpc/admin_list_orders`,
   suma kwot widoku, „Eksportuj CSV” (generowany w przeglądarce: BOM, `;`, kwota `120,00`, formuły arkusza neutralizowane).
+  `?numer=SV-…` wpisuje numer w pole „Osoba lub nr zamówienia” (link „Pokaż zamówienie” po przyznaniu karnetu, SPEC-010 AC-8).
+- Przyznanie karnetu (SPEC-010 AC-1…AC-11, tylko admin): `/panel/zamowienia/przyznaj/` (`requireAdmin`; przycisk w `/panel/zamowienia/`
+  i w profilu osoby → `?osoba=<id>`). Osoba jak w sprzedaży na miejscu (`staff_search_people`, kod QR, bez „Osoba bez konta”),
+  wszystkie produkty (także ukryte) i wejściówki na trwające płatne wydarzenia (`event_seats_left`), „Ważny do” (dziś…dziś + 5 lat),
+  powód → `rpc/grant_pass` z `request_key` stałym dla jednego wypełnienia formularza (ponowienie bez duplikatu). Logika: `lib/pass-grant.ts`.
   „Anuluj i zwróć” (okno `<dialog>` z opcjonalną notatką) przy `paid` bez zużycia uprawnienia; Tpay → Edge Function
   `payments-refund`, na miejscu → `rpc/cancel_order`. Używany karnet: „Karnet był używany — zwrot poza systemem.”.
   Logika bez DOM: `src/lib/orders-admin.ts`, wyspa `src/lib/orders-admin-ui.ts`.

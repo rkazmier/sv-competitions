@@ -3,6 +3,7 @@
  * Panel: zamówienia (SPEC-003 US-6, AC-24…AC-27). Tylko admin.
  * Filtry (zakres dat, status, metoda, produkt lub wejściówka, osoba lub nr zamówienia — SPEC-006 AC-10), suma, eksport CSV bieżącego widoku,
  * „Anuluj i zwróć” dla opłaconych zamówień bez zużycia uprawnienia, „Dodaj dane do faktury” (SPEC-004 AC-14).
+ * „Przyznaj karnet” → `/panel/zamowienia/przyznaj/` (SPEC-010 AC-1); `?numer=SV-…` — wyszukanie po numerze (SPEC-010 AC-8).
  * Dane obsługuje lib/orders-admin-ui.ts.
  */
 import InvoiceFields from '../../../components/InvoiceFields.astro';
@@ -10,11 +11,13 @@ import PanelLayout from '../../../layouts/PanelLayout.astro';
 import { t } from '../../../i18n';
 import { ORDER_STATUS_TEXT, PAYMENT_METHOD_TEXT } from '../../../lib/offer';
 import { ORDER_STATUSES, PAYMENT_METHODS } from '../../../lib/orders-admin';
+import { GRANT_URL } from '../../../lib/pass-grant';
 ---
 <PanelLayout title={t('orders.title')}>
   <div class="orders" data-orders>
     <h1>{t('orders.title')}</h1>
     <p>{t('orders.intro')}</p>
+    <p><a class="button button-primary" href={GRANT_URL}>{t('orders.grant')}</a></p>
 
     <form class="card filters" data-filters novalidate>
       <h2>{t('orders.filtersHeading')}</h2>

@@ -3,7 +3,7 @@
  * Panel: karta użytkownika `/panel/uzytkownicy/profil/?id=` (SPEC-002 AC-17, AC-18, AC-20, AC-21, AC-23…AC-25, §6).
  * Tylko admin. Dane (te same pola i walidacja co `/konto/dane/`), rola (`rpc/set_user_role`), „Historia zmian” (`audit_log`),
  * „Usuń konto” (Edge Function `admin-delete-user`), „Rozpocznij wpis do książki” (SPEC-005 AC-8),
- * „Karnety i zużycie” z „Cofnij zużycie” (SPEC-005 AC-23).
+ * „Karnety i zużycie” z „Cofnij zużycie” (SPEC-005 AC-23), „Przyznaj karnet” (SPEC-010 AC-1).
  * Dane obsługuje lib/admin-users-ui.ts po potwierdzeniu roli admina.
  */
 import PanelLayout from '../../../../layouts/PanelLayout.astro';
@@ -21,7 +21,10 @@ import { ROLES } from '../../../../lib/admin-users';
 
     <div class="stack" data-content hidden>
       <p class="tag" data-ready hidden>{t('account.ready')}</p>
-      <p><a class="button button-primary" data-start-entry>{t('users.startEntry')}</a></p>
+      <p class="button-row">
+        <a class="button button-primary" data-start-entry>{t('users.startEntry')}</a>
+        <a class="button" data-grant-pass>{t('orders.grant')}</a>
+      </p>
 
       <form class="card auth-form" data-profile novalidate>
         <h2>{t('users.dataTitle')}</h2>
