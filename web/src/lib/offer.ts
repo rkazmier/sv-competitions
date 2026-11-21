@@ -143,7 +143,8 @@ export interface UserOrder {
   order_number: string;
   item_name: string;
   amount: number;
-  payment_method: 'tpay' | 'on_site';
+  /** `gift` — przyznanie przez admina (SPEC-010). */
+  payment_method: 'tpay' | 'on_site' | 'gift';
   status: OrderStatus;
   created_at: string;
   /** SPEC-004 AC-7: status faktury (`invoice.ts`, `invoiceStatus`). */
@@ -164,6 +165,7 @@ export const ORDER_STATUS_TEXT: Record<OrderStatus, MessageKey> = {
 export const PAYMENT_METHOD_TEXT: Record<UserOrder['payment_method'], MessageKey> = {
   tpay: 'offer.methodOnline',
   on_site: 'offer.methodOnSite',
+  gift: 'offer.methodGift',
 };
 
 /** Od najnowszych (AC-13). */

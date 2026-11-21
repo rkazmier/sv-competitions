@@ -178,7 +178,7 @@ describe('/konto/ — historia płatności', () => {
         (o) => o.id,
       ),
     ).toEqual(['b', 'c', 'a']);
-    expect(Object.values(PAYMENT_METHOD_TEXT).map((key) => t(key))).toEqual(['Online', 'Na miejscu']);
+    expect(Object.values(PAYMENT_METHOD_TEXT).map((key) => t(key))).toEqual(['Online', 'Na miejscu', 'Prezent']);
     expect(Object.values(ORDER_STATUS_TEXT).map((key) => t(key))).toEqual([
       'Opłacone',
       'Oczekuje',
