@@ -15,4 +15,11 @@ describe('klauzula informacyjna RODO (#39)', () => {
       expect(text).toContain(fragment);
     }
   });
+
+  it('opisuje przekazywanie danych poza EOG (decyzja 3A w #39)', () => {
+    const text = t('privacy.body');
+    expect(text).toContain('spoza Europejskiego Obszaru Gospodarczego');
+    expect(text).toContain('standardowych klauzul umownych');
+    expect(text).not.toContain('patrz pytanie w #39');
+  });
 });
