@@ -3,7 +3,9 @@
 #  - workflow_dispatch z Edge Function `site-rebuild` (input `target` = SITE_ENV projektu Supabase),
 #  - codziennie w nocy dla obu środowisk: minione wpisy znikają z kalendarza.
 #    22:30 i 23:30 UTC — jedno z nich to 00:30 w Polsce (czas zimowy/letni), drugie jest nieszkodliwe.
-#  - produkcja buduje kod z najnowszego opublikowanego Release, staging — z `main`.
+#  - produkcja buduje kod ostatniego UDANEGO wdrożenia environment `production` (deployment ze statusem
+#    `success`), a nie ostatniego opublikowanego Release — Release czekający na zatwierdzenie ma migracje,
+#    których nie ma jeszcze w produkcyjnej bazie (#150). Staging buduje `main`.
 name: Rebuild site
 
 on:
@@ -36,7 +38,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: main
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -64,7 +66,7 @@ jobs:
     if: github.event_name == 'schedule' || inputs.target == 'production'
     # Grupa celowo inna niż `deploy-production`: wspólna grupa z `cancel-in-progress: true` pozwoliłaby
     # przebudowie anulować wdrożenie w trakcie migracji. Równoległe wdrożenie i przebudowa publikują
-    # ten sam Release, więc wygrywa ostatni zapis o tej samej treści.
+    # ten sam kod, więc wygrywa ostatni zapis o tej samej treści.
     concurrency:
       group: rebuild-site-production
       cancel-in-progress: true
@@ -76,41 +78,58 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      deployments: read
       pages: write
       id-token: write
     steps:
-      # AC-32: kod z najnowszego opublikowanego Release, nie z `main`.
-      - name: Najnowszy Release
+      # AC-32: kod ostatniego udanego wdrożenia produkcji (zatwierdzony Release), nie z `main`
+      # i nie z opublikowanego, ale jeszcze niezatwierdzonego Release.
+      - name: Ostatnie udane wdrożenie produkcji
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Bez Release (produkcja jeszcze nie wdrożona, API zwraca 404) — pomijamy, żeby nocny harmonogram
-          # nie zgłaszał błędów. Każdy inny błąd (sieć, uprawnienia, 5xx) przerywa job, żeby nie było cichego
-          # „braku przebudowy”.
-          tag=""
-          if ! tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>gh-error.txt); then
-            if grep -q "HTTP 404" gh-error.txt; then
-              tag=""
-              echo "::notice::Brak opublikowanego Release — przebudowa produkcji pominięta."
-            else
-              echo "::error::Nie udało się odczytać najnowszego Release: $(cat gh-error.txt)"
-              exit 1
+          # Deploymenty environment `production` (od najnowszych); bierzemy sha pierwszego, którego ostatni
+          # status to `success`. Czekające na zatwierdzenie (`waiting`), w toku i nieudane są pomijane.
+          # Brak udanego wdrożenia — pomijamy przebudowę z notice. Każdy błąd API przerywa job, żeby nie było
+          # cichego „braku przebudowy”.
+          api() {
+            if ! gh api "$1" --jq "$2" 2>gh-error.txt; then
+              echo "::error::Nie udało się odczytać wdrożeń produkcji: $(cat gh-error.txt)" >&2
+              return 1
             fi
+          }
+          sha=""
+          ref=""
+          deployments=$(api "repos/$GITHUB_REPOSITORY/deployments?environment=production&per_page=100" \
+            '.[] | "\(.id) \(.sha) \(.ref)"')
+          while read -r id dsha dref; do
+            [ -n "$id" ] || continue
+            state=$(api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses?per_page=1" '.[0].state // ""')
+            if [ "$state" = "success" ]; then
+              sha="$dsha"
+              ref="$dref"
+              break
+            fi
+          done <<< "$deployments"
+          if [ -z "$sha" ]; then
+            echo "::notice::Brak udanego wdrożenia produkcji — przebudowa produkcji pominięta."
+          else
+            echo "::notice::Przebudowa produkcji z wdrożonego kodu: $ref ($sha)."
           fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - if: steps.release.outputs.tag != ''
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - if: steps.release.outputs.sha != ''
         uses: actions/checkout@v6
         with:
-          ref: ${{ steps.release.outputs.tag }}
-      - if: steps.release.outputs.tag != ''
-        uses: actions/setup-node@v4
+          ref: ${{ steps.release.outputs.sha }}
+      - if: steps.release.outputs.sha != ''
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Build
-        if: steps.release.outputs.tag != ''
+        if: steps.release.outputs.sha != ''
         working-directory: web
         env:
           PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
@@ -120,12 +139,12 @@ jobs:
         run: |
           npm ci
           npm run build
-      - if: steps.release.outputs.tag != ''
+      - if: steps.release.outputs.sha != ''
         uses: actions/configure-pages@v5
-      - if: steps.release.outputs.tag != ''
+      - if: steps.release.outputs.sha != ''
         uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
       - id: deployment
-        if: steps.release.outputs.tag != ''
+        if: steps.release.outputs.sha != ''
         uses: actions/deploy-pages@v4

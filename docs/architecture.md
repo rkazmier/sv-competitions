@@ -455,7 +455,8 @@
   `{ found, name, address, source }` (`vat_whitelist` / `regon`; brak lub brak odpowiedzi → `found: false`, wpis ręczny).
   Nic nie zapisuje w bazie; do rejestrów trafia tylko NIP; w logach tylko nazwa rejestru i status (bez NIP-u i klucza).
   Odpowiedzi: 200, 400, 401, 405, 429, 500.
-- Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z najnowszego Release (Pages);
+- Workflow `rebuild-site.yml`: staging z `main` (repo `sv-competitions-staging`), produkcja z kodu ostatniego udanego wdrożenia
+  environment `production` (Pages; niezatwierdzony Release jest pomijany);
   osobne `concurrency` z `cancel-in-progress` dla każdego środowiska; nocny harmonogram przebudowuje oba.
 
 ## Model danych

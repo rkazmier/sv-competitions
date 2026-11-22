@@ -12,7 +12,10 @@ Wdrożenie produkcji z Release wymaga zatwierdzenia i uruchamia migracje — nie
 - Strony publiczne (`/` — kalendarz strzelnicy, `/zawody/<slug>/`) są generowane przy budowaniu z danych Supabase (klucz publishable, RLS).
 - Panel organizatora (`/panel/**`) to statyczne strony z wyspami, które pobierają dane w przeglądarce.
 - Osobny workflow `rebuild-site.yml` buduje i publikuje wyłącznie frontend:
-  - produkcja — z najnowszego opublikowanego Release (kod zatwierdzony przez właściciela), bez migracji i Edge Functions,
+  - produkcja — z kodu ostatniego udanego wdrożenia environment `production` (deployment ze statusem `success`,
+    czyli zatwierdzony i wdrożony Release), bez migracji i Edge Functions. Release opublikowany, ale czekający
+    na zatwierdzenie, jest pomijany — jego migracji nie ma jeszcze w bazie produkcji (#150). Brak udanego
+    wdrożenia → przebudowa pominięta,
   - staging — z `main`,
   - wyzwalacze: `workflow_dispatch` z Edge Function `site-rebuild` oraz codziennie w nocy (minione wpisy znikają z kalendarza),
   - `concurrency` z `cancel-in-progress: true` — wdraża się ostatnia przebudowa.
@@ -22,6 +25,6 @@ Wdrożenie produkcji z Release wymaga zatwierdzenia i uruchamia migracje — nie
 ## Konsekwencje
 - Zmiany treści są widoczne publicznie po ok. 2–5 minutach; podgląd szkicu w panelu działa od razu.
 - Pełny podgląd linków i dobre SEO.
-- Środowisko `github-pages` musi dopuszczać wdrożenia z gałęzi `main` (workflow_dispatch działa na `main`, choć buduje kod z tagu Release).
+- Środowisko `github-pages` musi dopuszczać wdrożenia z gałęzi `main` (workflow_dispatch działa na `main`, choć buduje kod ostatniego wdrożenia produkcji); job potrzebuje uprawnienia `deployments: read`.
 - Dodatkowy sekret (token GitHub) w obu projektach Supabase — do odnowienia przed wygaśnięciem (właściciel).
 - Build zależy od dostępności Supabase; przy błędzie pobrania danych build kończy się porażką (zostaje poprzednia wersja strony).
