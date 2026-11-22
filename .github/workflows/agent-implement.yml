@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.AGENT_GH_TOKEN }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - uses: supabase/setup-cli@v1
@@ -89,7 +89,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ secrets.AGENT_GH_TOKEN }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - uses: supabase/setup-cli@v1

@@ -104,7 +104,7 @@ Numeracja AC jest stała (zadania się do niej odwołują); nowe kryteria kalend
   zmienia nazwę lub ukrywa dyscyplinę albo kategorię, zmienia tytuł regulaminu Then panel wywołuje Edge Function `site-rebuild`, która uruchamia workflow przebudowy strony dla swojego środowiska (staging / produkcja).
 - **AC-30**: Given wywołanie `site-rebuild` When wywołujący nie jest zalogowanym organizatorem Then funkcja zwraca 403 i nic nie uruchamia.
 - **AC-31**: Given kilka zmian w krótkim czasie When uruchamia się kilka przebudów Then wdraża się ostatnia (wcześniejsze są anulowane — `concurrency` z `cancel-in-progress`).
-- **AC-32**: Given przebudowa produkcji When się wykonuje Then buduje kod z najnowszego opublikowanego Release (nie z `main`) i nie uruchamia migracji ani wdrożenia funkcji; staging buduje `main`.
+- **AC-32**: Given przebudowa produkcji When się wykonuje Then buduje kod ostatniego udanego wdrożenia produkcji, czyli zatwierdzonego Release (nie z `main` i nie z opublikowanego, ale niezatwierdzonego Release; brak udanego wdrożenia → przebudowa pominięta) i nie uruchamia migracji ani wdrożenia funkcji; staging buduje `main`.
 - **AC-33**: Given codziennie o 00:30 czasu polskiego When uruchamia się przebudowa z harmonogramu Then minione wpisy (zawody i wydarzenia) znikają z kalendarza.
 - **AC-34**: Given panel When klikam „Odśwież stronę publiczną” Then uruchamia się przebudowa (ręczny wyzwalacz na wypadek błędu); w panelu widać komunikat z AC-25.
 
