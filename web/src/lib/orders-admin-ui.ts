@@ -48,7 +48,8 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
   return element;
 }
 
-async function functionErrorCode(error: unknown): Promise<string | null> {
+/** Kod `error` z odpowiedzi Edge Function (błąd `functions.invoke`); używa też lib/event-cancel-ui.ts. */
+export async function functionErrorCode(error: unknown): Promise<string | null> {
   const context = (error as { context?: unknown } | null)?.context;
   if (!(context instanceof Response)) return null;
   try {

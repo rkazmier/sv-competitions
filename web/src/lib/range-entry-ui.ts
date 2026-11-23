@@ -461,7 +461,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     const [products, events, blocks] = await Promise.all([
       supabase.from('products').select(PRODUCT_COLUMNS).eq('is_active', true).order('kind').order('position'),
       supabase.from('calendar_events').select(SALE_EVENT_COLUMNS).eq('status', 'published').eq('access_mode', 'paid')
-        .lte('starts_on', today).or(`ends_on.gte.${today},ends_on.is.null`),
+        .is('cancelled_at', null).lte('starts_on', today).or(`ends_on.gte.${today},ends_on.is.null`),
       loadRangeBlocks(supabase, today),
     ]);
     // SPEC-012 AC-42, AC-43: w dzień blokady osobie bez konta — tylko wejściówka.

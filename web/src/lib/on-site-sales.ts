@@ -87,6 +87,7 @@ const ERRORS: Record<string, MessageKey> = {
   guest_product_not_allowed: 'sales.errorGuest',
   range_blocked: 'sales.errorRangeBlocked',
   user_not_found: 'sales.errorPerson',
+  event_cancelled: 'eventCancel.eventCancelled',
 };
 
 /** Błąd `create_on_site_order` → komunikat dla obsługi. */

@@ -26,6 +26,8 @@ export interface CalendarEntry {
   /** Wydarzenie płatne (SPEC-003 AC-17): cena wejściówki w groszach i limit miejsc */
   ticketPrice?: number | null;
   capacity?: number | null;
+  /** Wydarzenie odwołane (SPEC-012 AC-25): publiczny powód; bez zakupu i liczby miejsc */
+  cancelReason?: string | null;
 }
 
 export interface CalendarMonth {

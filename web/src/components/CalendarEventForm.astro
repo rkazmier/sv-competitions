@@ -7,6 +7,7 @@
  */
 import { t } from '../i18n';
 import { ACCESS_MODES, EVENT_CAPACITY_MAX, EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EVENT_URL_MAX } from '../lib/calendar-events';
+import { CANCEL_REASON_MAX } from '../lib/event-cancel';
 import CalendarCard from './CalendarCard.astro';
 import DutyOfficerField from './DutyOfficerField.astro';
 
@@ -28,8 +29,16 @@ const MODE_LABELS = {
     <span class="tag" data-status-tag hidden></span>
   </h1>
   <p class="message-error" role="alert" data-not-found hidden>{t('calendarEvent.notFound')}</p>
+  <!-- SPEC-012 AC-29: odwołane — tylko opis i powód odwołania -->
+  <p class="cancelled-info" data-cancelled-info hidden>{t('eventCancel.cancelledInfo')}</p>
 
   <form class="card stack" data-form novalidate>
+    <div class="stack" data-cancel-reason-field hidden>
+      <label class="field-label" for="e-cancel-reason">{t('eventCancel.reasonLabel')}</label>
+      <textarea class="input" id="e-cancel-reason" name="cancel_reason" rows="2" maxlength={CANCEL_REASON_MAX} aria-describedby="e-cancel-reason-hint e-cancel-reason-error"></textarea>
+      <p class="hint" id="e-cancel-reason-hint">{t('eventCancel.reasonHint')}</p>
+      <p class="message-error field-error" id="e-cancel-reason-error" data-error-for="cancel_reason" hidden></p>
+    </div>
     <p class="hint">{t('calendarEvent.requiredHint')}</p>
     <label class="field-label" for="e-name">{t('calendarEvent.nameLabel')}</label>
     <input class="input" id="e-name" name="name" type="text" required maxlength={EVENT_NAME_MAX} autocomplete="off" aria-describedby="e-name-error" />
@@ -108,6 +117,58 @@ const MODE_LABELS = {
     <p class="hint" data-preview-empty>{t('calendarEvent.previewEmpty')}</p>
     <CalendarCard />
   </section>
+
+  <!-- SPEC-012 AC-26: zwroty po odwołaniu -->
+  <section class="card stack" data-refunds aria-labelledby="refunds-heading" hidden>
+    <h2 id="refunds-heading">{t('eventCancel.refundsHeading')}</h2>
+    <p class="hint" data-refunds-empty hidden>{t('eventCancel.refundsEmpty')}</p>
+    <div class="table-scroll">
+      <table class="refunds-table">
+        <thead>
+          <tr>
+            <th scope="col">{t('eventCancel.colPerson')}</th>
+            <th scope="col">{t('eventCancel.colNumber')}</th>
+            <th scope="col">{t('eventCancel.colMethod')}</th>
+            <th scope="col">{t('eventCancel.colAmount')}</th>
+            <th scope="col">{t('eventCancel.colState')}</th>
+          </tr>
+        </thead>
+        <tbody data-refund-rows></tbody>
+      </table>
+    </div>
+    <template data-refund-template>
+      <tr data-refund-row>
+        <td data-person></td>
+        <td data-number></td>
+        <td data-method></td>
+        <td data-amount></td>
+        <td><span data-state></span> <button type="button" class="button" data-retry hidden>{t('eventCancel.retry')}</button></td>
+      </tr>
+    </template>
+  </section>
+
+  <!-- SPEC-012 AC-23: odwołanie opublikowanego, niezakończonego wydarzenia -->
+  <section class="card stack" data-cancel-section aria-labelledby="cancel-heading" hidden>
+    <h2 id="cancel-heading">{t('eventCancel.heading')}</h2>
+    <div class="button-row">
+      <button type="button" class="button button-danger" data-cancel-open>{t('eventCancel.open')}</button>
+    </div>
+  </section>
+
+  <dialog class="card cancel-dialog" aria-labelledby="cancel-dialog-heading" data-cancel-dialog>
+    <form method="dialog" class="stack">
+      <h2 id="cancel-dialog-heading">{t('eventCancel.heading')}</h2>
+      <p data-cancel-text></p>
+      <label class="field-label" for="e-cancel-dialog-reason">{t('eventCancel.reasonLabel')}</label>
+      <textarea class="input" id="e-cancel-dialog-reason" name="reason" rows="2" maxlength={CANCEL_REASON_MAX} required aria-describedby="e-cancel-dialog-hint e-cancel-dialog-error" data-cancel-reason></textarea>
+      <p class="hint" id="e-cancel-dialog-hint">{t('eventCancel.reasonHint')}</p>
+      <p class="message-error field-error" id="e-cancel-dialog-error" role="alert" data-cancel-reason-error hidden></p>
+      <div class="button-row">
+        <button type="submit" class="button button-danger" value="confirm" data-cancel-confirm>{t('eventCancel.confirm')}</button>
+        <button type="submit" class="button" value="back" formnovalidate>{t('eventCancel.back')}</button>
+      </div>
+    </form>
+  </dialog>
 
   <section class="card stack" data-danger aria-labelledby="danger-heading" hidden>
     <h2 id="danger-heading">{t('calendarEvent.deleteHeading')}</h2>
@@ -191,5 +252,34 @@ const MODE_LABELS = {
 
   .button-danger {
     color: var(--color-danger);
+  }
+
+  .cancelled-info {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .refunds-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .refunds-table th,
+  .refunds-table td {
+    padding: var(--space-2);
+    text-align: left;
+    vertical-align: top;
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+
+  .cancel-dialog {
+    max-width: 36rem;
+  }
+
+  .cancel-dialog::backdrop {
+    background: rgb(0 0 0 / 0.4);
   }
 </style>

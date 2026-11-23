@@ -14,7 +14,8 @@
                  ├── company-lookup   ──► Biała lista MF / GUS REGON (dane firmy po NIP)
                  ├── admin-delete-user ─► Supabase Auth Admin API
                  ├── retention        ◄── pg_cron + pg_net (usuwanie starych wpisów i podpisów, ADR-0006)
-                 └── mail-send        ◄── payments-notify, pg_cron + pg_net ──► SMTP skrzynki sprzedawcy (TLS 465, ADR-0009)
+                 ├── mail-send        ◄── payments-notify, pg_cron + pg_net ──► SMTP skrzynki sprzedawcy (TLS 465, ADR-0009)
+                 └── event-cancel     ◄── panel (JWT admina), pg_cron + pg_net ──► Tpay Open API (zwroty po odwołaniu)
  Faktury: admin wystawia ręcznie w e-mikrofirmie (KSeF) — bez integracji (ADR-0005)
 ```
 
@@ -105,6 +106,10 @@
   Podgląd karty to `CalendarCard.astro` bez `entry` (ukryty pusty wzór) wypełniany w przeglądarce przez `src/lib/calendar-card-ui.ts`.
   Formularze zawodów i wydarzeń mają checkbox `blocks_passes` (SPEC-012 AC-40, domyślnie zaznaczony); jego zmiana
   w opublikowanym wpisie uruchamia `site-rebuild` jak inne pola publiczne.
+  Odwołanie wydarzenia (SPEC-012 US-5): `src/lib/event-cancel.ts` (logika), `src/lib/event-cancel-ui.ts` (wyspa) — „Odwołaj wydarzenie”
+  z oknem (liczby z `admin_list_orders`), Edge Function `event-cancel`, potem `site-rebuild`; odwołane — tylko opis i powód,
+  lista „Zwroty po odwołaniu” (`admin_event_refunds`) z „Ponów zwrot” (`payments-refund`). Karta (`CalendarCard.astro`):
+  plakietka „Odwołane” i „Powód: …” zamiast ceny i „Kup wejściówkę”.
 - Panel produktów (SPEC-003 AC-1…AC-4, tylko admin): `/panel/oferta/` — formularz dodawania/edycji, lista w grupach rodzaju,
   „Pokaż w ofercie” / „Ukryj”, strzałki kolejności (`rpc/move_product`). Walidacja, ceny (zł ↔ grosze, `120,00 zł`) i grupy
   bez DOM w `src/lib/products.ts`, wyspa `src/lib/products-ui.ts`. Produkt z zamówieniami (`rpc/product_has_orders`) ma zablokowane
@@ -310,14 +315,26 @@
   Blokada karnetów w dniach wydarzeń i zawodów (SPEC-012 US-8) — zrobione (#161): `blocks_passes boolean not null default true`
   w `competitions` i `calendar_events` (odczyt publiczny; checkbox w formularzach, zmiana opublikowanego wpisu → `site-rebuild`).
   `range_blocked_on(date)` — publiczna (`anon`), `security definer`: opublikowane wpisy z flagą, `starts_on ≤ D ≤ coalesce(ends_on, starts_on)`
-  → `(kind 'competition'|'event', id, name)`; warunek odwołania (`cancelled_at`) dopisze zadanie odwołania wydarzenia.
+  → `(kind 'competition'|'event', id, name)`; odwołane wydarzenie (`cancelled_at`) nie blokuje.
   `pass_valid_on` — poza `event_ticket` dzień z blokadą jest nieważny (bez zmiany `valid_until`/`expires_on`; liczone w chwili
   sprawdzenia, AC-45), więc także `passes_valid_on`, `passes_for_range_entry` i zapis wpisu. `create_on_site_order` — osoba bez konta,
   produkt w dzień blokady → `range_blocked`. UI: komunikat w `/panel/ksiazka/`, w sprzedaży bez konta tylko wejściówki (proponowana
   wejściówka blokującego wydarzenia), karnet osobie z kontem — ostrzeżenie (lib/pass-blocking.ts).
+  Odwołanie wydarzenia (SPEC-012 US-5) — zrobione (#162): `calendar_events.cancelled_at`, `cancel_reason` (3–200, publiczny),
+  `cancelled_by` (niepubliczny). `cancel_calendar_event(event_id, reason)` — admin, opublikowane, nieodwołane, ostatni dzień ≥ dziś;
+  w jednej transakcji: `pending` → `cancelled`, `paid` Tpay → `refund_pending` (pełna kwota, `refund_requested_at = null`), na miejscu →
+  `refunded` z adnotacją, prezent → `cancelled`, wejściówki → `cancelled`, `email_outbox` `event_cancelled` (opłacone z kontem),
+  `audit_log` `event_cancel` + `order_refund` (`reason: event_cancel`), `invoke_mail_send()`. Wyzwalacze: `calendar_events_cancel_guard`
+  (oznaczenie tylko przez funkcję — flaga transakcji `app.event_cancel`; odwołane: zmiana tylko `description`, `cancel_reason`, bez usuwania),
+  `orders_before_insert_cancelled_event` (`event_cancelled` w `create_tpay_order`, `create_on_site_order`, `grant_pass`),
+  `user_passes_cancelled_event` (wejściówka odwołanego zawsze `cancelled` — wpłata po odwołaniu AC-28, `revert_order_refund` AC-51).
+  `pass_valid_on` — wejściówka odwołanego nieważna. `cancel_order` — wejściówka odwołanego bez sprawdzania zużycia („Ponów zwrot”).
+  `event_refund_claim()` (klucz secret) — jedno zamówienie naraz, `refund_requested_at = now()` przed Tpay (przerwanie zostawia
+  najwyżej jedno „zlecone” bez ryzyka podwójnego zwrotu). `invoke_event_refunds()` — `pg_net` → `event-cancel` (sekret `mail_invoke_secret`),
+  tylko gdy są niewysłane zwroty; `pg_cron` `mail-send-retry` wywołuje oba. `admin_event_refunds(event_id)` — lista AC-26.
+  `mail_outbox_claim` + `payment_method`, `refund_amount`, `event_name`, `cancel_reason`.
   Planowane (SPEC-012, ADR-0009):
-  e-maile `event_cancelled`, `withdrawal_*` w `mail-send`; odwołanie wydarzenia
-  `cancel_calendar_event` + Edge Function `event-cancel`; `range_closures` / `range_closure_passes`
+  e-maile `withdrawal_*` w `mail-send`; `range_closures` / `range_closure_passes`
   (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
   Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
@@ -503,7 +520,14 @@
   (raz na wersję, musi zaczynać się od `%PDF` — inaczej `pdf_unavailable`/`pdf_invalid`, bez wysyłki); szablon `templates.ts`
   + teksty `i18n.ts` (`email.*`, HTML + tekst); SMTP `smtp.ts` (nodemailer, TLS 465, jedno połączenie); `rpc/mail_outbox_result`.
   Logi: rodzaj, id wpisu, kod błędu. Odpowiedzi: 200 `{ sent, retry, failed }`, 401, 405, 500, 503.
-  Sekrety: `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT` (465), `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_INVOKE_SECRET` (też w `payments-notify`), `SITE_URL`.
+  Sekrety: `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT` (465), `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_INVOKE_SECRET` (też w `payments-notify`
+  i `event-cancel`), `SITE_URL`. `event_cancelled` (SPEC-012 AC-27) — bez załącznika, treść zależna od metody płatności.
+- `event-cancel` (SPEC-012 AC-23, AC-24, AC-51, §7; `verify_jwt = false`): POST `{ event_id, reason }` z JWT admina →
+  `rpc/cancel_calendar_event` z JWT wywołującego (rola i stan w bazie), potem zwroty; albo `Authorization: Bearer MAIL_INVOKE_SECRET`
+  (z `invoke_event_refunds()`) — tylko dokończenie zwrotów. Zwroty: do 20 na wywołanie, po jednym `rpc/event_refund_claim`
+  (klucz secret) → Tpay `POST /transactions/{id}/refunds` bez kwoty; odrzucony / brak tokenu → `rpc/revert_order_refund`
+  (zamówienie `paid`, wejściówka zostaje `cancelled`). Odpowiedzi: 200 `{ status, summary, refunds: { requested, failed } }`,
+  400, 401, 403, 404, 405, 409 (`event_already_cancelled`, `event_not_published`, `event_ended`), 500. Sekrety: `TPAY_*`, `MAIL_INVOKE_SECRET`.
 - `company-lookup` (SPEC-004 AC-2…AC-4, §7, §8): POST `{ nip }` z JWT osoby. NIP normalizowany jak `normalize_nip`
   (spacje, myślniki, prefiks `PL`) i sprawdzany sumą kontrolną przed jakimkolwiek zapytaniem (400 `invalid_nip`;
   prefiks innego kraju — 400 `foreign_nip`). Potem `rpc/company_lookup_take_quota` z JWT wywołującego (limit 20 zapytań

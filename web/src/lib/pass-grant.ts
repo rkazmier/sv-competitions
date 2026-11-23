@@ -154,6 +154,7 @@ const ERRORS: Record<string, MessageKey> = {
   event_unavailable: 'grant.errorEvent',
   sales_closed: 'grant.errorEvent',
   sold_out: 'grant.errorSoldOut',
+  event_cancelled: 'eventCancel.eventCancelled',
   invalid_grant_reason: 'grant.errorReason',
   invalid_expires_on: 'grant.errorExpiresOn',
 };

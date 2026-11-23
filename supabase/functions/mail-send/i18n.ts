@@ -23,6 +23,16 @@ export const pl = {
       account: 'Twoje karnety i historia płatności: {url}',
       footer: 'Steel Valley',
     },
+    // SPEC-012 AC-27: odwołanie wydarzenia.
+    eventCancelled: {
+      subject: 'Wydarzenie odwołane: {name} — Steel Valley',
+      heading: 'Wydarzenie odwołane',
+      intro: 'Wydarzenie {name} ({dates}) zostało odwołane. Powód: {reason}.',
+      refundOnline: 'Zwrot {amount} zlecony na rachunek lub kartę, z której zapłacono.',
+      refundOnSite: 'W sprawie zwrotu {amount} za wejściówkę kupioną na strzelnicy odpowiedz na tę wiadomość.',
+      gift: 'Wejściówka została anulowana.',
+      footer: 'Zamówienie {number} — Steel Valley',
+    },
   },
 } as const;
 

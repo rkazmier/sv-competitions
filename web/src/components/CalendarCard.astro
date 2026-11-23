@@ -31,11 +31,15 @@ const isCompetition = entryKind === 'competition';
 const kind = isCompetition ? t('calendarCard.competitionKind') : entry?.label;
 const externalUrl = isCompetition ? null : (entry?.externalUrl ?? null);
 const ticketPrice = isCompetition ? null : (entry?.ticketPrice ?? null);
+// SPEC-012 AC-25: odwołane wydarzenie — plakietka „Odwołane” (tekst, nie tylko kolor) i powód; bez zakupu.
+const cancelled = !isCompetition && typeof entry?.cancelReason === 'string';
 ---
-<article class:list={['entry-card', `entry-card--${entryKind}`]} data-entry-kind={entryKind} data-calendar-card hidden={!entry}>
+<article class:list={['entry-card', `entry-card--${entryKind}`, { 'entry-card--cancelled': cancelled }]} data-entry-kind={entryKind} data-calendar-card hidden={!entry}>
   <p class="entry-kind" data-card-kind>{kind}</p>
+  {cancelled && <p class="tag entry-cancelled" data-card-cancelled>{t('calendarCard.cancelled')}</p>}
   <Heading class="entry-name" data-card-name>{entry?.name}</Heading>
   <p class="entry-date"><time datetime={entry?.startsOn} data-card-date>{entry && formatDateRange(entry.startsOn, entry.endsOn)}</time></p>
+  {cancelled && <p class="entry-cancel-reason" data-card-cancel-reason>{t('calendarCard.cancelReason', { reason: entry?.cancelReason ?? '' })}</p>}
   {isCompetition && entry?.label && <p class="entry-label">{entry.label}</p>}
   {!isCompetition && toParagraphs(entry?.description).map((paragraph) => <p class="entry-description">{paragraph}</p>)}
   {!entry && <template data-card-paragraph><p class="entry-description"></p></template>}
@@ -133,6 +137,19 @@ const ticketPrice = isCompetition ? null : (entry?.ticketPrice ?? null);
   }
 
   .entry-price {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .entry-card--cancelled {
+    border-style: dashed;
+  }
+
+  .entry-cancelled {
+    color: var(--color-danger);
+    border-color: currentColor;
+  }
+
+  .entry-cancel-reason {
     font-weight: var(--font-weight-strong);
   }
 

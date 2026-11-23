@@ -28,4 +28,32 @@ describe('kalendarz /', () => {
     expect(html).not.toContain('Minione');
     expect(html).not.toContain('entry-card');
   });
+
+  it('AC-25: odwołane wydarzenie — plakietka „Odwołane” i powód, bez ceny, „Kup wejściówkę” i liczby miejsc', async () => {
+    data.events = [
+      {
+        id: 'e2',
+        name: 'Piknik odwołany',
+        starts_on: '2999-03-14',
+        ends_on: null,
+        description: null,
+        external_url: null,
+        status: 'published',
+        access_mode: 'paid',
+        ticket_price: 5000,
+        capacity: 20,
+        cancelled_at: '2999-03-01T10:00:00Z',
+        cancel_reason: 'Awaria <kulochwytu>',
+        category: { name: 'K' },
+      },
+    ];
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(IndexPage);
+    expect(html).toContain('Piknik odwołany');
+    expect(html).toContain('Odwołane');
+    expect(html).toContain('Powód: Awaria &lt;kulochwytu&gt;');
+    expect(html).not.toContain('Kup wejściówkę');
+    expect(html).not.toContain('data-ticket-event');
+    expect(html).not.toContain('50,00');
+  });
 });
