@@ -1,0 +1,158 @@
+---
+/**
+ * Panel: godziny otwarcia strzelnicy (SPEC-012 US-7, AC-35, AC-36, AC-39). Tylko admin.
+ * Tydzień pn–nd i wyjątki dzienne; dane obsługuje lib/opening-hours-ui.ts.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+import { WEEKDAYS, weekdayName } from '../../../lib/opening-hours';
+
+const weekFields = WEEKDAYS.map((weekday) => ({ suffix: `-${weekday}`, label: weekdayName(weekday) }));
+---
+<PanelLayout title={t('openingHours.title')}>
+  <div class="opening-hours" data-opening-hours>
+    <h1>{t('openingHours.title')}</h1>
+    <p>{t('openingHours.intro')}</p>
+
+    <form class="card" data-week-form novalidate aria-labelledby="oh-week-heading">
+      <h2 id="oh-week-heading">{t('openingHours.weekHeading')}</h2>
+      {
+        weekFields.map((field) => (
+          <div class="hours-row">
+            <label class="field-label" for={`oh-state${field.suffix}`}>{field.label}</label>
+            <select class="input" id={`oh-state${field.suffix}`} name={`state${field.suffix}`}>
+              <option value="open">{t('openingHours.open')}</option>
+              <option value="closed">{t('openingHours.closed')}</option>
+            </select>
+            <input class="input" type="time" name={`opens${field.suffix}`} aria-label={`${field.label} — ${t('openingHours.from')}`} />
+            <input class="input" type="time" name={`closes${field.suffix}`} aria-label={`${field.label} — ${t('openingHours.to')}`} />
+          </div>
+        ))
+      }
+      <div class="actions">
+        <button type="submit" class="button button-primary">{t('openingHours.saveWeek')}</button>
+      </div>
+    </form>
+
+    <form class="card" data-exception-form novalidate aria-labelledby="oh-exception-heading">
+      <h2 id="oh-exception-heading">{t('openingHours.exceptionHeading')}</h2>
+      <p class="hint">{t('openingHours.exceptionHint')}</p>
+      <label class="field-label" for="oh-day">{t('openingHours.day')}</label>
+      <input class="input" id="oh-day" name="day" type="date" required />
+      <div class="hours-row">
+        <label class="field-label" for="oh-state">{t('openingHours.state')}</label>
+        <select class="input" id="oh-state" name="state">
+          <option value="open">{t('openingHours.open')}</option>
+          <option value="closed">{t('openingHours.closed')}</option>
+        </select>
+        <input class="input" type="time" name="opens" aria-label={t('openingHours.from')} />
+        <input class="input" type="time" name="closes" aria-label={t('openingHours.to')} />
+      </div>
+      <label class="field-label" for="oh-note">{t('openingHours.note')}</label>
+      <input class="input" id="oh-note" name="note" type="text" maxlength="100" aria-describedby="oh-note-hint" />
+      <p class="hint" id="oh-note-hint">{t('openingHours.noteHint')}</p>
+      <div class="actions">
+        <button type="submit" class="button button-primary">{t('openingHours.addException')}</button>
+      </div>
+    </form>
+
+    <p class="status" role="status" data-status></p>
+    <p class="message-error" role="alert" data-error hidden></p>
+
+    <section aria-labelledby="oh-list-heading">
+      <h2 id="oh-list-heading">{t('openingHours.exceptionsHeading')}</h2>
+      <p class="hint" data-empty hidden>{t('openingHours.exceptionsEmpty')}</p>
+      <div class="table-wrap" data-table hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{t('openingHours.colDay')}</th>
+              <th scope="col">{t('openingHours.colHours')}</th>
+              <th scope="col">{t('openingHours.colNote')}</th>
+              <th scope="col"><span class="visually-hidden">{t('openingHours.remove')}</span></th>
+            </tr>
+          </thead>
+          <tbody data-rows></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountOpeningHoursAdmin } from '../../../lib/opening-hours-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-opening-hours]');
+  if (root) void mountOpeningHoursAdmin(root);
+</script>
+
+<style is:global>
+  .opening-hours,
+  .opening-hours form {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .opening-hours p,
+  .opening-hours h1,
+  .opening-hours h2 {
+    margin: 0;
+  }
+
+  .opening-hours .hours-row {
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+  }
+
+  .opening-hours .hours-row .field-label {
+    grid-column: 1 / -1;
+  }
+
+  @media (min-width: 40rem) {
+    .opening-hours .hours-row {
+      grid-template-columns: 9rem 10rem 1fr 1fr;
+    }
+
+    .opening-hours .hours-row .field-label {
+      grid-column: auto;
+    }
+  }
+
+  .opening-hours .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .opening-hours .button {
+    min-height: 44px;
+  }
+
+  .opening-hours .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .opening-hours .status:empty {
+    display: none;
+  }
+
+  .opening-hours .table-wrap {
+    overflow-x: auto;
+  }
+
+  .opening-hours table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .opening-hours th,
+  .opening-hours td {
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    vertical-align: top;
+  }
+</style>

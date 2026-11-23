@@ -114,6 +114,10 @@
   (`rpc/range_closure_preview`), „Zapisz i przedłuż” (`rpc/add_range_closure`) / „Wróć”, lista od najnowszych bez edycji.
   Logika `src/lib/range-closures.ts`, wyspa `src/lib/range-closures-ui.ts`. W `/konto/` przy karnecie „Przedłużono o N dni
   (zamknięcie strzelnicy 3–12.02.2027).” z `rpc/my_pass_extensions` (`src/lib/offer-ui.ts`).
+- Godziny otwarcia (SPEC-012 US-7, tylko admin): `/panel/godziny/` — tydzień pn–nd („Otwarte” od–do / „Zamknięte”, jeden zapis)
+  i wyjątki dzienne (upsert po dacie, „Usuń”). Publicznie `/oferta/#godziny` (link w stopce): tydzień, wyjątki i dni blokady
+  (`rpc/range_blocked_between`) na 30 dni — pobierane w przeglądarce, bez `site-rebuild`. Logika `src/lib/opening-hours.ts`,
+  wyspa `src/lib/opening-hours-ui.ts`.
 - Panel produktów (SPEC-003 AC-1…AC-4, tylko admin): `/panel/oferta/` — formularz dodawania/edycji, lista w grupach rodzaju,
   „Pokaż w ofercie” / „Ukryj”, strzałki kolejności (`rpc/move_product`). Walidacja, ceny (zł ↔ grosze, `120,00 zł`) i grupy
   bez DOM w `src/lib/products.ts`, wyspa `src/lib/products-ui.ts`. Produkt z zamówieniami (`rpc/product_has_orders`) ma zablokowane
@@ -345,8 +349,13 @@
   i `expires_on ≥ Od` (`valid_until` bez zmian), ślad w `range_closure_passes`, `audit_log` `range_closure`. Błędy: `closure_too_short`,
   `closure_overlap` (także wyścig — 23P01), `closure_not_ended`, `invalid_closure_range`, `invalid_closure_reason`.
   `my_pass_extensions()` — przedłużenia własnych uprawnień (`/konto/`, AC-33).
+  Godziny otwarcia (SPEC-012 US-7) — zrobione (#164): `opening_hours` (`weekday` 1–7 ISO PK), `opening_hours_exceptions`
+  (`day` PK, `note` ≤ 100 publiczny); `opens_at`/`closes_at` — oba `null` = zamknięte, `closes_at > opens_at`; RLS: `select`
+  dla wszystkich (także `anon`), zapis `is_admin()`. Nie wpływają na ważność uprawnień ani książkę (AC-39).
+  `range_blocked_between(from, to)` — publiczna, warunki jak `range_blocked_on` (wpisy blokujące w okresie ≤ 366 dni, AC-37).
+  `purge_opening_hours_exceptions()` — `pg_cron` `purge-opening-hours-exceptions` (`25 2 * * *` UTC): wyjątki sprzed `range_today() − 30`.
   Planowane (SPEC-012, ADR-0009):
-  e-maile `withdrawal_*` w `mail-send`; `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
+  e-maile `withdrawal_*` w `mail-send`; `withdrawal_requests`.
   Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz

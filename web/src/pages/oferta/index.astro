@@ -25,6 +25,23 @@ import { PRODUCT_KINDS } from '../../lib/products';
           ))
         }
       </div>
+      <!-- SPEC-012 AC-37, AC-38: godziny otwarcia i dni blokady — pobierane w przeglądarce (lib/opening-hours-ui.ts). -->
+      <section class="opening-hours-public" id="godziny" aria-labelledby="godziny-heading" data-opening-hours>
+        <h2 id="godziny-heading">{t('openingHours.title')}</h2>
+        <p role="status" data-hours-loading>{t('openingHours.loading')}</p>
+        <p class="message-error" role="alert" data-hours-error hidden>{t('openingHours.loadError')}</p>
+        <p data-hours-soon hidden>{t('openingHours.soon')}</p>
+        <dl class="hours-week" data-week hidden></dl>
+        <div data-exceptions-section hidden>
+          <h3>{t('openingHours.exceptionsHeading')}</h3>
+          <ul data-exceptions></ul>
+        </div>
+        <div data-blocked-section hidden>
+          <h3>{t('openingHours.blockedHeading')}</h3>
+          <p class="hint" data-blocked-empty>{t('openingHours.blockedEmpty')}</p>
+          <ul data-blocked></ul>
+        </div>
+      </section>
     </div>
   </section>
 </BaseLayout>
@@ -74,6 +91,31 @@ import { PRODUCT_KINDS } from '../../lib/products';
     font-weight: var(--font-weight-strong);
   }
 
+  .opening-hours-public,
+  .opening-hours-public > div {
+    display: grid;
+    gap: var(--space-2);
+    scroll-margin-top: var(--space-6);
+  }
+
+  .opening-hours-public h2,
+  .opening-hours-public h3,
+  .opening-hours-public p,
+  .opening-hours-public ul {
+    margin: 0;
+  }
+
+  .hours-week {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+  }
+
+  .hours-week dd {
+    margin: 0;
+  }
+
   .offer .hint,
   .offer-item .hint {
     color: var(--color-text-muted);
@@ -84,6 +126,10 @@ import { PRODUCT_KINDS } from '../../lib/products';
 <script>
   import { mountOffer } from '../../lib/offer-ui';
 
+  import { mountOpeningHours } from '../../lib/opening-hours-ui';
+
   const root = document.querySelector<HTMLElement>('[data-offer]');
   if (root) void mountOffer(root);
+  const hours = document.querySelector<HTMLElement>('[data-opening-hours]');
+  if (hours) void mountOpeningHours(hours);
 </script>

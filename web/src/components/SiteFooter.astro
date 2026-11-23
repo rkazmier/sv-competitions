@@ -1,5 +1,8 @@
 ---
-/** Stopka: link do strony strzelnicy (SPEC-001 §6.1) i do polityki prywatności (SPEC-011 AC-5, AC-6). */
+/**
+ * Stopka: link do strony strzelnicy (SPEC-001 §6.1), do polityki prywatności (SPEC-011 AC-5, AC-6)
+ * i do godzin otwarcia (SPEC-012 AC-38).
+ */
 import { t } from '../i18n';
 
 const year = new Date().getFullYear();
@@ -9,6 +12,7 @@ const year = new Date().getFullYear();
     <div class="footer-links">
       <a href="https://steel-valley.pl">{t('footer.rangeLink')}</a>
       <a href="/polityka-prywatnosci/">{t('privacyPolicy.link')}</a>
+      <a href="/oferta/#godziny">{t('openingHours.link')}</a>
     </div>
     <p>{t('footer.copyright', { year })}</p>
   </div>
