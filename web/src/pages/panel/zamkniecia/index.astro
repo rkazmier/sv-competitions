@@ -1,0 +1,140 @@
+---
+/**
+ * Panel: zamknięcia strzelnicy (SPEC-012 US-6, AC-30…AC-34). Tylko admin.
+ * Zamknięcie dłuższe niż 7 dni przedłuża `expires_on` uprawnień (baza: `add_range_closure`).
+ * Dane obsługuje lib/range-closures-ui.ts.
+ */
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { t } from '../../../i18n';
+---
+<PanelLayout title={t('rangeClosures.title')}>
+  <div class="closures" data-closures>
+    <h1>{t('rangeClosures.title')}</h1>
+    <p>{t('rangeClosures.intro')}</p>
+
+    <form class="card" data-closure-form novalidate aria-labelledby="c-form-heading">
+      <h2 id="c-form-heading">{t('rangeClosures.formHeading')}</h2>
+      <div class="grid">
+        <div>
+          <label class="field-label" for="c-from">{t('rangeClosures.from')}</label>
+          <input class="input" id="c-from" name="from" type="date" required />
+        </div>
+        <div>
+          <label class="field-label" for="c-to">{t('rangeClosures.to')}</label>
+          <input class="input" id="c-to" name="to" type="date" required aria-describedby="c-to-hint" />
+          <p class="hint" id="c-to-hint">{t('rangeClosures.toHint')}</p>
+        </div>
+      </div>
+      <label class="field-label" for="c-reason">{t('rangeClosures.reason')}</label>
+      <textarea class="input" id="c-reason" name="reason" rows="2" maxlength="200" required aria-describedby="c-reason-hint"></textarea>
+      <p class="hint" id="c-reason-hint">{t('rangeClosures.reasonHint')}</p>
+      <div class="actions">
+        <button type="submit" class="button button-primary" data-next>{t('rangeClosures.next')}</button>
+      </div>
+    </form>
+
+    <section class="card preview" data-preview hidden aria-live="polite">
+      <p data-preview-text></p>
+      <div class="actions">
+        <button type="button" class="button button-primary" data-confirm>{t('rangeClosures.confirm')}</button>
+        <button type="button" class="button" data-back>{t('rangeClosures.back')}</button>
+      </div>
+    </section>
+
+    <p class="status" role="status" data-status></p>
+    <p class="message-error" role="alert" data-error hidden></p>
+
+    <section aria-labelledby="c-list-heading">
+      <h2 id="c-list-heading">{t('rangeClosures.listHeading')}</h2>
+      <p class="hint" data-empty hidden>{t('rangeClosures.empty')}</p>
+      <div class="table-wrap" data-table hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{t('rangeClosures.colPeriod')}</th>
+              <th scope="col">{t('rangeClosures.colDays')}</th>
+              <th scope="col">{t('rangeClosures.colReason')}</th>
+              <th scope="col">{t('rangeClosures.colPasses')}</th>
+              <th scope="col">{t('rangeClosures.colBy')}</th>
+              <th scope="col">{t('rangeClosures.colAt')}</th>
+            </tr>
+          </thead>
+          <tbody data-rows></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</PanelLayout>
+
+<script>
+  import { mountRangeClosures } from '../../../lib/range-closures-ui';
+
+  const root = document.querySelector<HTMLElement>('[data-closures]');
+  if (root) void mountRangeClosures(root);
+</script>
+
+<style is:global>
+  .closures {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .closures p,
+  .closures h1,
+  .closures h2 {
+    margin: 0;
+  }
+
+  .closures form,
+  .closures .preview {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .closures .grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+
+  .closures .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .closures .button {
+    min-height: 44px;
+  }
+
+  .closures .hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .closures .status:empty {
+    display: none;
+  }
+
+  .closures .table-wrap {
+    overflow-x: auto;
+  }
+
+  .closures table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .closures th,
+  .closures td {
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .closures td:nth-child(3) {
+    overflow-wrap: anywhere;
+  }
+</style>

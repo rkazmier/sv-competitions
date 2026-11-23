@@ -110,6 +110,10 @@
   z oknem (liczby z `admin_list_orders`), Edge Function `event-cancel`, potem `site-rebuild`; odwołane — tylko opis i powód,
   lista „Zwroty po odwołaniu” (`admin_event_refunds`) z „Ponów zwrot” (`payments-refund`). Karta (`CalendarCard.astro`):
   plakietka „Odwołane” i „Powód: …” zamiast ceny i „Kup wejściówkę”.
+- Zamknięcia strzelnicy (SPEC-012 US-6, tylko admin): `/panel/zamkniecia/` — formularz „Od” / „Do” / „Przyczyna”, „Dalej”
+  (`rpc/range_closure_preview`), „Zapisz i przedłuż” (`rpc/add_range_closure`) / „Wróć”, lista od najnowszych bez edycji.
+  Logika `src/lib/range-closures.ts`, wyspa `src/lib/range-closures-ui.ts`. W `/konto/` przy karnecie „Przedłużono o N dni
+  (zamknięcie strzelnicy 3–12.02.2027).” z `rpc/my_pass_extensions` (`src/lib/offer-ui.ts`).
 - Panel produktów (SPEC-003 AC-1…AC-4, tylko admin): `/panel/oferta/` — formularz dodawania/edycji, lista w grupach rodzaju,
   „Pokaż w ofercie” / „Ukryj”, strzałki kolejności (`rpc/move_product`). Walidacja, ceny (zł ↔ grosze, `120,00 zł`) i grupy
   bez DOM w `src/lib/products.ts`, wyspa `src/lib/products-ui.ts`. Produkt z zamówieniami (`rpc/product_has_orders`) ma zablokowane
@@ -333,9 +337,16 @@
   najwyżej jedno „zlecone” bez ryzyka podwójnego zwrotu). `invoke_event_refunds()` — `pg_net` → `event-cancel` (sekret `mail_invoke_secret`),
   tylko gdy są niewysłane zwroty; `pg_cron` `mail-send-retry` wywołuje oba. `admin_event_refunds(event_id)` — lista AC-26.
   `mail_outbox_claim` + `payment_method`, `refund_amount`, `event_name`, `cancel_reason`.
+  Zamknięcie strzelnicy (SPEC-012 US-6) — zrobione (#163): `range_closures` (`starts_on`, `ends_on`, `days` = liczba dni ≥ 8,
+  `reason` 3–200 tylko admin, `passes_count`, `created_by` on delete set null; bez nakładania — `exclude using gist` na `daterange`;
+  RLS: `select` admin, bez zapisu klientów), `range_closure_passes` (`expires_on_before`; bez dostępu klientów).
+  `range_closure_preview(from, to)` → `{days, passes_count}`; `add_range_closure(from, to, reason)` — admin, „Do” ≤ dziś,
+  w jednej transakcji `expires_on += N` dla uprawnień `active`, z kontem, bez wejściówek, kupionych (dzień `created_at`, Warsaw) ≤ „Do”
+  i `expires_on ≥ Od` (`valid_until` bez zmian), ślad w `range_closure_passes`, `audit_log` `range_closure`. Błędy: `closure_too_short`,
+  `closure_overlap` (także wyścig — 23P01), `closure_not_ended`, `invalid_closure_range`, `invalid_closure_reason`.
+  `my_pass_extensions()` — przedłużenia własnych uprawnień (`/konto/`, AC-33).
   Planowane (SPEC-012, ADR-0009):
-  e-maile `withdrawal_*` w `mail-send`; `range_closures` / `range_closure_passes`
-  (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
+  e-maile `withdrawal_*` w `mail-send`; `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
   Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
@@ -591,6 +602,6 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`; tryb `external` / `free` / `paid` — SPEC-003; odwołanie, `blocks_passes` — SPEC-012) | `created_by`, `cancelled_by` | tylko opublikowane, bez `created_by`, `cancelled_by` |
 | `sales_terms_versions` | wersje regulaminu sprzedaży (SPEC-012) | nie | tak |
 | `email_outbox` | kolejka e-maili aplikacji, bez adresu i treści (SPEC-012) | nie | nie (funkcje) |
-| `range_closures`, `range_closure_passes` | zamknięcia strzelnicy i przedłużenia ważności (SPEC-012) | `created_by`, przyczyna (tekst) | nie (admin) |
+| `range_closures`, `range_closure_passes` | zamknięcia strzelnicy i przedłużenia ważności (SPEC-012) | `created_by`, przyczyna (tekst) | nie (`range_closures` — admin; `range_closure_passes` — funkcje, własne przez `my_pass_extensions`) |
 | `opening_hours`, `opening_hours_exceptions` | godziny otwarcia (SPEC-012) | nie | tak |
 | `withdrawal_requests` | oświadczenia o odstąpieniu z `/konto/` (SPEC-012) | tak | nie (funkcje) |

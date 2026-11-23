@@ -42,6 +42,7 @@ const adminMenu = [
   { href: '/panel/ksiazka/przeglad/', label: t('panel.menu.rangeReview') },
   officersItem,
   dutyScheduleItem,
+  { href: '/panel/zamkniecia/', label: t('panel.menu.rangeClosures') },
 ];
 const staffMenu = [rangeLogItem, salesItem, officersItem, dutyScheduleItem];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);

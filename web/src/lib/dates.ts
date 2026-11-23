@@ -44,6 +44,24 @@ export function formatDateRange(start: string, end?: string | null): string {
   return `${from.getUTCDate()}–${fullFormat.format(to)}`;
 }
 
+/**
+ * Krótki zapis okresu (SPEC-012 AC-33, format dat e-maili `2.01.2027`):
+ * - ten sam miesiąc: `3–12.02.2027`,
+ * - różne miesiące: `28.01–6.02.2027`,
+ * - różne lata: `28.12.2026–6.01.2027`.
+ */
+export function formatShortDateRange(start: string, end: string): string {
+  const from = parse(start);
+  const to = parse(end);
+  if (to < from) throw new RangeError(`Koniec przed początkiem: ${start} – ${end}`);
+  const day = (d: Date) => String(d.getUTCDate());
+  const month = (d: Date) => String(d.getUTCMonth() + 1).padStart(2, '0');
+  const full = (d: Date) => `${day(d)}.${month(d)}.${d.getUTCFullYear()}`;
+  if (from.getUTCFullYear() !== to.getUTCFullYear()) return `${full(from)}–${full(to)}`;
+  if (from.getUTCMonth() !== to.getUTCMonth()) return `${day(from)}.${month(from)}–${full(to)}`;
+  return `${day(from)}–${full(to)}`;
+}
+
 /** Nagłówek miesiąca w kalendarzu: `2027-06-14` → `Czerwiec 2027` */
 export function formatMonthHeading(value: string): string {
   const text = monthFormat.format(parse(value));
