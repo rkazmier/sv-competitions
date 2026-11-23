@@ -62,6 +62,8 @@ Podpis zawsze składa osobiście osoba wpisywana.
 - **AC-9**: Given osoba ma już dziś wpis When ją wybieram Then widzę ostrzeżenie „Ta osoba ma dziś wpis o 10:32. Kontynuować?” (nowy wpis dozwolony, zużywa kolejne uprawnienie — chyba że karnet czasowy lub wejściówka obejmuje dziś).
 
 ### US-4: Jako obsługa chcę, żeby system sam wybrał właściwe uprawnienie
+> Od SPEC-012: w dniach zawodów i wydarzeń z blokadą karnetów ważne są tylko wejściówki (SPEC-012 AC-41…AC-44).
+
 - **AC-10**: Given osoba ma uprawnienia ważne dziś (SPEC-003 `passes_valid_on`) When przechodzę do wyboru Then lista jest w kolejności: (0) wejściówka na dzisiejsze wydarzenie, (1) aktywny karnet czasowy obejmujący dziś, (2) nieaktywowany karnet czasowy, (3) karnet ilościowy, (4) wejście jednorazowe pasujące do dnia tygodnia; w każdej grupie wg najwcześniejszego `expires_on`. Domyślnie zaznaczona pierwsza pozycja; mogę wybrać inną.
 - **AC-11**: Given każda pozycja listy When ją widzę Then ma opis skutku: „Karnet 3 dni — ważny do 12.03 (bez zmian)”, „Karnet 3 dni — aktywacja dziś, ważny do 12.03”, „Karnet 10 wejść — zostanie 6”, „Wejście weekendowe — zostanie wykorzystane”.
 - **AC-12**: Given osoba nie ma uprawnienia ważnego dziś When przechodzę do wyboru Then widzę „Brak ważnego karnetu lub wejścia na dziś.” i przycisk „Sprzedaj na miejscu” (SPEC-003 AC-21, po sprzedaży wracam do wpisu z nowym uprawnieniem) oraz „Wpisz jako osobę towarzyszącą”.

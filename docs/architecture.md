@@ -253,6 +253,7 @@
     Metoda `gift` (SPEC-010) — filtr jak inne metody; wynik + `grant_reason`, `grant_cancel_note` z `order_grants` (null dla innych metod).
   - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
     `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
+    Od SPEC-012 (AC-51, AC-52): po odstąpieniu (`withdrawal_on` ustawione) i dla wejściówki odwołanego wydarzenia uprawnienie zostaje `cancelled`.
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
@@ -273,6 +274,15 @@
   `cancelled`, uprawnienie `active` → `cancelled` mimo zużyć, `audit_log` `pass_grant_cancel`. `cancel_order` odrzuca `gift` (`order_is_gift`),
   `set_order_invoice_details` — `invoice_not_available`. `grant_pass` zwraca `{order_id, order_number, duplicate}`; ten sam `request_key`
   → istniejące zamówienie; wejściówka z `expires_on` → `invalid_request`. `audit_log.changes.expires_on` — dla wejściówki ostatni dzień wydarzenia. UI: `/panel/zamowienia/przyznaj/` (`requireAdmin`), metoda „Prezent” w `/panel/zamowienia/` i `/konto/`.
+- Regulamin sprzedaży w Ofercie (SPEC-012, ADR-0009) — planowane: `sales_terms_versions` (wersje = daty obowiązywania, PDF w
+  `web/public/regulamin-sprzedazy/`), `orders.terms_version`, `early_performance_consent_at`, `refund_amount`, `withdrawal_on`,
+  `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
+  e-maile przez `email_outbox` + Edge Function `mail-send` (SMTP 465, `pg_cron` `mail-send-retry` co 10 min); odwołanie wydarzenia
+  `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
+  w `pass_valid_on` (karnety i wejścia jednorazowe nieważne w dniach blokady); `range_closures` / `range_closure_passes`
+  (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
+  Karnety czasowe wycofane (7-A): `products_before_write` odrzuca nowe `days`, sprzedaż `days` do stałej `DAYS_PASS_SALES_END` (2027-01-01);
+  typ `days` w `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
@@ -481,13 +491,16 @@ Storage bucket signatures (prywatny): signatures/<RRRR>/<MM>/<range_log.id>.png
 disciplines 1──* competitions *──0..1 rulebooks
 competitions 1──* schedule_items
 event_categories 1──* calendar_events
+orders *──0..1 sales_terms_versions; orders 1──* email_outbox; orders 1──0..1 withdrawal_requests — SPEC-012
+range_closures 1──* range_closure_passes *──1 user_passes                         — SPEC-012
+opening_hours (dni tygodnia), opening_hours_exceptions (dni)                      — SPEC-012
 Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uuid>.pdf
 ```
 
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007, `pass_grant`, `pass_grant_cancel` — SPEC-010) | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007, `pass_grant`, `pass_grant_cancel` — SPEC-010, `event_cancel`, `range_closure`, `email_resend` — SPEC-012) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
@@ -503,4 +516,9 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | `rulebooks` | biblioteka regulaminów PDF | `created_by` | tylko używane w opublikowanych zawodach, bez `created_by` |
 | `competitions` | zawody (`draft` / `published`) | `created_by` | tylko opublikowane, bez `created_by` |
 | `schedule_items` | punkty harmonogramu | nie | tylko opublikowanych zawodów |
-| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`; tryb `external` / `free` / `paid` — SPEC-003) | `created_by` | tylko opublikowane, bez `created_by` |
+| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`; tryb `external` / `free` / `paid` — SPEC-003; odwołanie, `blocks_passes` — SPEC-012) | `created_by`, `cancelled_by` | tylko opublikowane, bez `created_by`, `cancelled_by` |
+| `sales_terms_versions` | wersje regulaminu sprzedaży (SPEC-012) | nie | tak |
+| `email_outbox` | kolejka e-maili aplikacji, bez adresu i treści (SPEC-012) | nie | nie (funkcje) |
+| `range_closures`, `range_closure_passes` | zamknięcia strzelnicy i przedłużenia ważności (SPEC-012) | `created_by`, przyczyna (tekst) | nie (admin) |
+| `opening_hours`, `opening_hours_exceptions` | godziny otwarcia (SPEC-012) | nie | tak |
+| `withdrawal_requests` | oświadczenia o odstąpieniu z `/konto/` (SPEC-012) | tak | nie (funkcje) |

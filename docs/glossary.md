@@ -51,7 +51,7 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Oferta | `offer` (`/oferta/`) | Sklep strzelnicy: karnety, wejścia, wejściówki |
 | Produkt | `product` | Pozycja Oferty z ceną ustawianą przez admina |
 | Karnet ilościowy | `entries` | Produkt na N wejść; każde wejście zmniejsza licznik o 1 |
-| Karnet czasowy | `days` | Produkt na N kolejnych dni kalendarzowych liczonych od pierwszego wejścia |
+| Karnet czasowy | `days` | Produkt na N kolejnych dni kalendarzowych liczonych od pierwszego wejścia; wycofany z Oferty od 1.01.2027 — działają tylko karnety sprzedane wcześniej (SPEC-012) |
 | Wejście jednorazowe | `single_entry` | Jedno wejście w wariancie weekend (sob.–niedz.) lub dzień powszedni (pn–pt) |
 | Wejściówka | `event_ticket` | Uprawnienie wejścia na płatne wydarzenie Steel Valley w dniach wydarzenia |
 | Tryb wydarzenia | `access_mode` | `external` (zewnętrzne), `free` (otwarte, bezpłatne), `paid` (płatne przez Ofertę) |
@@ -60,11 +60,27 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Sprzedaż na miejscu | `on_site` | Zamówienie opłacone gotówką lub terminalem, rejestrowane przez obsługę |
 | Uprawnienie (karnet w koncie) | `user_pass` | To, co powstaje z opłaconego zamówienia; ważne 1 rok od zakupu |
 | Zużycie | `pass_usage` | Wykorzystanie uprawnienia przy wpisie do książki (historia karnetu) |
-| Zwrot | `refund` | Anulowanie niewykorzystanego uprawnienia i zwrot pieniędzy |
+| Zwrot | `refund` | Anulowanie uprawnienia i zwrot pieniędzy: pełny (niewykorzystane, odwołanie wydarzenia) albo częściowy przy odstąpieniu (SPEC-012) |
 | Przyznanie karnetu | `pass grant` (`grant_pass`) | Wydanie przez admina produktu lub wejściówki osobie z kontem bez płatności: zamówienie 0,00 zł z metodą „Prezent” (SPEC-010) |
 | Prezent | `gift` | Metoda zamówienia przyznanego przez admina (`orders.payment_method`); bez faktury |
 | Powód przyznania | `order_grants.reason` | Wymagany opis, dlaczego przyznano karnet; widoczny tylko dla admina |
 | Anulowanie przyznania | `cancel_pass_grant` | Anulowanie prezentu przez admina, także częściowo wykorzystanego; bez zwrotu pieniędzy |
+
+## Regulamin sprzedaży w Ofercie (SPEC-012)
+
+| PL (UI) | EN (kod) | Definicja |
+| --- | --- | --- |
+| Wersja regulaminu | `terms_version` | Data obowiązywania regulaminu sprzedaży zaakceptowanego przy zamówieniu online; PDF `regulamin-sprzedazy-<data>.pdf` |
+| Zgoda na korzystanie przed upływem 14 dni | `early_performance_consent` | Obowiązkowa przy zakupie online karnetu lub wejścia jednorazowego; data zapisana w zamówieniu |
+| Odstąpienie od umowy | `withdrawal` | Oświadczenie klienta w ciągu 14 dni od opłacenia zamówienia online; karnet anulowany, zwrot proporcjonalny |
+| Okno odstąpienia | `withdrawal window` | Od dnia opłacenia do dnia opłacenia + 14 dni włącznie (Europe/Warsaw) |
+| Zwrot częściowy | `refund_amount` | Kwota zwrotu mniejsza niż cena: cena − wartość wykorzystanych wejść (zaokrąglona w dół) |
+| Kolejka e-maili | `email_outbox` | E-maile aplikacji do wysłania przez SMTP sprzedawcy, z ponowieniami |
+| Potwierdzenie zamówienia | `order_paid` (e-mail) | E-mail po opłaceniu zamówienia online z regulaminem w PDF (trwały nośnik) |
+| Odwołane wydarzenie | `cancelled_at` | Wydarzenie oznaczone „Odwołane”; wszystkie wejściówki anulowane i zwrócone |
+| Blokada karnetów | `blocks_passes` | Flaga zawodów/wydarzenia: w ich dniach karnety i wejścia jednorazowe nie obowiązują |
+| Zamknięcie strzelnicy | `range_closure` | Okres ponad 7 dni zamknięcia z przyczyn sprzedawcy; przedłuża ważność uprawnień o liczbę dni |
+| Godziny otwarcia | `opening_hours` | Godziny strzelnicy na dni tygodnia i wyjątki (`opening_hours_exceptions`); informacja publiczna |
 
 ## Faktury (SPEC-004)
 
