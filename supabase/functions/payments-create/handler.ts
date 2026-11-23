@@ -1,6 +1,7 @@
 /**
  * Edge Function `payments-create` (SPEC-003 AC-8, AC-18, §7, §8; ADR-0002).
- * POST `{ product_id | event_id, request_key }` z JWT zalogowanej osoby:
+ * POST `{ product_id | event_id, request_key, terms_version, consent }` z JWT zalogowanej osoby
+ * (SPEC-012 AC-3, AC-7: wersja regulaminu i zgoda sprawdzane przez `create_tpay_order` — 409 `terms_changed`, 400 `consent_required`):
  * 1. konto z `GET /auth/v1/user` (JWT wywołującego), imię i nazwisko z `profiles` (RLS: własny wiersz);
  * 2. `rpc/create_tpay_order` kluczem secret — zamówienie `pending` z ceną z bazy (nie z przeglądarki),
  *    limit miejsc wejściówki z blokadą wiersza wydarzenia, ten sam `request_key` → 409 `duplicate_request`;
@@ -40,8 +41,15 @@ const CORS = {
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** Odmowy `create_tpay_order` → 409 z tym samym kodem (komunikaty w UI, #50/#51). */
-const REFUSALS = new Set(['product_unavailable', 'event_unavailable', 'sales_closed', 'sold_out']);
+/**
+ * Odmowy `create_tpay_order` → 409 z tym samym kodem (komunikaty w UI, #50/#51); SPEC-012: `terms_changed` (AC-3),
+ * `product_discontinued` (AC-54).
+ */
+const REFUSALS = new Set(['product_unavailable', 'event_unavailable', 'sales_closed', 'sold_out', 'terms_changed',
+  'product_discontinued']);
+/** SPEC-012 AC-7: brak zgody na korzystanie przed upływem 14 dni → 400. */
+const BAD_REQUESTS = new Set(['consent_required']);
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Limit pola `description` w `POST /transactions` (Tpay Open API, schemat `CreateTransaction`: maxLength 128). */
 export const TPAY_DESCRIPTION_MAX = 128;
@@ -76,6 +84,10 @@ interface Item {
   event_id: string | null;
   request_key: string;
   invoice: Invoice | null;
+  /** SPEC-012 AC-3: `effective_from` wersji regulaminu pokazanej w przeglądarce; `null` — żadna jeszcze nie obowiązuje. */
+  terms_version: string | null;
+  /** SPEC-012 AC-6: zgoda na korzystanie przed upływem 14 dni (wymagana dla produktu — sprawdza baza). */
+  consent: boolean;
 }
 
 function readInvoice(value: unknown): Invoice | null | undefined {
@@ -101,7 +113,17 @@ async function readItem(request: Request): Promise<Item | null> {
     const body = await request.json();
     const id = (value: unknown) => (typeof value === 'string' && UUID.test(value) ? value.toLowerCase() : null);
     const invoice = readInvoice(body?.invoice);
-    const item = { product_id: id(body?.product_id), event_id: id(body?.event_id), request_key: id(body?.request_key), invoice };
+    const terms = body?.terms_version ?? null;
+    const consent = body?.consent ?? false;
+    if ((terms !== null && !(typeof terms === 'string' && DATE.test(terms))) || typeof consent !== 'boolean') return null;
+    const item = {
+      product_id: id(body?.product_id),
+      event_id: id(body?.event_id),
+      request_key: id(body?.request_key),
+      invoice,
+      terms_version: terms,
+      consent,
+    };
     if (!item.request_key || Boolean(item.product_id) === Boolean(item.event_id) || invoice === undefined) return null;
     return item as Item;
   } catch {
@@ -231,10 +253,13 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
       p_product_id: item.product_id,
       p_event_id: item.event_id,
       p_request_key: item.request_key,
+      p_terms_version: item.terms_version,
+      p_consent: item.consent,
     }, deps);
     if (!created.ok) {
       const code = created.body?.message;
       if (REFUSALS.has(code)) return json(409, { error: code });
+      if (BAD_REQUESTS.has(code)) return json(400, { error: code });
       log(`payments-create: create_tpay_order — ${typeof code === 'string' ? code : 'błąd'}`);
       return json(500, { error: 'order_failed' });
     }

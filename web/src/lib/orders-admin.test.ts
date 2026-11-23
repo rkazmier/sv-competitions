@@ -42,6 +42,8 @@ const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   invoice_requested: false,
   grant_reason: null,
   grant_cancel_note: null,
+  terms_version: null,
+  early_performance_consent_at: null,
   ...fields,
 });
 

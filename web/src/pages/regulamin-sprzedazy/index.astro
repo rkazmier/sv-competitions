@@ -48,9 +48,38 @@ const effective = salesTermsEffectiveFrom(body);
           }
         })
       }
+      <section aria-labelledby="sales-terms-versions" data-terms-versions hidden>
+        <h2 id="sales-terms-versions">{t('salesTerms.versionsHeading')}</h2>
+        <ul data-terms-versions-list></ul>
+      </section>
     </div>
   </section>
 </BaseLayout>
+
+<script>
+  // SPEC-012 AC-4: archiwum wersji z `sales_terms_versions` (odczyt publiczny), pobierane w przeglądarce — bez przebudowy.
+  import { t } from '../../i18n';
+  import { salesTermsVersions } from '../../lib/sales-terms';
+  import { getSupabase } from '../../lib/supabase';
+
+  const section = document.querySelector<HTMLElement>('[data-terms-versions]');
+  async function showVersions(root: HTMLElement): Promise<void> {
+    const { data, error } = await getSupabase().from('sales_terms_versions').select('effective_from');
+    if (error || !data?.length) return;
+    const items = salesTermsVersions(data.map((row: { effective_from: string }) => row.effective_from)).map((version) => {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = version.href;
+      link.textContent = t('salesTerms.versionPdf');
+      link.setAttribute('aria-label', t('salesTerms.versionPdfLabel', { date: version.date }));
+      item.append(`${t('salesTerms.versionItem', { date: version.date })} — `, link);
+      return item;
+    });
+    root.querySelector('[data-terms-versions-list]')!.replaceChildren(...items);
+    root.hidden = false;
+  }
+  if (section) showVersions(section).catch(() => undefined);
+</script>
 
 <style>
   .sales-terms {

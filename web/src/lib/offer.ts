@@ -3,11 +3,12 @@
  * teksty kart produktów, adres zakupu, stan strony powrotu z Tpay, karnety i historia płatności w `/konto/`.
  * Interfejs: lib/offer-ui.ts.
  */
-import type { MessageKey } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { LOGIN_PAGE, withNext } from './auth';
 import { todayInWarsaw } from './calendar';
 import type { Product } from './products';
 import type { PassUsage } from './range-history';
+import { salesTermsPdfPath, shortDay } from './sales-terms';
 
 export const OFFER_PAGE = '/oferta/';
 export const ORDER_PAGE = '/oferta/zamowienie/';
@@ -53,6 +54,54 @@ export function productNotes(product: Pick<Product, 'kind' | 'day_type'>): Messa
     notes.push(product.day_type === 'weekday' ? 'offer.weekdayNote' : 'offer.weekendNote');
   }
   return notes;
+}
+
+// ===== Regulamin i zgoda (SPEC-012 AC-1…AC-8) =====
+
+const warsawParts = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Warsaw',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** `timestamptz` → „2.01.2027 14:05” (Europe/Warsaw). */
+export function shortDateTime(value: string): string {
+  const part = Object.fromEntries(warsawParts.formatToParts(new Date(value)).map((p) => [p.type, p.value]));
+  return `${Number(part.day)}.${part.month}.${part.year} ${part.hour}:${part.minute}`;
+}
+
+/** AC-1: dopisek po „regulamin sprzedaży” — „ (obowiązuje od 1.01.2027)”; bez obowiązującej wersji — nic (§7). */
+export function termsVersionSuffix(version: string | null): string {
+  return version ? ` ${t('offer.termsVersion', { date: shortDay(version) })}` : '';
+}
+
+/** AC-6: zgoda na korzystanie przed upływem 14 dni — przy produkcie (karnet, wejście jednorazowe), nie przy wejściówce. */
+export const needsConsent = (item: { kind: 'product' | 'ticket' }) => item.kind === 'product';
+
+/** AC-2: „Zamawiam i płacę” aktywny po zaznaczeniu wymaganych checkboxów. */
+export function canOrder(checks: { terms: boolean; consent: boolean | null }): boolean {
+  return checks.terms && checks.consent !== false;
+}
+
+/** Wersja regulaminu i zgoda zapisane w zamówieniu. */
+export interface OrderTerms {
+  terms_version: string | null;
+  early_performance_consent_at: string | null;
+}
+
+/** AC-5: „Regulamin z 1.01.2027” (link do PDF wersji) i „Zgoda na korzystanie przed upływem 14 dni: 2.01.2027 14:05”. */
+export function orderTermsLines(order: OrderTerms): { terms: { text: string; href: string } | null; consent: string | null } {
+  const version = order.terms_version;
+  return {
+    terms: version ? { text: t('offer.orderTerms', { date: shortDay(version) }), href: salesTermsPdfPath(version) } : null,
+    consent: order.early_performance_consent_at
+      ? t('offer.orderConsent', { date: shortDateTime(order.early_performance_consent_at) })
+      : null,
+  };
 }
 
 // ===== Powrót z Tpay (AC-10) =====
@@ -137,7 +186,7 @@ export function passHistoryState(pass: UserPass): MessageKey {
 
 export type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refund_pending' | 'refunded';
 
-export interface UserOrder {
+export interface UserOrder extends OrderTerms {
   id: string;
   /** SPEC-006 AC-12. */
   order_number: string;
@@ -152,7 +201,8 @@ export interface UserOrder {
   invoice_number: string | null;
 }
 
-export const ORDER_COLUMNS = 'id, order_number, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number';
+export const ORDER_COLUMNS =
+  'id, order_number, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number, terms_version, early_performance_consent_at';
 
 export const ORDER_STATUS_TEXT: Record<OrderStatus, MessageKey> = {
   paid: 'offer.statusPaid',

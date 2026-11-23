@@ -61,6 +61,8 @@ test('AC-5: grupy produktów z ceną, opisem i informacjami o ważności', async
   const entries = await product('entries', 12000, { description: 'Wejścia na dowolną oś.' });
   const days = await product('days', 25000);
   const weekend = await product('single_entry', 4000);
+  // SPEC-012 AC-54: karnety czasowe w Ofercie tylko do 31.12.2026.
+  await page.clock.setFixedTime(new Date('2026-12-31T12:00:00+01:00'));
   await page.goto('/oferta/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Oferta');
 
@@ -77,6 +79,16 @@ test('AC-5: grupy produktów z ceną, opisem i informacjami o ważności', async
   await expect(page.getByRole('banner').getByRole('link', { name: 'Oferta' })).toHaveAttribute('href', '/oferta/');
 });
 
+test('SPEC-012 AC-54: od 1.01.2027 bez karnetów czasowych i bez grupy „Karnety czasowe”', async ({ page }) => {
+  const entries = await product('entries', 12000);
+  const days = await product('days', 25000);
+  await page.clock.setFixedTime(new Date('2027-01-01T00:30:00+01:00'));
+  await page.goto('/oferta/');
+  await expect(page.getByRole('region', { name: 'Karnety ilościowe' })).toContainText(entries.name);
+  await expect(page.getByRole('region', { name: 'Karnety czasowe' })).toBeHidden();
+  await expect(page.getByText(days.name)).toHaveCount(0);
+});
+
 test('AC-6: „Kup” bez logowania → logowanie z powrotem do podsumowania', async ({ page }) => {
   const item = await product('entries', 12000);
   await page.goto('/oferta/');
@@ -86,7 +98,7 @@ test('AC-6: „Kup” bez logowania → logowanie z powrotem do podsumowania', a
 });
 
 test.describe('zalogowany', () => {
-  test('AC-7: „Kup” → podsumowanie: produkt, cena, ważność, regulamin i „Zapłać 120,00 zł”', async ({ page }) => {
+  test('AC-7, SPEC-012 AC-1, AC-2, AC-6: „Kup” → podsumowanie: produkt, cena, ważność, regulamin, zgoda i „Zamawiam i płacę 120,00 zł”', async ({ page }) => {
     const item = await product('entries', 12000);
     await newAccount(page);
     await page.goto('/oferta/');
@@ -99,9 +111,22 @@ test.describe('zalogowany', () => {
     // #154: regulamin w nowej karcie — zamówienie zostaje otwarte
     await expect(page.getByRole('link', { name: 'regulamin sprzedaży' })).toHaveAttribute('target', '_blank');
 
-    const pay = page.getByRole('button', { name: 'Zapłać 120,00 zł' });
-    await pay.click();
-    await expect(page.getByText('Zaakceptuj regulamin sprzedaży, aby zapłacić.')).toBeVisible();
+    // SPEC-012 AC-2: przycisk nieaktywny do zaznaczenia obu wymaganych checkboxów (AC-1, AC-6).
+    const pay = page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' });
+    await expect(pay).toBeDisabled();
+    await expect(page.getByText('Zaznacz wymagane pola (*), aby zamówić.')).toBeVisible();
+    const { data: version } = await admin().rpc('current_sales_terms_version');
+    const terms = page.getByLabel(/Akceptuję regulamin sprzedaży/);
+    if (version) {
+      const [y, m, d] = (version as string).split('-');
+      await expect(terms).toHaveAccessibleName(`Akceptuję regulamin sprzedaży (obowiązuje od ${Number(d)}.${m}.${y}) *`);
+    }
+    await terms.check();
+    await expect(pay).toBeDisabled();
+    const consent = page.getByLabel(/Chcę korzystać z karnetu przed upływem 14 dni na odstąpienie od umowy\./);
+    await expect(page.getByText('Bez tej zgody kupisz karnet na strzelnicy.')).toBeVisible();
+    await consent.check();
+    await expect(pay).toBeEnabled();
 
     // AC-8 (bez Tpay): `payments-create` zwraca adres bramki, przeglądarka tam przechodzi.
     let body: Record<string, unknown> = {};
@@ -110,11 +135,41 @@ test.describe('zalogowany', () => {
       await route.fulfill({ json: { order_id: crypto.randomUUID(), payment_url: 'https://secure.sandbox.tpay.com/?title=TEST' } });
     });
     await page.route('https://secure.sandbox.tpay.com/**', (route) => route.fulfill({ body: 'Tpay' }));
-    await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
     await pay.click();
     await expect(page).toHaveURL(/secure\.sandbox\.tpay\.com/);
     expect(body.product_id).toBe(item.id);
     expect(body).not.toHaveProperty('amount');
+    // SPEC-012 AC-3, AC-8: wersja pokazana w przeglądarce i zgoda w żądaniu.
+    expect(body).toMatchObject({ terms_version: version ?? null, consent: true });
+  });
+
+  test('SPEC-012 AC-3: regulamin zmienił się w międzyczasie → komunikat, akceptacja od nowa', async ({ page }) => {
+    const item = await product('entries', 12000);
+    await newAccount(page);
+    await page.route('**/functions/v1/payments-create', (route) => route.fulfill({ status: 409, json: { error: 'terms_changed' } }));
+    await page.goto(`/oferta/zamowienie/?product=${item.id}`);
+    await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
+    await page.getByLabel(/Chcę korzystać z karnetu/).check();
+    await page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' }).click();
+    await expect(
+      page.getByText('Regulamin sprzedaży właśnie się zmienił. Zapoznaj się z nową wersją i zaakceptuj ją ponownie.'),
+    ).toBeVisible();
+    await expect(page.getByLabel(/Akceptuję regulamin sprzedaży/)).not.toBeChecked();
+    await expect(page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' })).toBeDisabled();
+  });
+
+  test('SPEC-012 AC-5: „Historia płatności” — „Regulamin z …” z PDF i data zgody', async ({ page }) => {
+    const item = await product('entries', 12000);
+    const userId = await newAccount(page);
+    const orderId = await order(userId, item, 12000, true);
+    await admin().from('orders').update({ terms_version: '2027-01-01', early_performance_consent_at: '2027-01-02T13:05:00Z' }).eq('id', orderId);
+    await page.goto('/konto/');
+    const row = page.getByRole('region', { name: 'Historia płatności' }).getByRole('row').filter({ hasText: item.name });
+    await expect(row.getByRole('link', { name: 'Regulamin z 1.01.2027' })).toHaveAttribute(
+      'href',
+      '/regulamin-sprzedazy/regulamin-sprzedazy-2027-01-01.pdf',
+    );
+    await expect(row).toContainText('Zgoda na korzystanie przed upływem 14 dni: 2.01.2027 14:05');
   });
 
   test('AC-7: produkt ukryty lub błąd płatności → komunikaty', async ({ page }) => {
@@ -123,9 +178,10 @@ test.describe('zalogowany', () => {
     await page.route('**/functions/v1/payments-create', (route) => route.fulfill({ status: 502, json: { error: 'payment_failed' } }));
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
-    await page.getByRole('button', { name: 'Zapłać 120,00 zł' }).click();
+    await page.getByLabel(/Chcę korzystać z karnetu/).check();
+    await page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' }).click();
     await expect(page.getByText('Nie udało się rozpocząć płatności. Spróbuj ponownie.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Zapłać 120,00 zł' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' })).toBeEnabled();
 
     await admin().from('products').update({ is_active: false }).eq('id', item.id);
     await page.reload();

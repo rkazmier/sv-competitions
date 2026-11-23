@@ -257,7 +257,7 @@
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
-  - Płatności Tpay (tylko `service_role`, ADR-0002): `create_tpay_order(user_id, product_id | event_id, request_key)` — `pending`
+  - Płatności Tpay (tylko `service_role`, ADR-0002): `create_tpay_order(user_id, product_id | event_id, request_key, terms_version, consent)` — `pending`
     z ceną z bazy, wynik z `order_number`; ten sam `request_key` konta → istniejące zamówienie (`duplicate`, unikalny indeks `(user_id, request_key)`);
     wejściówka z blokadą wiersza wydarzenia, limit `capacity` liczy `paid` + `pending` młodsze niż `ticket_reservation()` (30 min).
     `attach_tpay_transaction` (id i tytuł transakcji), `discard_tpay_order` (Tpay niedostępny — usuwa `pending` bez transakcji).
@@ -274,15 +274,21 @@
   `cancelled`, uprawnienie `active` → `cancelled` mimo zużyć, `audit_log` `pass_grant_cancel`. `cancel_order` odrzuca `gift` (`order_is_gift`),
   `set_order_invoice_details` — `invoice_not_available`. `grant_pass` zwraca `{order_id, order_number, duplicate}`; ten sam `request_key`
   → istniejące zamówienie; wejściówka z `expires_on` → `invalid_request`. `audit_log.changes.expires_on` — dla wejściówki ostatni dzień wydarzenia. UI: `/panel/zamowienia/przyznaj/` (`requireAdmin`), metoda „Prezent” w `/panel/zamowienia/` i `/konto/`.
-- Regulamin sprzedaży w Ofercie (SPEC-012, ADR-0009) — planowane: `sales_terms_versions` (wersje = daty obowiązywania, PDF w
-  `web/public/regulamin-sprzedazy/`), `orders.terms_version`, `early_performance_consent_at`, `refund_amount`, `withdrawal_on`,
-  `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
+- Regulamin sprzedaży w Ofercie (SPEC-012) — zrobione (#158): `sales_terms_versions` (PK `effective_from` = wersja, odczyt publiczny,
+  wiersze dodaje migracja razem z PDF `web/public/regulamin-sprzedazy/regulamin-sprzedazy-<data>.pdf`; pierwsza 2027-01-01),
+  `current_sales_terms_version()` (najnowsza `effective_from ≤ range_today()`, `null` — brak obowiązującej);
+  `orders.terms_version` (FK) i `early_performance_consent_at`. `create_tpay_order(..., terms_version, consent)` — wersja z przeglądarki
+  musi równać się bieżącej (`terms_changed`), zgoda wymagana dla produktu (`consent_required`), wejściówka — bez zgody (`null`);
+  `admin_list_orders` zwraca obie kolumny. Karnety czasowe wycofane (7-A): `products_before_write` odrzuca nowe `days` i zmianę rodzaju
+  na `days` (`product_kind_discontinued`; wyjątek — klucz secret, dane testowe E2E); wyzwalacz `orders_before_insert_discontinued`
+  odrzuca nowe zamówienie `days` od `days_pass_sales_end()` = 2027-01-01 (`product_discontinued`; dotyczy `create_tpay_order`,
+  `create_on_site_order`, `grant_pass`; ta sama stała `DAYS_PASS_SALES_END` w `web/src/lib/products.ts` — `/oferta/` i „Wycofany” w panelu).
+  Planowane (SPEC-012, ADR-0009): `refund_amount`, `withdrawal_on`, `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
   e-maile przez `email_outbox` + Edge Function `mail-send` (SMTP 465, `pg_cron` `mail-send-retry` co 10 min); odwołanie wydarzenia
   `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
   w `pass_valid_on` (karnety i wejścia jednorazowe nieważne w dniach blokady); `range_closures` / `range_closure_passes`
   (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
-  Karnety czasowe wycofane (7-A): `products_before_write` odrzuca nowe `days`, sprzedaż `days` do stałej `DAYS_PASS_SALES_END` (2027-01-01);
-  typ `days` w `user_passes` i książce zostaje dla sprzedanych karnetów.
+  Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.

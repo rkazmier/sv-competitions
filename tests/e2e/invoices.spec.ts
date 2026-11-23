@@ -78,7 +78,8 @@ test.describe('zakup online', () => {
     const payment = await mockPayment(page);
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
-    const pay = page.getByRole('button', { name: 'Zapłać 120,00 zł' });
+    await page.getByLabel(/Chcę korzystać z karnetu/).check(); // SPEC-012 AC-6
+    const pay = page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' });
     await expect(pay).toBeEnabled();
 
     // AC-1, AC-6
@@ -125,11 +126,12 @@ test.describe('zakup online', () => {
     const payment = await mockPayment(page);
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
+    await page.getByLabel(/Chcę korzystać z karnetu/).check(); // SPEC-012 AC-6
     expect(lookup.count).toBe(0); // rejestr dopiero po zaznaczeniu faktury
     await page.getByLabel('Potrzebuję faktury').check();
     await expect(page.getByText(FIRM.name)).toBeVisible(); // świeże dane z rejestru zamiast zapisanych
     expect(lookup.count).toBe(1);
-    const pay = page.getByRole('button', { name: 'Zapłać 120,00 zł' });
+    const pay = page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' });
     await expect(pay).toBeEnabled();
     await pay.click();
     await expect(page).toHaveURL(/secure\.sandbox\.tpay\.com/);
@@ -144,9 +146,10 @@ test.describe('zakup online', () => {
     const payment = await mockPayment(page);
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
+    await page.getByLabel(/Chcę korzystać z karnetu/).check(); // SPEC-012 AC-6
     await page.getByLabel('Potrzebuję faktury').check();
     await expect(page.getByText('Zapisana Firma S.A.')).toBeVisible();
-    await page.getByRole('button', { name: 'Zapłać 120,00 zł' }).click();
+    await page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' }).click();
     await expect(page).toHaveURL(/secure\.sandbox\.tpay\.com/);
     expect(payment.body.invoice).toMatchObject({ nip: NIP, company_name: 'Zapisana Firma S.A.', data_source: 'vat_whitelist' });
   });
@@ -159,6 +162,7 @@ test.describe('zakup online', () => {
     const payment = await mockPayment(page);
     await page.goto(`/oferta/zamowienie/?product=${item.id}`);
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
+    await page.getByLabel(/Chcę korzystać z karnetu/).check(); // SPEC-012 AC-6
     await page.getByLabel('Potrzebuję faktury').check();
     await page.getByRole('button', { name: 'Zmień dane do faktury' }).click();
     await expect(page.getByLabel('NIP *')).toHaveValue(NIP);
@@ -171,7 +175,7 @@ test.describe('zakup online', () => {
     await page.getByLabel('Nazwa *').fill('Firma Ręczna');
     await page.getByRole('button', { name: 'Dane są poprawne' }).click();
     await expect(page.getByText('Dane niezweryfikowane (wpisane ręcznie)')).toBeVisible();
-    await page.getByRole('button', { name: 'Zapłać 120,00 zł' }).click();
+    await page.getByRole('button', { name: 'Zamawiam i płacę 120,00 zł' }).click();
     await expect(page).toHaveURL(/secure\.sandbox\.tpay\.com/);
     expect(payment.body.invoice).toEqual({
       nip: NIP,

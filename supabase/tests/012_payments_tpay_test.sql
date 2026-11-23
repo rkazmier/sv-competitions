@@ -22,10 +22,11 @@ insert into public.calendar_events
    current_date + 10, null, 'published', 'https://example.test', 'external', null, null);
 
 create function pg_temp.product_order(p_user uuid, p_product uuid, p_key uuid) returns jsonb language sql as $$
-  select public.create_tpay_order(p_user, p_product, null, p_key);
+  select public.create_tpay_order(p_user, p_product, null, p_key, public.current_sales_terms_version(), true);
 $$;
 create function pg_temp.ticket(p_key uuid) returns jsonb language sql as $$
-  select public.create_tpay_order('00000000-0000-0000-0000-0000000000c1', null, '00000000-0000-0000-0000-00000000f0e1', p_key);
+  select public.create_tpay_order('00000000-0000-0000-0000-0000000000c1', null, '00000000-0000-0000-0000-00000000f0e1', p_key,
+    public.current_sales_terms_version());
 $$;
 
 -- ===== Model wejściówek (§5) =====

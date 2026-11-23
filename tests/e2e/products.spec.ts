@@ -53,19 +53,31 @@ test.describe('admin', () => {
     expect(data).toEqual({ price: 12050, entries: 10, is_active: false });
   });
 
-  test('AC-1: walidacja — rodzaj, cena do grosza, liczba dni 1–366', async ({ page }) => {
+  test('AC-1: walidacja — rodzaj, cena do grosza, liczba wejść 1–100', async ({ page }) => {
     await page.goto('/panel/oferta/');
-    await page.getByLabel('Rodzaj *').selectOption({ label: 'Karnet czasowy' });
+    await page.getByLabel('Rodzaj *').selectOption({ label: 'Karnet ilościowy' });
     await page.getByLabel('Nazwa *').fill(unique('Zły'));
     await page.getByLabel('Cena (zł) *').fill('10,999');
-    await page.getByLabel('Liczba dni *').fill('367');
+    await page.getByLabel('Liczba wejść *').fill('101');
     await page.getByRole('button', { name: 'Dodaj produkt' }).click();
 
     await expect(page.getByLabel('Cena (zł) *')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByText('Podaj liczbę dni od 1 do 366.')).toBeVisible();
+    await expect(page.getByText('Podaj liczbę wejść od 1 do 100.')).toBeVisible();
     await expect(page.getByRole('alert').filter({ hasText: 'Popraw zaznaczone pola.' })).toBeVisible();
   });
 
+  test('SPEC-012 AC-53: „Rodzaj” bez „Karnet czasowy”; istniejący karnet czasowy można edytować', async ({ page }) => {
+    const name = unique('Karnet czasowy sprzed 7-A');
+    await admin().from('products').insert({ kind: 'days', name, price: 30000, days: 30 });
+    await page.goto('/panel/oferta/');
+    const kind = page.getByLabel('Rodzaj *');
+    await expect(kind.locator('option:not([disabled])')).toHaveText(['— wybierz —', 'Karnet ilościowy', 'Wejście jednorazowe']);
+    await itemFor(page, name).getByRole('button', { name: action('Edytuj', name) }).click();
+    await expect(kind).toHaveValue('days');
+    await page.getByLabel('Cena (zł) *').fill('310');
+    await page.getByRole('button', { name: 'Zapisz zmiany' }).click();
+    await expect(itemFor(page, name)).toContainText('310,00');
+  });
   test('AC-2: „Pokaż w ofercie” / „Ukryj” zmienia widoczność dla gościa; brak usuwania', async ({ page }) => {
     const name = unique('Wejście E2E');
     await admin().from('products').insert({ kind: 'single_entry', name, price: 5000, day_type: 'weekend' });

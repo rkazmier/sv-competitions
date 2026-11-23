@@ -17,11 +17,16 @@ import {
   PAYMENT_POLL_INTERVAL_MS,
   PAYMENT_STATUS_PAGE,
   buyHref,
+  canOrder,
   eventOrderPath,
   firstUsedOn,
   idParam,
+  needsConsent,
   orderPath,
   orderStatusKey,
+  orderTermsLines,
+  termsVersionSuffix,
+  type OrderTerms,
   passHistoryState,
   passValidTo,
   paymentView,
@@ -32,7 +37,7 @@ import {
   type UserOrder,
   type UserPass,
 } from './offer';
-import { PRODUCT_KINDS, formatPrice, groupProducts, type Product } from './products';
+import { PRODUCT_KINDS, formatPrice, groupProducts, isProductDiscontinued, type Product } from './products';
 import { entryPassText, usageHistory, type MyRangeEntry } from './range-history';
 import { BILLING_COLUMNS, invoiceStatus, type InvoiceDetails } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
@@ -76,9 +81,12 @@ export async function mountOffer(root: HTMLElement): Promise<void> {
   ]);
   if (error || !data) return fail();
   const signedIn = Boolean(session.session);
-  const groups = groupProducts(data as Product[]);
+  // SPEC-012 AC-54: od DAYS_PASS_SALES_END bez karnetów czasowych i bez ich grupy.
+  const today = todayInWarsaw();
+  const groups = groupProducts((data as Product[]).filter((product) => !isProductDiscontinued(product, today)));
   for (const kind of PRODUCT_KINDS) {
     const list = el(root, `[data-group="${kind}"]`);
+    list.closest('section')!.hidden = isProductDiscontinued({ kind }, today);
     el(root, `[data-empty="${kind}"]`).hidden = groups[kind].length > 0;
     list.replaceChildren(
       ...groups[kind].map((product) => {
@@ -135,6 +143,9 @@ const PAY_ERRORS: Record<string, MessageKey> = {
   sold_out: 'offer.soldOut',
   sales_closed: 'calendarCard.salesClosed',
   invalid_invoice: 'invoice.invalidDetails',
+  terms_changed: 'offer.termsChanged',
+  consent_required: 'offer.consentRequired',
+  product_discontinued: 'offer.discontinued',
 };
 
 /** AC-7: podsumowanie produktu albo wejściówki (AC-17); AC-8: „Zapłać” → `payments-create` → bramka Tpay. */
@@ -159,7 +170,13 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
   let item: OrderItem | string;
   if (productId) {
     const { data, error } = await supabase.from('products').select(OFFER_COLUMNS).eq('id', productId).eq('is_active', true).maybeSingle<Product>();
-    item = error ? t('offer.loadError') : data ? { name: data.name, price: data.price, notes: notes(data) } : t('offer.unavailable');
+    item = error
+      ? t('offer.loadError')
+      : !data
+        ? t('offer.unavailable')
+        : isProductDiscontinued(data, todayInWarsaw())
+          ? t('offer.discontinued')
+          : { name: data.name, price: data.price, notes: notes(data) };
   } else {
     item = await loadTicket(supabase, eventId!);
   }
@@ -171,30 +188,58 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
   el(root, '[data-product-notes]').replaceChildren(...data.notes);
   const form = el<HTMLFormElement>(root, 'form[data-order]');
   const pay = el<HTMLButtonElement>(form, '[data-pay]');
+  // SPEC-012 AC-2 (art. 17 ust. 3 ustawy o prawach konsumenta).
   pay.textContent = t('offer.pay', { amount: formatPrice(data.price) });
 
-  // SPEC-004 AC-1: zapisane `billing_details` jako podpowiedź (RLS: własny wiersz). AC-6: „Zapłać” nieaktywny,
+  // SPEC-012 AC-1: data bieżącej wersji regulaminu (ta sama trafia do `payments-create`, AC-3).
+  let termsVersion: string | null = null;
+  const termsVersionText = el(form, '[data-terms-version]');
+  const loadTermsVersion = async (): Promise<boolean> => {
+    const { data: version, error } = await supabase.rpc('current_sales_terms_version');
+    if (error) return false;
+    termsVersion = typeof version === 'string' ? version : null;
+    termsVersionText.textContent = termsVersionSuffix(termsVersion);
+    return true;
+  };
+  if (!(await loadTermsVersion())) return stop(t('offer.loadError'));
+
+  // SPEC-012 AC-6: zgoda przy karnecie i wejściu jednorazowym; przy wejściówce — informacja o braku odstąpienia.
+  const terms = el<HTMLInputElement>(form, '#o-terms');
+  const consent = el<HTMLInputElement>(form, '#o-consent');
+  const consentNeeded = needsConsent({ kind: productId ? 'product' : 'ticket' });
+  for (const part of form.querySelectorAll<HTMLElement>('[data-consent]')) part.hidden = !consentNeeded;
+  el(form, '[data-ticket-note]').hidden = consentNeeded;
+  consent.required = consentNeeded;
+
+  // SPEC-012 AC-2: „Zamawiam i płacę” nieaktywny do zaznaczenia wymaganych checkboxów; SPEC-004 AC-6 — także
   // dopóki zaznaczona faktura nie ma potwierdzonych danych.
   const payHint = el(form, '[data-pay-hint]');
+  const checksHint = el(form, '[data-checks-hint]');
+  let invoiceBlocked = false;
+  const sync = () => {
+    const checked = canOrder({ terms: terms.checked, consent: consentNeeded ? consent.checked : null });
+    pay.disabled = !checked || invoiceBlocked;
+    checksHint.hidden = checked;
+    payHint.hidden = !invoiceBlocked;
+  };
+  terms.addEventListener('change', sync);
+  consent.addEventListener('change', sync);
+  // SPEC-004 AC-1: zapisane `billing_details` jako podpowiedź (RLS: własny wiersz).
   const invoice = bindInvoiceFields(form, supabase, (control) => {
-    const blocked = control.wanted() && !control.value();
-    pay.disabled = blocked;
-    payHint.hidden = !blocked;
+    invoiceBlocked = control.wanted() && !control.value();
+    sync();
   });
   const billing = await supabase.from('billing_details').select(BILLING_COLUMNS).eq('user_id', session.session.user.id).maybeSingle<InvoiceDetails>();
   invoice.setSaved(billing.data ?? null);
+  sync();
   loading.hidden = true;
   form.hidden = false;
 
-  const terms = el<HTMLInputElement>(form, '#o-terms');
-  const termsError = el(form, '[data-terms-error]');
   const formError = el(form, '[data-form-error]');
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     formError.hidden = true;
-    termsError.hidden = terms.checked;
-    terms.setAttribute('aria-invalid', String(!terms.checked));
-    if (!terms.checked) return terms.focus();
+    if (pay.disabled) return;
     const details = invoice.wanted() ? invoice.value() : null;
     if (invoice.wanted() && !details) return;
 
@@ -209,6 +254,9 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
           request_key: crypto.randomUUID(),
           // AC-5: kopia danych w zamówieniu i nadpisanie `billing_details` (zapis po stronie `payments-create`).
           ...(details ? { invoice: details } : {}),
+          // SPEC-012 AC-3, AC-8.
+          terms_version: termsVersion,
+          consent: consentNeeded && consent.checked,
         },
       });
       if (!result.error && result.data?.payment_url) return window.location.assign(result.data.payment_url);
@@ -216,8 +264,13 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
     } catch {
       // błąd sieci — komunikat ogólny
     }
-    pay.disabled = false;
+    // SPEC-012 AC-3: nowa wersja regulaminu — pobrana na nowo, akceptacja od początku.
+    if (code === 'terms_changed') {
+      terms.checked = false;
+      await loadTermsVersion();
+    }
     el(form, '[data-paying]').hidden = true;
+    sync();
     formError.textContent = t((code && PAY_ERRORS[code]) || 'offer.payError');
     formError.hidden = false;
   });
@@ -302,6 +355,23 @@ function entryRow(entry: MyRangeEntry): HTMLTableRowElement {
   return row;
 }
 
+/** SPEC-012 AC-5: „Regulamin z 1.01.2027” (PDF wersji) i data zgody — w `/konto/` i w panelu zamówień. */
+export function orderTermsNodes(order: OrderTerms): HTMLElement[] {
+  const { terms, consent } = orderTermsLines(order);
+  const nodes: HTMLElement[] = [];
+  if (terms) {
+    const line = node('span', undefined, 'order-ref');
+    const link = node('a', terms.text);
+    link.href = terms.href;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    line.append(link);
+    nodes.push(line);
+  }
+  if (consent) nodes.push(node('span', consent, 'order-ref'));
+  return nodes;
+}
+
 function orderRow(order: UserOrder): HTMLTableRowElement {
   const row = node('tr');
   const status = node('td', t(orderStatusKey(order)));
@@ -311,6 +381,7 @@ function orderRow(order: UserOrder): HTMLTableRowElement {
   // SPEC-006 AC-12: „Nr: SV-2026-000123” przy pozycji.
   const item = node('td', order.item_name);
   item.append(node('span', t('offer.orderNumber', { number: order.order_number }), 'order-number order-ref'));
+  item.append(...orderTermsNodes(order));
   row.append(
     node('td', formatDay(order.created_at)),
     item,

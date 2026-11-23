@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { hasLocalSupabase } from './support/supabase';
 
-// #154: regulamin sprzedaży na /regulamin-sprzedazy/ (SPEC-003 decyzja 12-A). Strona statyczna — bez Supabase.
+// #154: regulamin sprzedaży na /regulamin-sprzedazy/ (SPEC-003 decyzja 12-A). Strona statyczna — treść bez Supabase;
+// lista wersji (SPEC-012 AC-4) pobierana w przeglądarce.
 test.describe('regulamin sprzedaży', () => {
   test('#154: tytuł, data obowiązywania, § 13 i załącznik', async ({ page }) => {
     await page.goto('/regulamin-sprzedazy/');
@@ -8,12 +10,23 @@ test.describe('regulamin sprzedaży', () => {
     await expect(main.getByRole('heading', { level: 1 })).toHaveText('Regulamin sprzedaży');
     await expect(main.getByText('Obowiązuje od: 1 stycznia 2027 r.')).toBeVisible();
     await expect(main.getByRole('heading', { level: 2, name: '§ 13. Postanowienia końcowe' })).toBeVisible();
-    await expect(main.getByRole('heading', { level: 2 })).toHaveCount(14);
+    await expect(main.getByRole('heading', { level: 2 }).filter({ hasNotText: 'Wersje regulaminu' })).toHaveCount(14);
     await expect(
       main.getByRole('heading', { level: 2, name: 'Załącznik nr 1 — Wzór formularza odstąpienia od umowy' }),
     ).toBeVisible();
     await expect(main.getByText('Regulamin obowiązuje od 1 stycznia 2027 r.')).toBeVisible();
     await expect(main.getByText(/zostanie tu opublikowana wkrótce/)).toHaveCount(0);
+  });
+
+  test('SPEC-012 AC-4: „Wersje regulaminu” pod treścią — „Obowiązuje od 1.01.2027 — PDF”', async ({ page }) => {
+    test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (wersje z `sales_terms_versions`)');
+    await page.goto('/regulamin-sprzedazy/');
+    const versions = page.getByRole('region', { name: 'Wersje regulaminu' });
+    await expect(versions.getByRole('listitem').first()).toHaveText('Obowiązuje od 1.01.2027 — PDF');
+    await expect(versions.getByRole('link', { name: 'Regulamin sprzedaży obowiązujący od 1.01.2027 (PDF)' })).toHaveAttribute(
+      'href',
+      '/regulamin-sprzedazy/regulamin-sprzedazy-2027-01-01.pdf',
+    );
   });
 
   test('AC-10 (SPEC-011): w § 12 ust. 1 „Polityka prywatności” prowadzi do strony polityki', async ({ page }) => {

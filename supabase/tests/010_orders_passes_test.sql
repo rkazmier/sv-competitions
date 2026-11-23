@@ -11,11 +11,16 @@ insert into auth.users (id, email) values
 update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-0000000000a1';
 update public.profiles set role = 'staff' where id = '00000000-0000-0000-0000-0000000000b1';
 
+-- SPEC-012 AC-53, AC-54: karnet czasowy sprzedawany przed 7-A — wiersz z pominięciem wyzwalacza, sprzedaż bez końca.
+alter table public.products disable trigger products_before_write;
+create or replace function public.days_pass_sales_end() returns date language sql stable set search_path = ''
+as $$ select date '9999-12-31' $$;
 insert into public.products (id, kind, name, price, entries, days, day_type) values
   ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null, null),
   ('00000000-0000-0000-0000-00000000f002', 'days', 'Karnet 30 dni', 30000, null, 30, null),
   ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście weekendowe', 5000, null, null, 'weekend'),
   ('00000000-0000-0000-0000-00000000f004', 'single_entry', 'Wejście w tygodniu', 4000, null, null, 'weekday');
+alter table public.products enable trigger products_before_write;
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-00000000f0e0', 'Zawody SV');
 insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, external_url) values
   ('00000000-0000-0000-0000-00000000f0e1', 'Puchar SV', '00000000-0000-0000-0000-00000000f0e0',

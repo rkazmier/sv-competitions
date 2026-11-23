@@ -111,7 +111,7 @@ test.describe('zalogowany — podsumowanie wejściówki', () => {
     await signIn(page, 'user');
   });
 
-  test('AC-17: „Wejściówka: <nazwa>”, cena i „Zapłać 50,00 zł” → payments-create z event_id', async ({ page }) => {
+  test('AC-17, SPEC-012 AC-6: „Wejściówka: <nazwa>”, bez zgody 14 dni, „Zamawiam i płacę 50,00 zł” → payments-create z event_id', async ({ page }) => {
     const event = await paidEvent({ capacity: 5 });
     let body: Record<string, unknown> = {};
     await page.route('**/functions/v1/payments-create', async (route) => {
@@ -120,11 +120,14 @@ test.describe('zalogowany — podsumowanie wejściówki', () => {
     });
     await page.goto(`/oferta/zamowienie/?event=${event.id}`);
     await expect(page.getByText(`Wejściówka: ${event.name}`, { exact: true })).toBeVisible();
+    // SPEC-012 AC-6: wejściówka — bez checkboxa zgody, z informacją o braku odstąpienia.
+    await expect(page.getByLabel(/Chcę korzystać z karnetu/)).toBeHidden();
+    await expect(page.getByText('Wejściówki na wydarzenia nie podlegają odstąpieniu od umowy.')).toBeVisible();
     await page.getByLabel(/Akceptuję regulamin sprzedaży/).check();
-    await page.getByRole('button', { name: 'Zapłać 50,00 zł' }).click();
+    await page.getByRole('button', { name: 'Zamawiam i płacę 50,00 zł' }).click();
     // AC-18: payments-create odrzuca, gdy limit osiągnięto w międzyczasie
     await expect(page.getByText('Wejściówki zostały wyprzedane.')).toBeVisible();
-    expect(body).toMatchObject({ event_id: event.id });
+    expect(body).toMatchObject({ event_id: event.id, consent: false });
     expect(body).not.toHaveProperty('product_id');
   });
 
@@ -133,7 +136,7 @@ test.describe('zalogowany — podsumowanie wejściówki', () => {
     await soldTicket(event);
     await page.goto(`/oferta/zamowienie/?event=${event.id}`);
     await expect(page.getByText('Wejściówki zostały wyprzedane.')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Zapłać/ })).toBeHidden();
+    await expect(page.getByRole('button', { name: /Zamawiam i płacę/ })).toBeHidden();
   });
 
   test('AC-19: po ostatnim dniu wydarzenia → „Sprzedaż zakończona.”', async ({ page }) => {
