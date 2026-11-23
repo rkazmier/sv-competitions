@@ -51,7 +51,7 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Oferta | `offer` (`/oferta/`) | Sklep strzelnicy: karnety, wejścia, wejściówki |
 | Produkt | `product` | Pozycja Oferty z ceną ustawianą przez admina |
 | Karnet ilościowy | `entries` | Produkt na N wejść; każde wejście zmniejsza licznik o 1 |
-| Karnet czasowy | `days` | Produkt na N kolejnych dni kalendarzowych liczonych od pierwszego wejścia |
+| Karnet czasowy | `days` | Produkt na N kolejnych dni kalendarzowych liczonych od pierwszego wejścia; wycofany z Oferty od 1.01.2027 — działają tylko karnety sprzedane wcześniej (SPEC-012) |
 | Wejście jednorazowe | `single_entry` | Jedno wejście w wariancie weekend (sob.–niedz.) lub dzień powszedni (pn–pt) |
 | Wejściówka | `event_ticket` | Uprawnienie wejścia na płatne wydarzenie Steel Valley w dniach wydarzenia |
 | Tryb wydarzenia | `access_mode` | `external` (zewnętrzne), `free` (otwarte, bezpłatne), `paid` (płatne przez Ofertę) |
@@ -74,7 +74,7 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Zgoda na korzystanie przed upływem 14 dni | `early_performance_consent` | Obowiązkowa przy zakupie online karnetu lub wejścia jednorazowego; data zapisana w zamówieniu |
 | Odstąpienie od umowy | `withdrawal` | Oświadczenie klienta w ciągu 14 dni od opłacenia zamówienia online; karnet anulowany, zwrot proporcjonalny |
 | Okno odstąpienia | `withdrawal window` | Od dnia opłacenia do dnia opłacenia + 14 dni włącznie (Europe/Warsaw) |
-| Zwrot częściowy | `refund_amount` | Kwota zwrotu mniejsza niż cena: cena − wartość wykorzystanych wejść/dni (zaokrąglona w dół) |
+| Zwrot częściowy | `refund_amount` | Kwota zwrotu mniejsza niż cena: cena − wartość wykorzystanych wejść (zaokrąglona w dół) |
 | Kolejka e-maili | `email_outbox` | E-maile aplikacji do wysłania przez SMTP sprzedawcy, z ponowieniami |
 | Potwierdzenie zamówienia | `order_paid` (e-mail) | E-mail po opłaceniu zamówienia online z regulaminem w PDF (trwały nośnik) |
 | Odwołane wydarzenie | `cancelled_at` | Wydarzenie oznaczone „Odwołane”; wszystkie wejściówki anulowane i zwrócone |

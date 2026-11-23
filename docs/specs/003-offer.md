@@ -4,7 +4,7 @@
 - Issue z pomysłem: #38 (etap 2 z 4; wymaga SPEC-002)
 - Zadania: #47, #48, #49, #50, #51, #52, #53 (kolejność w sekcji 11); dla właściciela: #39 (regulamin sprzedaży) (`owner-task`)
 - Decyzje: ADR-0002 (Tpay), ADR-0006 (zadania cykliczne)
-- Zmiany: SPEC-012 (#152) — regulamin sprzedaży: e-maile, zgoda 14 dni, odstąpienie i zwrot częściowy, odwołanie wydarzenia, przedłużenie ważności, blokada karnetów w dniach wydarzeń
+- Zmiany: SPEC-012 (#152) — regulamin sprzedaży: e-maile, zgoda 14 dni, odstąpienie i zwrot częściowy, odwołanie wydarzenia, przedłużenie ważności, blokada karnetów w dniach wydarzeń, wycofanie karnetów czasowych
 
 ## 1. Cel
 
@@ -44,6 +44,8 @@ Status zamówienia Tpay zmienia wyłącznie `payments-notify` (CLAUDE.md, ADR-00
 ## 4. Historyjki i kryteria akceptacji
 
 ### US-1: Jako admin chcę prowadzić produkty i ceny
+> Od SPEC-012 (7-A): karnety czasowe wycofane — nie można dodać nowego produktu `days`, sprzedaż istniejących kończy się 1.01.2027; sprzedane karnety działają według tej specyfikacji (SPEC-012 AC-53…AC-55).
+
 - **AC-1**: Given `/panel/oferta/` When dodaję produkt: Rodzaj* (Karnet ilościowy / Karnet czasowy / Wejście jednorazowe), Nazwa*, Cena* (zł, do grosza),
   Liczba wejść* (ilościowy, 1–100) albo Liczba dni* (czasowy, 1–366) albo Dzień* (Weekend / Dzień powszedni — jednorazowe), Opis (maks. 500 znaków) Then produkt pojawia się na liście jako ukryty.
 - **AC-2**: Given produkt When klikam „Pokaż w ofercie” / „Ukryj” Then pojawia się / znika z `/oferta/`; produktów nie da się usunąć.
@@ -205,7 +207,7 @@ Skan kodu QR — ten sam komponent co w SPEC-005 (kamera w przeglądarce); do cz
 
 | Pytanie | Decyzja właściciela | Data |
 | --- | --- | --- |
-| Rodzaje produktów, ważność 1 rok, aktywacja karnetu czasowego | Z issue #38 | 2026-11-17 |
+| Rodzaje produktów, ważność 1 rok, aktywacja karnetu czasowego | Z issue #38 — **zmienione w SPEC-012** (7-A): karnety czasowe wycofane z Oferty od 1.01.2027 | 2026-11-17 |
 | Zwroty | 6-A: admin anuluje niewykorzystany karnet i zleca zwrot (Tpay) lub oznacza zwrot gotówki; częściowo wykorzystanych nie zwracamy — **zmienione w SPEC-012**: zwrot proporcjonalny w oknie 14 dni; po oknie brak zwrotu (zwrot tylko jako decyzja admina) | 2026-11-17 |
 | Wejściówki | 7-A: cena i opcjonalny limit miejsc przy wydarzeniu; zużywana przy wpisie w dniu wydarzenia; płatne i bezpłatne bez wymaganego linku | 2026-11-17 |
 | Karnet imienny | 8-A: tylko dla właściciela konta | 2026-11-17 |

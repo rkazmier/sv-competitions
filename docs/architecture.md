@@ -277,7 +277,9 @@
   e-maile przez `email_outbox` + Edge Function `mail-send` (SMTP 465, `pg_cron` `mail-send-retry` co 10 min); odwołanie wydarzenia
   `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
   w `pass_valid_on` (karnety i wejścia jednorazowe nieważne w dniach blokady); `range_closures` / `range_closure_passes`
-  + `user_passes.valid_extra_days` (przedłużenie ważności); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
+  (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
+  Karnety czasowe wycofane (7-A): `products_before_write` odrzuca nowe `days`, sprzedaż `days` do stałej `DAYS_PASS_SALES_END` (2027-01-01);
+  typ `days` w `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
