@@ -1,14 +1,20 @@
 ---
 /**
  * Regulamin sprzedaży (#154, SPEC-003 decyzja 12-A): treść od właściciela z `salesTerms.body`,
- * data „Obowiązuje od: …” z § 13 tej treści.
+ * data „Obowiązuje od: …” z § 13 tej treści; w § 12 ust. 1 link do polityki prywatności (SPEC-011 AC-10).
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { t } from '../../i18n';
-import { salesTermsBlocks, salesTermsEffectiveFrom, type ListItem, type Span } from '../../lib/sales-terms';
+import {
+  linkPrivacyPolicy,
+  salesTermsBlocks,
+  salesTermsEffectiveFrom,
+  type LinkedSpan,
+  type ListItem,
+} from '../../lib/sales-terms';
 
 const body = t('salesTerms.body');
-const blocks = salesTermsBlocks(body);
+const blocks = linkPrivacyPolicy(salesTermsBlocks(body));
 const effective = salesTermsEffectiveFrom(body);
 ---
 <BaseLayout title={t('salesTerms.title')}>
@@ -16,8 +22,9 @@ const effective = salesTermsEffectiveFrom(body);
     <div class="container sales-terms">
       {
         blocks.map((block) => {
-          const spans = (items: readonly Span[]) =>
-            items.map((s) => (s.bold ? <strong>{s.text}</strong> : s.italic ? <em>{s.text}</em> : s.text));
+          const text = (s: LinkedSpan) => (s.href === undefined ? s.text : <a href={s.href}>{s.text}</a>);
+          const spans = (items: readonly LinkedSpan[]) =>
+            items.map((s) => (s.bold ? <strong>{text(s)}</strong> : s.italic ? <em>{text(s)}</em> : text(s)));
           const list = (items: readonly ListItem[], ordered: boolean) =>
             ordered ? (
               <ol>{items.map((item) => <li>{spans(item.spans)}{item.children.length > 0 && list(item.children, true)}</li>)}</ol>

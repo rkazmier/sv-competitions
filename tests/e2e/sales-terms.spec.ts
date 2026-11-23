@@ -16,6 +16,21 @@ test.describe('regulamin sprzedaży', () => {
     await expect(main.getByText(/zostanie tu opublikowana wkrótce/)).toHaveCount(0);
   });
 
+  test('AC-10 (SPEC-011): w § 12 ust. 1 „Polityka prywatności” prowadzi do strony polityki', async ({ page }) => {
+    await page.goto('/regulamin-sprzedazy/');
+    const main = page.getByRole('main');
+    const item = main.getByRole('heading', { level: 2, name: '§ 12. Dane osobowe' }).locator('xpath=following-sibling::ol[1]/li[1]');
+    await expect(item).toContainText(
+      'Szczegółowe zasady przetwarzania danych opisuje Polityka prywatności dostępna pod adresem events.steel-valley.pl/polityka-prywatnosci/.',
+    );
+    const link = item.getByRole('link', { name: 'Polityka prywatności' });
+    await expect(link).toHaveAttribute('href', '/polityka-prywatnosci/');
+    await expect(link).not.toHaveAttribute('target', /.+/);
+    await link.click();
+    await expect(page).toHaveURL(/\/polityka-prywatnosci\/$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Polityka prywatności');
+  });
+
   test('#154: na telefonie (320 px) bez poziomego przewijania', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto('/regulamin-sprzedazy/');

@@ -124,6 +124,42 @@ export function salesTermsPdfPath(iso: string): string {
   return `/regulamin-sprzedazy/regulamin-sprzedazy-${iso}.pdf`;
 }
 
+/** Adres strony polityki prywatności (SPEC-011). */
+export const PRIVACY_POLICY_PATH = '/polityka-prywatnosci/';
+const PRIVACY_POLICY_WORDS = /polityk\p{L}* prywatności/iu;
+
+/** Fragment strony regulaminu: tekst z formatowaniem, opcjonalnie link. */
+export interface LinkedSpan extends Span {
+  href?: string;
+}
+
+/**
+ * SPEC-011 AC-10: słowa „polityka prywatności” (w odmianie z tekstu) w § 12 ust. 1 jako link do
+ * `/polityka-prywatnosci/`. Tylko strona — treść (i PDF wersji) bez zmian. Brak tych słów = błąd buildu,
+ * żeby zmiana treści regulaminu nie usunęła linku po cichu.
+ */
+export function linkPrivacyPolicy(blocks: readonly Block[]): Block[] {
+  const missing = () => new Error('Brak słów „polityka prywatności” w § 12 ust. 1 regulaminu sprzedaży');
+  const heading = blocks.findIndex((b) => b.kind === 'h2' && spansText(b.spans).startsWith('§ 12.'));
+  const list = heading >= 0 ? blocks[heading + 1] : undefined;
+  if (list?.kind !== 'ol' || list.items.length === 0) throw missing();
+  const item = list.items[0];
+  const index = item.spans.findIndex((s) => PRIVACY_POLICY_WORDS.test(s.text));
+  const span = item.spans[index];
+  const match = span ? PRIVACY_POLICY_WORDS.exec(span.text) : null;
+  if (!match) throw missing();
+  const before = span.text.slice(0, match.index);
+  const after = span.text.slice(match.index + match[0].length);
+  const linked: LinkedSpan[] = [
+    ...(before ? [{ ...span, text: before }] : []),
+    { ...span, text: match[0], href: PRIVACY_POLICY_PATH },
+    ...(after ? [{ ...span, text: after }] : []),
+  ];
+  const spans = [...item.spans.slice(0, index), ...linked, ...item.spans.slice(index + 1)];
+  const items = [{ ...item, spans }, ...list.items.slice(1)];
+  return blocks.map((b, i) => (i === heading + 1 ? { kind: 'ol', items } : b));
+}
+
 /** Zwykły tekst fragmentów (np. do porównań w testach). */
 export function spansText(spans: readonly Span[]): string {
   return spans.map((span) => span.text).join('');
