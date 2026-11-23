@@ -13,7 +13,8 @@
                  ├── payments-refund  ──► Tpay Open API (zwrot)
                  ├── company-lookup   ──► Biała lista MF / GUS REGON (dane firmy po NIP)
                  ├── admin-delete-user ─► Supabase Auth Admin API
-                 └── retention        ◄── pg_cron + pg_net (usuwanie starych wpisów i podpisów, ADR-0006)
+                 ├── retention        ◄── pg_cron + pg_net (usuwanie starych wpisów i podpisów, ADR-0006)
+                 └── mail-send        ◄── payments-notify, pg_cron + pg_net ──► SMTP skrzynki sprzedawcy (TLS 465, ADR-0009)
  Faktury: admin wystawia ręcznie w e-mikrofirmie (KSeF) — bez integracji (ADR-0005)
 ```
 
@@ -283,8 +284,16 @@
   na `days` (`product_kind_discontinued`; wyjątek — klucz secret, dane testowe E2E); wyzwalacz `orders_before_insert_discontinued`
   odrzuca nowe zamówienie `days` od `days_pass_sales_end()` = 2027-01-01 (`product_discontinued`; dotyczy `create_tpay_order`,
   `create_on_site_order`, `grant_pass`; ta sama stała `DAYS_PASS_SALES_END` w `web/src/lib/products.ts` — `/oferta/` i „Wycofany” w panelu).
+  E-maile (SPEC-012 US-3, ADR-0009) — zrobione (#159): `email_outbox` (rodzaj, zamówienie, stan, próby, kod błędu — bez adresu
+  i treści; RLS bez dostępu klientów; unikalne `(kind, order_id)`). Wyzwalacz `orders_after_paid_email`: zamówienie `tpay`
+  z `terms_version` `pending`/`cancelled` → `paid` (`fulfil_order`) → wpis `order_paid` w tej samej transakcji. `mail_outbox_claim(limit)`
+  (klucz secret): wpisy bez konta → `skipped`, pozostałe zarezerwowane na `mail_claim_lease()` (15 min, `skip locked`) z danymi zamówienia
+  i adresem z `auth.users`; `mail_outbox_result(id, error)`: `sent` albo próba +1 z odstępem `mail_retry_delay` (10 min, 30 min, 1 h, 3 h),
+  po 5. — `failed`. `invoke_mail_send()` — `pg_net` → `mail-send` (Vault: `project_url`, `mail_invoke_secret`), `pg_cron` `mail-send-retry`
+  (`*/10 * * * *` UTC). `admin_resend_email(order_id, kind)` — admin, `failed` → `pending` (licznik 0), `audit_log` `email_resend`, wysyłka od razu.
+  `admin_list_orders` zwraca `email_status`, `email_sent_at`; panel: „E-mail z potwierdzeniem: …” i „Wyślij ponownie”.
   Planowane (SPEC-012, ADR-0009): `refund_amount`, `withdrawal_on`, `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
-  e-maile przez `email_outbox` + Edge Function `mail-send` (SMTP 465, `pg_cron` `mail-send-retry` co 10 min); odwołanie wydarzenia
+  e-maile `event_cancelled`, `withdrawal_*` w `mail-send`; odwołanie wydarzenia
   `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
   w `pass_valid_on` (karnety i wejścia jednorazowe nieważne w dniach blokady); `range_closures` / `range_closure_passes`
   (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
@@ -462,6 +471,14 @@
   `DELETE /storage/v1/object/signatures` po 100 plików, na końcu `rpc/purge_range_log`. Nieudane usunięcie pliku zostawia
   wpis do następnego uruchomienia. W logu i odpowiedzi tylko liczby (`signatures_deleted`, `orphans_deleted`,
   `signatures_failed`, `entries_deleted`). Odpowiedzi: 200, 401, 405, 500.
+- `mail-send` (SPEC-012 AC-9…AC-12, ADR-0009, `verify_jwt = false`): POST z `Authorization: Bearer MAIL_INVOKE_SECRET` (stały czas, inaczej 401);
+  wywołują: `payments-notify` po wyniku `paid` (`EdgeRuntime.waitUntil`, po odpowiedzi dla Tpay), `invoke_mail_send()` (`pg_cron`, „Wyślij ponownie”).
+  Bez `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD`/`MAIL_FROM`/`SITE_URL` → 503 `mail_not_configured` (kolejka nietknięta). Kluczem secret
+  `rpc/mail_outbox_claim` partiami po 20 (maks. 5); PDF `SITE_URL/regulamin-sprzedazy/regulamin-sprzedazy-<terms_version>.pdf`
+  (raz na wersję, musi zaczynać się od `%PDF` — inaczej `pdf_unavailable`/`pdf_invalid`, bez wysyłki); szablon `templates.ts`
+  + teksty `i18n.ts` (`email.*`, HTML + tekst); SMTP `smtp.ts` (nodemailer, TLS 465, jedno połączenie); `rpc/mail_outbox_result`.
+  Logi: rodzaj, id wpisu, kod błędu. Odpowiedzi: 200 `{ sent, retry, failed }`, 401, 405, 500, 503.
+  Sekrety: `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT` (465), `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_INVOKE_SECRET` (też w `payments-notify`), `SITE_URL`.
 - `company-lookup` (SPEC-004 AC-2…AC-4, §7, §8): POST `{ nip }` z JWT osoby. NIP normalizowany jak `normalize_nip`
   (spacje, myślniki, prefiks `PL`) i sprawdzany sumą kontrolną przed jakimkolwiek zapytaniem (400 `invalid_nip`;
   prefiks innego kraju — 400 `foreign_nip`). Potem `rpc/company_lookup_take_quota` z JWT wywołującego (limit 20 zapytań

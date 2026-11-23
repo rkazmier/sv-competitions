@@ -443,6 +443,10 @@ verify_jwt = false
 [functions.retention]
 verify_jwt = false
 
+# Wywołanie z payments-notify, pg_cron + pg_net i „Wyślij ponownie” z sekretem MAIL_INVOKE_SECRET, nie JWT (ADR-0009).
+[functions.mail-send]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

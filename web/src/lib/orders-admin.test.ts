@@ -3,9 +3,11 @@ import { t } from '../i18n';
 import { PAYMENT_METHOD_TEXT } from './offer';
 import {
   canCancelGrant,
+  canResendEmail,
   csvCell,
   csvFileName,
   defaultFilters,
+  emailStatusText,
   filterArgs,
   grantCancelErrorKey,
   grantDetails,
@@ -44,7 +46,30 @@ const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   grant_cancel_note: null,
   terms_version: null,
   early_performance_consent_at: null,
+  email_status: null,
+  email_sent_at: null,
   ...fields,
+});
+
+describe('SPEC-012 AC-11, AC-14: stan e-maila z potwierdzeniem', () => {
+  it('AC-14: „wysłano <data>” / „w kolejce” / „nie wysłano” (Europe/Warsaw)', () => {
+    expect(emailStatusText(order({ email_status: 'sent', email_sent_at: '2027-01-02T13:06:00Z' }))).toBe(
+      'E-mail z potwierdzeniem: wysłano 2.01.2027 14:06',
+    );
+    expect(emailStatusText(order({ email_status: 'pending' }))).toBe('E-mail z potwierdzeniem: w kolejce');
+    expect(emailStatusText(order({ email_status: 'failed' }))).toBe('E-mail z potwierdzeniem: nie wysłano');
+  });
+
+  it('AC-13, AC-14: zamówienie bez e-maila (na miejscu, prezent, sprzed regulaminu) — bez informacji', () => {
+    expect(emailStatusText(order({ payment_method: 'on_site' }))).toBeNull();
+  });
+
+  it('AC-11: „Wyślij ponownie” tylko po nieudanych próbach (failed)', () => {
+    expect(canResendEmail(order({ email_status: 'failed' }))).toBe(true);
+    for (const email_status of ['sent', 'pending', 'skipped', null] as const) {
+      expect(canResendEmail(order({ email_status }))).toBe(false);
+    }
+  });
 });
 
 describe('AC-24: filtry zamówień', () => {
