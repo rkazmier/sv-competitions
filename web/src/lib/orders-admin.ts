@@ -5,7 +5,7 @@
  * Interfejs: lib/orders-admin-ui.ts.
  */
 import { t, type MessageKey } from '../i18n';
-import { orderStatusKey, PAYMENT_METHOD_TEXT, type OrderStatus } from './offer';
+import { orderStatusKey, PAYMENT_METHOD_TEXT, shortDateTime, type OrderStatus } from './offer';
 import { normalizeOrderNumber } from './order-number';
 import { priceInputValue } from './products';
 
@@ -37,6 +37,30 @@ export interface AdminOrder {
   /** SPEC-012 AC-5: wersja regulaminu i zgoda na korzystanie przed upływem 14 dni (zamówienia Tpay). */
   terms_version: string | null;
   early_performance_consent_at: string | null;
+  /** SPEC-012 AC-14: stan e-maila `order_paid` (`email_outbox`); `null` — zamówienie bez e-maila. */
+  email_status: EmailStatus | null;
+  email_sent_at: string | null;
+}
+
+export type EmailStatus = 'pending' | 'sent' | 'failed' | 'skipped';
+
+const EMAIL_STATUS_TEXT: Record<EmailStatus, MessageKey> = {
+  sent: 'orders.emailSent',
+  pending: 'orders.emailPending',
+  failed: 'orders.emailFailed',
+  skipped: 'orders.emailSkipped',
+};
+
+/** SPEC-012 AC-11, AC-14: „E-mail z potwierdzeniem: wysłano 2.01.2027 14:06” / „w kolejce” / „nie wysłano”; bez e-maila — `null`. */
+export function emailStatusText(order: Pick<AdminOrder, 'email_status' | 'email_sent_at'>): string | null {
+  if (!order.email_status) return null;
+  const date = order.email_sent_at ? shortDateTime(order.email_sent_at) : '';
+  return t(EMAIL_STATUS_TEXT[order.email_status], { date });
+}
+
+/** SPEC-012 AC-11: „Wyślij ponownie” po 5 nieudanych próbach (`failed`). */
+export function canResendEmail(order: Pick<AdminOrder, 'email_status'>): boolean {
+  return order.email_status === 'failed';
 }
 
 export const ORDER_STATUSES: readonly OrderStatus[] = ['paid', 'pending', 'cancelled', 'refund_pending', 'refunded'];

@@ -800,6 +800,15 @@ Ja/My (\*) niniejszym informuję/informujemy (\*) o moim/naszym (\*) odstąpieni
     grantAlreadyCancelled: 'Przyznanie zostało już anulowane.',
     grantNoteTooLong: 'Notatka może mieć najwyżej 300 znaków.',
     grantCancelError: 'Nie udało się anulować przyznania. Spróbuj ponownie.',
+    // SPEC-012 AC-11, AC-14: stan e-maila z potwierdzeniem zamówienia i „Wyślij ponownie”.
+    emailSent: 'E-mail z potwierdzeniem: wysłano {date}',
+    emailPending: 'E-mail z potwierdzeniem: w kolejce',
+    emailFailed: 'E-mail z potwierdzeniem: nie wysłano',
+    emailSkipped: 'E-mail z potwierdzeniem: pominięto (konto usunięte)',
+    emailResend: 'Wyślij ponownie',
+    emailResendLabel: 'Wyślij ponownie e-mail z potwierdzeniem zamówienia {number}',
+    emailResent: 'E-mail jest w kolejce do wysłania.',
+    emailResendError: 'Nie udało się ponowić wysyłki e-maila. Odśwież listę i spróbuj ponownie.',
   },
   grant: {
     title: 'Przyznaj karnet',

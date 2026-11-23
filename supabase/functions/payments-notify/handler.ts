@@ -15,6 +15,8 @@ export interface Config {
   supabaseUrl?: string;
   secretKey?: string;
   tpayApiUrl?: string;
+  /** SPEC-012 AC-9: sekret wywołania `mail-send` (`MAIL_INVOKE_SECRET`); bez niego e-mail wyśle `pg_cron`. */
+  mailInvokeSecret?: string;
 }
 
 export interface Deps {
@@ -23,6 +25,8 @@ export interface Deps {
   log?: (message: string) => void;
   /** Pamięć podręczna klucza certyfikatu między żądaniami (index.ts). */
   keyCache?: Map<string, Promise<CryptoKey>>;
+  /** Praca po odpowiedzi dla Tpay (`EdgeRuntime.waitUntil`); bez niej — czekamy na wynik (testy). */
+  background?: (work: Promise<unknown>) => void;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -40,6 +44,26 @@ export function toGrosze(value: string | null): number | null {
 async function sha256Hex(bytes: Bytes): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
   return Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** SPEC-012 AC-9, ADR-0009: wywołanie Edge Function `mail-send` z sekretem wywołania (bez JWT). */
+async function invokeMailSend(deps: Deps, supabaseUrl: string, orderId: string, log: (m: string) => void): Promise<void> {
+  const secret = deps.config.mailInvokeSecret;
+  if (!secret) {
+    log(`payments-notify: brak MAIL_INVOKE_SECRET — e-mail zamówienia ${orderId} wyśle zadanie cykliczne`);
+    return;
+  }
+  try {
+    const response = await deps.fetch(`${supabaseUrl}/functions/v1/mail-send`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    await response.body?.cancel();
+    if (!response.ok) log(`payments-notify: mail-send odpowiedziało ${response.status} (zamówienie ${orderId})`);
+  } catch {
+    log(`payments-notify: błąd wywołania mail-send (zamówienie ${orderId})`);
+  }
 }
 
 export async function handle(request: Request, deps: Deps): Promise<Response> {
@@ -104,5 +128,12 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   }
 
   log(`payments-notify: zamówienie ${orderId} — ${result}`);
+  // SPEC-012 AC-9: wpis `order_paid` w `email_outbox` jest już zatwierdzony razem z realizacją — wysyłka od razu.
+  // Błąd wywołania nie zmienia odpowiedzi dla Tpay: wpis wyśle `pg_cron` `mail-send-retry`.
+  if (result === 'paid') {
+    const work = invokeMailSend(deps, supabaseUrl, orderId, log);
+    if (deps.background) deps.background(work);
+    else await work;
+  }
   return ACCEPTED.has(result.replace(/^duplicate:/, '')) ? text(200, 'TRUE') : text(400, 'FALSE');
 }

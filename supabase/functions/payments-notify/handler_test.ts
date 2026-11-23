@@ -196,6 +196,42 @@ Deno.test('AC-25: powiadomienie o zwrocie przyjęte (refunded, already_refunded)
   }
 });
 
+const mailCalls = (calls: Call[]) => calls.filter((call) => call.url.endsWith('/functions/v1/mail-send'));
+
+Deno.test('SPEC-012 AC-9: po realizacji zamówienia wywołanie mail-send z MAIL_INVOKE_SECRET; błąd nie zmienia odpowiedzi', async () => {
+  const config = { ...CONFIG, mailInvokeSecret: 'mail-invoke-secret' };
+  const { calls, fetch } = mockFetch('paid');
+  const logs: string[] = [];
+  const response = await handle(await notification(), { fetch, config, log: (m) => logs.push(m) });
+  assert(response.status === 200 && (await response.text()) === 'TRUE', `status ${response.status}`);
+  const [call] = mailCalls(calls);
+  assert(call?.url === 'https://project.supabase.co/functions/v1/mail-send', 'wywołanie mail-send');
+  assert(call.init.method === 'POST', 'POST');
+  assert(new Headers(call.init.headers).get('Authorization') === 'Bearer mail-invoke-secret', 'sekret wywołania');
+  assert(calls.indexOf(call) > calls.indexOf(rpcCall(calls)!), 'po zatwierdzeniu realizacji');
+  assert(!logs.join().includes('mail-invoke-secret'), 'sekret nie trafia do logów');
+
+  // `background` (EdgeRuntime.waitUntil) — odpowiedź bez czekania na wysyłkę.
+  const queued: Promise<unknown>[] = [];
+  const background = (work: Promise<unknown>) => queued.push(work);
+  const second = mockFetch('paid');
+  const fast = await handle(await notification(), { fetch: second.fetch, config, background, log: () => {} });
+  assert(fast.status === 200 && queued.length === 1, 'wysyłka w tle');
+  await Promise.all(queued);
+});
+
+Deno.test('SPEC-012 AC-9: bez realizacji (powtórzone, zwrot, odrzucone) albo bez sekretu — bez wywołania mail-send', async () => {
+  const config = { ...CONFIG, mailInvokeSecret: 'mail-invoke-secret' };
+  for (const result of ['duplicate:paid', 'already_paid', 'refunded', 'amount_mismatch']) {
+    const { calls, fetch } = mockFetch(result);
+    await handle(await notification(), { fetch, config, log: () => {} });
+    assert(mailCalls(calls).length === 0, result);
+  }
+  const { calls, fetch } = mockFetch('paid');
+  const response = await handle(await notification(), { fetch, config: CONFIG, log: () => {} });
+  assert(response.status === 200 && mailCalls(calls).length === 0, 'bez MAIL_INVOKE_SECRET — tylko pg_cron');
+});
+
 Deno.test('AC-9: kwoty Tpay → grosze bez liczb zmiennoprzecinkowych', () => {
   const cases: [string | null, number | null][] = [['120.00', 12000], ['19.99', 1999], ['0.1', 10], ['5', 500],
     ['1.005', null], ['-1.00', null], ['1,00', null], ['', null], [null, null]];

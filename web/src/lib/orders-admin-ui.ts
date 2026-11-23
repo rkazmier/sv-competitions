@@ -9,7 +9,9 @@ import { t, type MessageKey } from '../i18n';
 import { todayInWarsaw } from './calendar';
 import {
   canCancelGrant,
+  canResendEmail,
   csvFileName,
+  emailStatusText,
   defaultFilters,
   filterArgs,
   grantCancelErrorKey,
@@ -119,7 +121,23 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
         p.append(line);
         notes.append(p);
       }
+      // SPEC-012 AC-14: stan e-maila z potwierdzeniem.
+      const email = emailStatusText(order);
+      if (email) {
+        const p = document.createElement('p');
+        p.textContent = email;
+        notes.append(p);
+      }
       const actions = cell(row, '');
+      if (canResendEmail(order)) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button';
+        button.textContent = t('orders.emailResend');
+        button.setAttribute('aria-label', t('orders.emailResendLabel', { number: order.order_number }));
+        button.addEventListener('click', () => void resendEmail(order, button));
+        actions.append(button);
+      }
       if (canCancelGrant(order)) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -192,6 +210,23 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     for (const event of eventsResult.data ?? []) {
       itemSelect.add(new Option(t('offer.ticketName', { name: event.name }), `event:${event.id}`));
     }
+  }
+
+  // SPEC-012 AC-11: wpis `failed` → `pending` (licznik od zera, `audit_log` `email_resend` w bazie), wysyłka od razu.
+  async function resendEmail(order: AdminOrder, button: HTMLButtonElement): Promise<void> {
+    button.disabled = true;
+    status.textContent = '';
+    showError(null);
+    let ok = false;
+    try {
+      const { error } = await supabase.rpc('admin_resend_email', { p_order_id: order.id });
+      ok = !error;
+    } catch {
+      // błąd sieci — komunikat ogólny
+    }
+    status.textContent = ok ? t('orders.emailResent') : '';
+    await load();
+    if (!ok) showError('orders.emailResendError');
   }
 
   let pending: AdminOrder | null = null;
