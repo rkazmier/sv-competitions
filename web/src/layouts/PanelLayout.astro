@@ -43,6 +43,7 @@ const adminMenu = [
   officersItem,
   dutyScheduleItem,
   { href: '/panel/zamkniecia/', label: t('panel.menu.rangeClosures') },
+  { href: '/panel/godziny/', label: t('panel.menu.openingHours') },
 ];
 const staffMenu = [rangeLogItem, salesItem, officersItem, dutyScheduleItem];
 const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : undefined);
