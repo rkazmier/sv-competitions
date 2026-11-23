@@ -250,6 +250,7 @@
     Metoda `gift` (SPEC-010) — filtr jak inne metody; wynik + `grant_reason`, `grant_cancel_note` z `order_grants` (null dla innych metod).
   - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
     `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
+    Od SPEC-011 (AC-51, AC-52): po odstąpieniu (`withdrawal_on` ustawione) i dla wejściówki odwołanego wydarzenia uprawnienie zostaje `cancelled`.
   - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
     `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).

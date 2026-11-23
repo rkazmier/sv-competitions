@@ -106,7 +106,7 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 - **AC-19**: Given potwierdzam „Zleć zwrot” When `payments-refund` wykona żądanie z `mode = 'withdrawal'` Then `rpc/withdraw_order(order_id, day, note)` w jednej transakcji
   ponownie liczy kwotę (z blokadą uprawnienia), uprawnienie → `cancelled` (także z zużyciami), zamówienie → `refund_pending` z `refund_amount` i `withdrawal_on`,
   `audit_log` `order_refund` (`changes`: `reason: withdrawal`, `amount`, `refund_amount`, `withdrawal_on`, `used`, `total`); potem Tpay — zwrot częściowy kwoty `refund_amount`
-  (`POST /transactions/{id}/refunds` z `amount`), a po powiadomieniu — `refunded`. Błąd Tpay → `revert_order_refund` jak dziś (uprawnienie wraca do `active`).
+  (`POST /transactions/{id}/refunds` z `amount`), a po powiadomieniu — `refunded`. Błąd Tpay → `revert_order_refund`, ale uprawnienie zostaje `cancelled` (AC-52).
 - **AC-20**: Given zamówienie zwrócone częściowo When patrzę na `/konto/` albo panel Then status to „Zwrócone 66,67 zł z 100,00 zł” („Zwrot w toku: 66,67 zł”); suma kwot w panelu
   pokazuje osobno „Zwroty: −66,67 zł”; eksport CSV ma kolumny „Kwota zwrotu” i „Dzień odstąpienia”.
 - **AC-21**: Given zamówienie po upływie okna When ma nieużywane uprawnienie Then zamiast „Odstąpienie od umowy” jest „Anuluj i zwróć” (SPEC-003 AC-25) z ostrzeżeniem
@@ -118,13 +118,14 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 ### US-5: Jako admin chcę odwołać płatne wydarzenie i zwrócić pieniądze (pkt 5, decyzja 6-A)
 - **AC-23**: Given opublikowane wydarzenie, którego ostatni dzień jeszcze nie minął When klikam w `/panel/wydarzenia/` „Odwołaj wydarzenie” Then widzę okno
   „Wydarzenie zostanie oznaczone jako odwołane. Wszystkie wejściówki zostaną anulowane, a pieniądze zwrócone: online — automatycznie przez Tpay (N), na miejscu — lista do zwrotu (M).
-  Kupujący z kontem dostaną e-mail. Tej operacji nie można cofnąć.”, wymagane pole „Powód odwołania (widoczny publicznie)” (3–200 znaków) i „Odwołaj wydarzenie” / „Wróć”.
+  Kupujący z kontem dostaną e-mail. Tej operacji nie można cofnąć.”, wymagane pole „Powód odwołania (widoczny publicznie)” (3–200 znaków) z podpowiedzią „Nie wpisuj danych osobowych.” i „Odwołaj wydarzenie” / „Wróć”.
 - **AC-24**: Given potwierdzam When Edge Function `event-cancel` wywoła `rpc/cancel_calendar_event(event_id, reason)` Then w jednej transakcji: `calendar_events.cancelled_at`, `cancel_reason`, `cancelled_by`;
-  zamówienia `pending` → `cancelled`; `paid` Tpay → `refund_pending` (pełna kwota); `paid` na miejscu → `refunded` z adnotacją „Zwrot gotówki / na terminal — odwołanie wydarzenia”;
+  zamówienia już `cancelled`, `refund_pending` lub `refunded` — pomijane (bez zmian, e-maila i wpisu w `audit_log`); `pending` → `cancelled`; `paid` Tpay → `refund_pending` (pełna kwota); `paid` na miejscu → `refunded` z adnotacją „Zwrot gotówki / na terminal — odwołanie wydarzenia”;
   `paid` prezent → `cancelled`; wszystkie uprawnienia → `cancelled`; dla każdego zamówienia z kontem — `email_outbox` `event_cancelled`; `audit_log` `event_cancel` (wydarzenie, liczby, suma)
-  i `order_refund` dla każdego zwrotu; wyzwalacz `site-rebuild`. Potem funkcja zleca zwroty w Tpay po kolei; nieudane wracają do `paid` (`revert_order_refund`).
+  i `order_refund` dla każdego zwrotu; wyzwalacz `site-rebuild`. Potem funkcja zleca zwroty w Tpay po kolei; nieudane wracają do `paid` (`revert_order_refund`), uprawnienie zostaje `cancelled` (AC-51).
 - **AC-25**: Given wydarzenie odwołane When ktoś ogląda kalendarz lub kartę wydarzenia Then widzi plakietkę „Odwołane” i „Powód: <treść>”, bez „Kup wejściówkę” i liczby miejsc;
-  `create_tpay_order`, `create_on_site_order` i `grant_pass` odrzucają wejściówkę (`event_cancelled`); wydarzenie nie blokuje karnetów (US-8).
+  `create_tpay_order`, `create_on_site_order` i `grant_pass` odrzucają wejściówkę (`event_cancelled`); wejściówki tego wydarzenia są nieważne (`pass_valid_on`, `passes_for_range_entry`),
+  także gdyby któraś była `active`; wydarzenie nie blokuje karnetów (US-8).
 - **AC-26**: Given wydarzenie odwołane When admin otwiera je w panelu Then widzi listę „Zwroty po odwołaniu”: osoba (lub „Osoba bez konta”), numer zamówienia, metoda, kwota, stan
   („Zwrot w toku” / „Zwrócone” / „Do zwrotu na miejscu” / „Zwrot Tpay nieudany — Ponów zwrot”); „Ponów zwrot” = „Anuluj i zwróć” dla tego zamówienia.
 - **AC-27**: Given e-mail `event_cancelled` When jest wysyłany Then treść: „Wydarzenie <nazwa> (<daty>) zostało odwołane. Powód: <powód>.” oraz w zależności od metody:
@@ -181,6 +182,15 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 - **AC-49**: Given zgłoszenie When admin otwiera `/panel/zamowienia/` Then filtr „Zgłoszone odstąpienia” i przy zamówieniu „Odstąpienie zgłoszone 5.01.2027 — zwróć do 19.01.2027”
   z przyciskiem „Zleć zwrot” (kwota z zgłoszenia, bez edycji; dalej jak AC-19, bez ponownego anulowania); po zleceniu zgłoszenie → `processed`.
 - **AC-50**: Given drugie zgłoszenie do tego samego zamówienia albo po oknie When wysyłam Then `withdrawal_exists` / `withdrawal_window_closed` („Termin na odstąpienie minął.”).
+
+### Nieudany zwrot po odwołaniu wydarzenia lub odstąpieniu (US-4, US-5, US-9)
+- **AC-51**: Given zwrot za wejściówkę odwołanego wydarzenia (AC-24, AC-28) When Tpay go odrzuci i wykona się `revert_order_refund` Then zamówienie → `paid`,
+  a uprawnienie **zostaje `cancelled`** (wejściówka odwołanego wydarzenia jest nieważna — także dla `pass_valid_on`, niezależnie od stanu, AC-41);
+  pozycja na liście AC-26 ma stan „Zwrot Tpay nieudany — Ponów zwrot”; „Ponów zwrot” zleca zwrot pełnej kwoty bez sprawdzania zużycia (SPEC-003 AC-26 nie obowiązuje).
+- **AC-52**: Given zwrot po odstąpieniu (`withdrawal_on` ustawione — AC-19, AC-48, AC-49) When Tpay go odrzuci i wykona się `revert_order_refund` Then zamówienie → `paid`
+  z zachowanym `refund_amount` i `withdrawal_on`, uprawnienie **zostaje `cancelled`** (odstąpienie jest skuteczne od oświadczenia), zgłoszenie `withdrawal_requests` wraca do `new`;
+  admin widzi „Zwrot nieudany — Ponów zwrot”, a ponowienie wysyła tę samą kwotę `refund_amount` (bez ponownego wyliczenia i anulowania).
+  `revert_order_refund` przywraca `active` tylko dla zwrotu z „Anuluj i zwróć” (SPEC-003 AC-25, AC-21) — `withdrawal_on is null` i wydarzenie nieodwołane.
 
 ## 5. Model danych
 
@@ -259,7 +269,7 @@ Komunikaty błędów: `consent_required` — „Zaznacz zgodę na korzystanie pr
 - Okno odstąpienia: opłacone 31.12 o 23:50 (Warsaw) → ostatni dzień 14.01; liczone w Europe/Warsaw, także przy zmianie czasu.
 - Odstąpienie od karnetu czasowego z dniem odstąpienia przed aktywacją, a aktywacja później (wpis z datą wcześniejszą niż admin wpisał) → wykorzystane dni = 0, pełny zwrot (min. 0).
 - Karnet czasowy z `valid_extra_days` przy odstąpieniu → liczy się `days_total` (cena za dni), przedłużenie nie zmienia wyliczenia; dni zamknięcia między aktywacją a odstąpieniem wliczają się do wykorzystanych (okno 14 dni i zamknięcie > 7 dni są skrajnie rzadkie — admin może wpisać inny dzień odstąpienia).
-- Zwrot częściowy, który Tpay odrzuci (np. środki rozliczone) → `revert_order_refund` (bez zmian), admin widzi „Zwrot nieudany”, może ponowić.
+- Zwrot częściowy, który Tpay odrzuci (np. środki rozliczone) → `revert_order_refund`, uprawnienie zostaje `cancelled` (AC-52), admin widzi „Zwrot nieudany”, może ponowić.
 - Powiadomienie Tpay o zwrocie częściowym → `process_tpay_notification` porównuje kwotę zwrotu z `refund_amount` (nie z `amount`).
 - Odwołanie wydarzenia z setkami zamówień Tpay → `event-cancel` zleca zwroty partiami po 20 (limit czasu Edge Function); niewysłane zostają w `refund_pending` z flagą `refund_requested_at is null`,
   a zadanie co 10 min (to samo co e-maile) je dokańcza.
@@ -287,6 +297,7 @@ Komunikaty błędów: `consent_required` — „Zaznacz zgodę na korzystanie pr
 - Poczta przez skrzynkę sprzedawcy w domenie steel-valley.pl (2-A) — bez nowego odbiorcy danych w klauzuli RODO.
 - Powiadomienie `withdrawal_admin` bez danych osoby (tylko numer zamówienia i link do panelu).
 - `withdrawal_requests.comment`, `range_closures.reason` — tekst swobodny, tylko admin; podpowiedź „Nie wpisuj danych osobowych.” (przy przyczynie zamknięcia).
+- `calendar_events.cancel_reason` — tekst publiczny; podpowiedź „Nie wpisuj danych osobowych.” (AC-23).
 - Zgoda (AC-6) i wersja regulaminu przechowywane z zamówieniem (5 lat od końca roku zakupu, jak zamówienia).
 
 ## 10. Decyzje i pytania
@@ -323,9 +334,10 @@ Kolejność = kolejka realizacji (zależności, potem waga prawna). Wszystkie za
 
 1. #158 Wersja regulaminu, zgoda i „Zamawiam i płacę”: `sales_terms_versions`, `orders.terms_version`, `early_performance_consent_at`, `create_tpay_order`, `payments-create`, `/oferta/zamowienie/`, `/regulamin-sprzedazy/` „Wersje”, `/konto/` (AC-1…AC-8).
 2. #159 E-maile: ADR-0009, `email_outbox`, `mail-send` (SMTP 465, PDF), `pg_cron` ponowień, `payments-notify`, stan w panelu i „Wyślij ponownie” (AC-9…AC-14).
-3. #160 Odstąpienie i zwrot częściowy w panelu: `withdrawal_quote`, `withdraw_order`, `refund_amount`, `payments-refund` z kwotą, powiadomienie o zwrocie częściowym, ostrzeżenie po 14 dniach (AC-15…AC-22).
+   PDF pobierany z `SITE_URL` — na stagingu bez pliku PDF w `web/public/regulamin-sprzedazy/` e-mail `order_paid` nie wyjdzie (ADR-0009); test na stagingu z przykładowym PDF.
+3. #160 Odstąpienie i zwrot częściowy w panelu: `withdrawal_quote`, `withdraw_order`, `refund_amount`, `payments-refund` z kwotą, powiadomienie o zwrocie częściowym, ostrzeżenie po 14 dniach, `revert_order_refund` bez reaktywacji po odstąpieniu (AC-15…AC-22, AC-52).
 4. #161 Blokada karnetów w dniach wydarzeń i zawodów: `blocks_passes`, `range_blocked_on`, `pass_valid_on`, formularze kalendarza, książka, sprzedaż na miejscu, `/oferta/` (AC-40…AC-45).
-5. #162 Odwołanie wydarzenia: kolumny, `cancel_calendar_event`, `event-cancel`, kalendarz „Odwołane”, lista zwrotów, e-mail `event_cancelled` (AC-23…AC-29).
+5. #162 Odwołanie wydarzenia: kolumny, `cancel_calendar_event`, `event-cancel`, kalendarz „Odwołane”, lista zwrotów, e-mail `event_cancelled`, nieudany zwrot bez reaktywacji (AC-23…AC-29, AC-51).
 6. #163 Zamknięcie strzelnicy i przedłużenie ważności: `range_closures`, `valid_extra_days`, `/panel/zamkniecia/`, `/konto/` (AC-30…AC-34).
 7. #164 Godziny otwarcia: tabele, `/panel/godziny/`, `/oferta/#godziny`, stopka (AC-35…AC-39).
-8. #165 „Odstąp od umowy” w `/konto/`: `withdrawal_requests`, `submit_withdrawal`, e-maile, filtr w panelu (AC-46…AC-50).
+8. #165 „Odstąp od umowy” w `/konto/`: `withdrawal_requests`, `submit_withdrawal`, e-maile, filtr w panelu, nieudany zwrot → zgłoszenie `new` (AC-46…AC-50, AC-52).
