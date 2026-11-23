@@ -1,13 +1,76 @@
 ---
-/** Regulamin sprzedaży (SPEC-003 decyzja 12-A): tekst zastępczy do czasu dostarczenia treści przez właściciela (#39). */
+/**
+ * Regulamin sprzedaży (#154, SPEC-003 decyzja 12-A): treść od właściciela z `salesTerms.body`,
+ * data „Obowiązuje od: …” z § 13 tej treści.
+ */
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { t } from '../../i18n';
+import { salesTermsBlocks, salesTermsEffectiveFrom, type ListItem, type Span } from '../../lib/sales-terms';
+
+const body = t('salesTerms.body');
+const blocks = salesTermsBlocks(body);
+const effective = salesTermsEffectiveFrom(body);
 ---
 <BaseLayout title={t('salesTerms.title')}>
   <section class="section">
-    <div class="container">
-      <h1>{t('salesTerms.title')}</h1>
-      <p>{t('salesTerms.placeholder')}</p>
+    <div class="container sales-terms">
+      {
+        blocks.map((block) => {
+          const spans = (items: readonly Span[]) =>
+            items.map((s) => (s.bold ? <strong>{s.text}</strong> : s.italic ? <em>{s.text}</em> : s.text));
+          const list = (items: readonly ListItem[], ordered: boolean) =>
+            ordered ? (
+              <ol>{items.map((item) => <li>{spans(item.spans)}{item.children.length > 0 && list(item.children, true)}</li>)}</ol>
+            ) : (
+              <ul>{items.map((item) => <li>{spans(item.spans)}</li>)}</ul>
+            );
+          switch (block.kind) {
+            case 'h1':
+              return (
+                <>
+                  <h1>{spans(block.spans)}</h1>
+                  <p class="effective">{t('salesTerms.effectiveFrom', { date: effective.label })}</p>
+                </>
+              );
+            case 'h2':
+              return <h2>{spans(block.spans)}</h2>;
+            case 'p':
+              return <p>{spans(block.spans)}</p>;
+            default:
+              return list(block.items, block.kind === 'ol');
+          }
+        })
+      }
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .sales-terms {
+    max-width: 48rem;
+    overflow-wrap: anywhere; /* długie adresy i e-maile na 320 px */
+  }
+
+  .sales-terms .effective {
+    color: var(--color-text-muted);
+    margin-top: 0;
+  }
+
+  .sales-terms h2 {
+    margin: var(--space-6) 0 var(--space-3);
+    font-size: var(--text-lg);
+  }
+
+  .sales-terms ol,
+  .sales-terms ul {
+    padding-left: 1.5rem;
+  }
+
+  .sales-terms li {
+    margin-bottom: var(--space-2);
+  }
+
+  .sales-terms li > ol {
+    margin-top: var(--space-2);
+  }
+</style>

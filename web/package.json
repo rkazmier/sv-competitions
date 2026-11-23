@@ -8,7 +8,8 @@
     "preview": "astro preview",
     "lint": "eslint .",
     "typecheck": "astro check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pdf:sales-terms": "UPDATE_SALES_TERMS_PDF=1 vitest run src/lib/sales-terms-pdf.test.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

@@ -96,6 +96,8 @@ test.describe('zalogowany', () => {
     await expect(page.getByText(item.name, { exact: true })).toBeVisible();
     await expect(page.getByText('Ważny 1 rok od zakupu.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'regulamin sprzedaży' })).toHaveAttribute('href', '/regulamin-sprzedazy/');
+    // #154: regulamin w nowej karcie — zamówienie zostaje otwarte
+    await expect(page.getByRole('link', { name: 'regulamin sprzedaży' })).toHaveAttribute('target', '_blank');
 
     const pay = page.getByRole('button', { name: 'Zapłać 120,00 zł' });
     await pay.click();
