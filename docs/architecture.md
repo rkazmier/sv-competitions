@@ -292,6 +292,16 @@
   po 5. — `failed`. `invoke_mail_send()` — `pg_net` → `mail-send` (Vault: `project_url`, `mail_invoke_secret`), `pg_cron` `mail-send-retry`
   (`*/10 * * * *` UTC). `admin_resend_email(order_id, kind)` — admin, `failed` → `pending` (licznik 0), `audit_log` `email_resend`, wysyłka od razu.
   `admin_list_orders` zwraca `email_status`, `email_sent_at`; panel: „E-mail z potwierdzeniem: …” i „Wyślij ponownie”.
+  Odstąpienie od umowy w panelu (SPEC-012 US-4) — zrobione (#160): `orders.refund_amount` (grosze, 1…`amount`; pełny = `amount`,
+  starsze `refunded` — `null`), `withdrawal_on`, `refund_requested_at`. Okno: `withdrawal_last_day(paid_at)` = dzień opłacenia
+  (Europe/Warsaw) + 14 włącznie. `withdrawal_quote(order_id, day)` — admin, `tpay` `paid` karnet ilościowy / wejście jednorazowe
+  (`withdrawal_not_available`, `withdrawal_window_closed`, `withdrawal_invalid_day`): zwrot = cena − floor(cena × wykorzystane / całość).
+  `withdraw_order(order_id, day, note)` — blokada wierszy, ponowne wyliczenie (`withdrawal_nothing_to_refund` przy 0 zł), uprawnienie
+  → `cancelled` mimo zużyć, `refund_pending` z `refund_amount` i `withdrawal_on`, `audit_log` `order_refund` (`reason: withdrawal`);
+  `paid` z `withdrawal_on` (zwrot odrzucony) → ponowienie tej samej kwoty bez wyliczenia (AC-52). `cancel_order` ustawia
+  `refund_amount = amount`, po oknie wymaga notatki 3–300 znaków dla produktów (`refund_note_required`). `process_tpay_notification`
+  porównuje zwrot z `coalesce(refund_amount, amount)` (w `tr_amount` albo `tr_paid`). `admin_list_orders` + `refund_amount`,
+  `withdrawal_on`, `pass_kind`, `refund_window_until`, `withdrawal_refund` (zwrot na dziś). `/konto/`: „Zwrócone X z Y”.
   Planowane (SPEC-012, ADR-0009): `refund_amount`, `withdrawal_on`, `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
   e-maile `event_cancelled`, `withdrawal_*` w `mail-send`; odwołanie wydarzenia
   `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
@@ -466,6 +476,8 @@
   bez kwoty (zwrot pełnej kwoty); `refunded` ustawia `payments-notify`. Tpay odrzucił / brak odpowiedzi →
   `rpc/revert_order_refund` i 502 `refund_failed`. Odpowiedzi: 200 `{ status }`, 400, 401, 403, 404, 409 (`pass_used`,
   `order_not_paid`), 500, 502. Sekrety: `TPAY_API_URL`, `TPAY_CLIENT_ID`, `TPAY_CLIENT_SECRET`.
+  SPEC-012 AC-19: `mode` `full` (domyślnie) / `withdrawal` (+ `withdrawal_on`) — `rpc/withdraw_order` zamiast `cancel_order`;
+  zwrot częściowy (`refund_amount < amount`) wysyła `{ amount }` w zł, pełny — bez kwoty.
 - `retention` (SPEC-005 AC-30, AC-31, ADR-0006, `verify_jwt = false`): POST z `Authorization: Bearer RETENTION_INVOKE_SECRET`
   (porównanie w stałym czasie, inaczej 401). Kluczem secret: `rpc/retention_signatures` partiami po 1000 (maks. 20),
   `DELETE /storage/v1/object/signatures` po 100 plików, na końcu `rpc/purge_range_log`. Nieudane usunięcie pliku zostawia

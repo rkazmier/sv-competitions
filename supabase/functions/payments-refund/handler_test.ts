@@ -28,18 +28,20 @@ interface Mock {
   user?: number;
   cancel?: { status: number; body: unknown };
   refund?: { status: number; body: unknown } | 'network';
+  /** Kwoty zamówienia po `cancel_order` / `withdraw_order` (grosze). */
+  order?: { amount: number; refund_amount: number | null };
 }
 
-/** Zamockowany fetch: Auth, `cancel_order`, odczyt zamówienia, `revert_order_refund`, OAuth i zwrot Tpay. */
-function mockFetch({ user = 200, cancel = { status: 200, body: 'refund_pending' }, refund }: Mock = {}) {
+/** Zamockowany fetch: Auth, `cancel_order` / `withdraw_order`, odczyt zamówienia, `revert_order_refund`, OAuth i zwrot Tpay. */
+function mockFetch({ user = 200, cancel = { status: 200, body: 'refund_pending' }, refund, order }: Mock = {}) {
   const calls: Call[] = [];
   const reply = (status: number, body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status }));
   const fetch = (input: string | URL | Request, init: RequestInit = {}) => {
     const url = String(input);
     calls.push({ url, init });
     if (url.endsWith('/auth/v1/user')) return reply(user, user === 200 ? { id: ADMIN, email: 'admin@example.test' } : {});
-    if (url.endsWith('/rpc/cancel_order')) return reply(cancel.status, cancel.body);
-    if (url.includes('/rest/v1/orders?')) return reply(200, [{ tpay_transaction_id: '01TPAY/TX' }]);
+    if (url.endsWith('/rpc/cancel_order') || url.endsWith('/rpc/withdraw_order')) return reply(cancel.status, cancel.body);
+    if (url.includes('/rest/v1/orders?')) return reply(200, [{ tpay_transaction_id: '01TPAY/TX', ...order }]);
     if (url.endsWith('/rpc/revert_order_refund')) return reply(200, true);
     if (url.endsWith('/oauth/auth')) return reply(200, { access_token: 'tpay-token' });
     if (url.includes('/refunds')) {
@@ -131,4 +133,71 @@ Deno.test('AC-25: brak sesji, zły JWT, złe body, brak konfiguracji — bez zmi
   const { fetch } = mockFetch();
   const get = await handle(new Request('http://localhost/payments-refund'), { fetch, config: CONFIG, log: () => {} });
   assert(get.status === 405, 'tylko POST');
+});
+
+Deno.test('AC-19: mode withdrawal — withdraw_order z JWT admina, zwrot częściowy refund_amount w Tpay', async () => {
+  const { calls, fetch } = mockFetch({ order: { amount: 10000, refund_amount: 6667 } });
+  const body = { order_id: ORDER, mode: 'withdrawal', withdrawal_on: '2027-01-05', refund_note: ' Telefon ' };
+  const response = await handle(request(body), { fetch, config: CONFIG, log: () => {} });
+  assert(response.status === 200 && (await response.json()).status === 'refund_pending', `status ${response.status}`);
+  assert(!find(calls, '/rpc/cancel_order'), 'bez cancel_order');
+  const withdraw = find(calls, '/rpc/withdraw_order')!;
+  assert(new Headers(withdraw.init.headers).get('Authorization') === JWT, 'withdraw_order z JWT wywołującego');
+  assert(JSON.stringify(JSON.parse(String(withdraw.init.body))) ===
+    JSON.stringify({ p_order_id: ORDER, p_day: '2027-01-05', p_note: 'Telefon' }), String(withdraw.init.body));
+  const refund = find(calls, '/refunds')!;
+  assert(JSON.parse(String(refund.init.body)).amount === 66.67, String(refund.init.body));
+});
+
+Deno.test('AC-19: zwrot pełnej kwoty (refund_amount = amount) — Tpay bez kwoty', async () => {
+  const { calls, fetch } = mockFetch({ order: { amount: 5000, refund_amount: 5000 } });
+  const response = await handle(request({ order_id: ORDER, mode: 'withdrawal', withdrawal_on: '2027-01-05' }), {
+    fetch,
+    config: CONFIG,
+    log: () => {},
+  });
+  assert(response.status === 200, `status ${response.status}`);
+  assert(String(find(calls, '/refunds')!.init.body) === '{}', 'pełny zwrot bez kwoty');
+});
+
+Deno.test('AC-52: „Ponów zwrot” bez dnia; Tpay odrzucił — revert_order_refund, 502', async () => {
+  const { calls, fetch } = mockFetch({ order: { amount: 10000, refund_amount: 6667 }, refund: { status: 400, body: {} } });
+  const response = await handle(request({ order_id: ORDER, mode: 'withdrawal' }), { fetch, config: CONFIG, log: () => {} });
+  assert(response.status === 502, `status ${response.status}`);
+  assert(JSON.parse(String(find(calls, '/rpc/withdraw_order')!.init.body)).p_day === null, 'bez dnia');
+  assert(find(calls, '/rpc/revert_order_refund'), 'cofnięcie zlecenia');
+});
+
+Deno.test('AC-18, AC-21: odmowy odstąpienia i brak notatki — bez Tpay', async () => {
+  const cases = [
+    ['withdrawal_nothing_to_refund', 409],
+    ['withdrawal_window_closed', 409],
+    ['withdrawal_not_available', 409],
+    ['withdrawal_invalid_day', 400],
+    ['refund_note_required', 400],
+  ] as const;
+  for (const [code, status] of cases) {
+    const { calls, fetch } = mockFetch({ cancel: { status: 400, body: { code: 'P0001', message: code } } });
+    const response = await handle(request({ order_id: ORDER, mode: 'withdrawal', withdrawal_on: '2027-01-05' }), {
+      fetch,
+      config: CONFIG,
+      log: () => {},
+    });
+    assert(response.status === status && (await response.json()).error === code, `${code}: ${response.status}`);
+    assert(!find(calls, 'tpay.com'), 'bez wywołań Tpay');
+  }
+});
+
+Deno.test('AC-19: zły tryb albo dzień — 400 bez zmian w bazie', async () => {
+  const bodies = [
+    { order_id: ORDER, mode: 'partial' },
+    { order_id: ORDER, mode: 'withdrawal', withdrawal_on: '5.01.2027' },
+    { order_id: ORDER, withdrawal_on: '2027-01-05' },
+  ];
+  for (const body of bodies) {
+    const { calls, fetch } = mockFetch();
+    const response = await handle(request(body), { fetch, config: CONFIG, log: () => {} });
+    assert(response.status === 400, `${JSON.stringify(body)}: ${response.status}`);
+    assert(!find(calls, '/rpc/'), 'bez RPC');
+  }
 });

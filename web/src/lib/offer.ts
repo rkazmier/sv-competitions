@@ -6,7 +6,7 @@
 import { t, type MessageKey } from '../i18n';
 import { LOGIN_PAGE, withNext } from './auth';
 import { todayInWarsaw } from './calendar';
-import type { Product } from './products';
+import { formatPrice, type Product } from './products';
 import type { PassUsage } from './range-history';
 import { salesTermsPdfPath, shortDay } from './sales-terms';
 
@@ -199,10 +199,12 @@ export interface UserOrder extends OrderTerms {
   /** SPEC-004 AC-7: status faktury (`invoice.ts`, `invoiceStatus`). */
   invoice_requested: boolean;
   invoice_number: string | null;
+  /** SPEC-012 AC-20: kwota zwrotu (grosze); `null` — brak zwrotu albo starszy zwrot pełny. */
+  refund_amount: number | null;
 }
 
 export const ORDER_COLUMNS =
-  'id, order_number, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number, terms_version, early_performance_consent_at';
+  'id, order_number, item_name, amount, payment_method, status, created_at, invoice_requested, invoice_number, terms_version, early_performance_consent_at, refund_amount';
 
 export const ORDER_STATUS_TEXT: Record<OrderStatus, MessageKey> = {
   paid: 'offer.statusPaid',
@@ -221,6 +223,23 @@ export const PAYMENT_METHOD_TEXT: Record<UserOrder['payment_method'], MessageKey
 /** Status zamówienia po polsku; SPEC-010 AC-13: anulowany prezent — „Anulowane” (nie „Nieopłacone — anulowane”). */
 export function orderStatusKey(order: Pick<UserOrder, 'payment_method' | 'status'>): MessageKey {
   return order.payment_method === 'gift' && order.status === 'cancelled' ? 'offer.statusGiftCancelled' : ORDER_STATUS_TEXT[order.status];
+}
+
+type RefundFields = Pick<UserOrder, 'payment_method' | 'status' | 'amount' | 'refund_amount'>;
+
+/** SPEC-012 AC-20: zwrot częściowy (`refund_amount` < `amount`) w toku albo wykonany. */
+export function isPartialRefund(order: RefundFields): boolean {
+  return (order.status === 'refunded' || order.status === 'refund_pending')
+    && order.refund_amount !== null && order.refund_amount < order.amount;
+}
+
+/** SPEC-012 AC-20: „Zwrócone 66,67 zł z 100,00 zł” / „Zwrot w toku: 66,67 zł”; pozostałe — jak `orderStatusKey`. */
+export function orderStatusText(order: RefundFields): string {
+  if (!isPartialRefund(order)) return t(orderStatusKey(order));
+  const refund = formatPrice(order.refund_amount!);
+  return order.status === 'refunded'
+    ? t('offer.statusRefundedPartial', { refund, amount: formatPrice(order.amount) })
+    : t('offer.statusRefundPendingPartial', { refund });
 }
 
 /** Od najnowszych (AC-13). */

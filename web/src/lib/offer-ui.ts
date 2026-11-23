@@ -23,7 +23,7 @@ import {
   idParam,
   needsConsent,
   orderPath,
-  orderStatusKey,
+  orderStatusText,
   orderTermsLines,
   termsVersionSuffix,
   type OrderTerms,
@@ -374,7 +374,7 @@ export function orderTermsNodes(order: OrderTerms): HTMLElement[] {
 
 function orderRow(order: UserOrder): HTMLTableRowElement {
   const row = node('tr');
-  const status = node('td', t(orderStatusKey(order)));
+  const status = node('td', orderStatusText(order));
   // SPEC-004 AC-7: „Faktura: w przygotowaniu” / „Faktura: <numer>” (bez pliku — faktura przez KSeF).
   const invoice = invoiceStatus(order);
   if (invoice) status.append(node('span', t(invoice.key, 'number' in invoice ? { number: invoice.number } : {}), 'invoice-status'));
