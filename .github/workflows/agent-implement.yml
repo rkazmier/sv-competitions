@@ -40,7 +40,7 @@ jobs:
           node-version: 22
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Git identity
         run: |
           git config user.name "SV Agent (Implementator)"
@@ -94,7 +94,7 @@ jobs:
           node-version: 22
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Git identity
         run: |
           git config user.name "SV Agent (Implementator)"
