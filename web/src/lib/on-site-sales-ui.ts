@@ -192,6 +192,7 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
         .select(SALE_EVENT_COLUMNS)
         .eq('status', 'published')
         .eq('access_mode', 'paid')
+        .is('cancelled_at', null)
         .or(`ends_on.gte.${today},starts_on.gte.${today}`)
         .order('starts_on'),
       loadRangeBlocks(supabase, today),

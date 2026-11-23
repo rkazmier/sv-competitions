@@ -6,6 +6,9 @@
  * zapisie opublikowanego wydarzenia (także zmiana flagi blokady karnetów, SPEC-012 AC-40) i usunięciu
  * opublikowanego wydarzenia. Zmiany szkicu jej nie uruchamiają,
  * podobnie jak zmiana samego dyżurnego Prowadzącego (pole niepubliczne, SPEC-007 AC-30).
+ *
+ * SPEC-012 US-5: „Odwołaj wydarzenie” i „Zwroty po odwołaniu” — lib/event-cancel-ui.ts; odwołane wydarzenie (AC-29)
+ * ma zablokowane pola poza opisem i powodem odwołania, bez publikacji i usuwania.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
@@ -25,6 +28,8 @@ import {
 } from './calendar-events';
 import { calendarDutyError, needsRebuild } from './calendar-duty';
 import { mountDutyField } from './calendar-duty-ui';
+import { isCancelReasonValid } from './event-cancel';
+import { mountEventCancel } from './event-cancel-ui';
 import { disciplineOptions, type DisciplineOption } from './competitions';
 import { requireAdmin, showLoadError } from './panel';
 import { priceInputValue } from './products';
@@ -32,7 +37,7 @@ import { rebuildAndDescribe } from './site-rebuild';
 
 // Kolumny jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
 const COLUMNS =
-  'id, name, category_id, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity, blocks_passes';
+  'id, name, category_id, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity, blocks_passes, cancelled_at, cancel_reason';
 const EDIT_URL = '/panel/wydarzenia/edytuj/';
 const FIELDS: CalendarEventField[] = [
   'name',
@@ -59,6 +64,9 @@ interface CalendarEvent {
   ticket_price: number | null;
   capacity: number | null;
   blocks_passes: boolean;
+  /** SPEC-012 US-5: odwołanie (publiczny powód) */
+  cancelled_at: string | null;
+  cancel_reason: string | null;
 }
 
 const FIELD_ERRORS: Record<string, string> = {
@@ -101,6 +109,21 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
   };
 
   const supabase: SupabaseClient = await requireAdmin();
+  const cancelReason = query<HTMLTextAreaElement>(form, '[name="cancel_reason"]');
+  const cancelReasonError = query<HTMLElement>(form, '[data-error-for="cancel_reason"]');
+  const eventCancel = mountEventCancel({
+    root,
+    supabase,
+    announce,
+    onCancelled: async (message) => {
+      if (!event) return;
+      const { data } = await supabase.from('calendar_events').select(COLUMNS).eq('id', event.id).maybeSingle();
+      if (data) event = data as CalendarEvent;
+      fillForm();
+      // SPEC-012 AC-24: odwołanie zmienia kalendarz publiczny — przebudowa.
+      await announceChange(message, true);
+    },
+  });
   const isEdit = root.dataset.calendarEvent === 'edit';
   const id = isEdit ? new URLSearchParams(window.location.search).get('id') : null;
   const duty = mountDutyField(query<HTMLElement>(form, '[data-duty-field]'), supabase, 'event');
@@ -168,14 +191,57 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       field('capacity').value = event.capacity ? String(event.capacity) : '';
       blocksPasses.checked = event.blocks_passes;
       const published = event.status === 'published';
+      const cancelled = Boolean(event.cancelled_at);
       statusTag.hidden = false;
-      statusTag.textContent = published ? t('entries.statusPublished') : t('entries.statusDraft');
-      publishButton.hidden = published;
-      unpublishButton.hidden = !published;
-      query<HTMLElement>(root, '[data-danger]').hidden = false;
+      statusTag.textContent = cancelled
+        ? t('eventCancel.tag')
+        : published ? t('entries.statusPublished') : t('entries.statusDraft');
+      publishButton.hidden = published || cancelled;
+      unpublishButton.hidden = !published || cancelled;
+      // SPEC-012 AC-29: odwołane — bez usuwania; edycja tylko opisu i powodu odwołania.
+      query<HTMLElement>(root, '[data-danger]').hidden = cancelled;
+      query<HTMLElement>(root, '[data-cancelled-info]').hidden = !cancelled;
+      query<HTMLElement>(form, '[data-cancel-reason-field]').hidden = !cancelled;
+      cancelReason.value = event.cancel_reason ?? '';
+      for (const control of form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+        'input, select, textarea',
+      )) {
+        // Odwołanie jest nieodwracalne — pól nie trzeba ponownie włączać.
+        if (cancelled && control.name !== 'description' && control.name !== 'cancel_reason') control.disabled = true;
+      }
       savedRow = toEventRow(readInput());
     }
     renderPreview();
+    void eventCancel.render(event);
+  }
+
+  /** SPEC-012 AC-29: zapis odwołanego wydarzenia — tylko opis i powód odwołania (oba publiczne → przebudowa). */
+  async function saveCancelled(current: CalendarEvent, button: HTMLButtonElement): Promise<void> {
+    announce('');
+    const description = field('description').value.trim();
+    const reasonOk = isCancelReasonValid(cancelReason.value);
+    cancelReasonError.textContent = reasonOk ? '' : t('eventCancel.reasonInvalid');
+    cancelReasonError.hidden = reasonOk;
+    const descriptionOk = [...description].length <= EVENT_DESCRIPTION_MAX;
+    showErrors(descriptionOk ? {} : { description: 'tooLong' });
+    if (!reasonOk || !descriptionOk) {
+      announce(t('calendarEvent.fixErrors'));
+      return (reasonOk ? field('description') : cancelReason).focus();
+    }
+    const row = { description: description || null, cancel_reason: cancelReason.value.trim() };
+    const changed = row.description !== current.description || row.cancel_reason !== current.cancel_reason;
+    button.disabled = true;
+    try {
+      const { data, error } = await supabase.from('calendar_events').update(row).eq('id', current.id).select(COLUMNS).single();
+      if (error || !data) return announce(t('panel.saveError'));
+      event = data as CalendarEvent;
+      fillForm();
+      await announceChange(t('panel.saved'), changed);
+    } catch {
+      announce(t('panel.saveError'));
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function showErrors(errors: CalendarEventErrors): void {
@@ -251,7 +317,9 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
   form.addEventListener('change', renderPreview);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    void save(false, query<HTMLButtonElement>(form, '[data-save]'));
+    const button = query<HTMLButtonElement>(form, '[data-save]');
+    if (event?.cancelled_at) void saveCancelled(event, button);
+    else void save(false, button);
   });
   publishButton.addEventListener('click', () => void save(true, publishButton));
 

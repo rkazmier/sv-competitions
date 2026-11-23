@@ -1,5 +1,5 @@
 /**
- * Szablon e-maila `order_paid` (SPEC-012 AC-10): HTML + wersja tekstowa, kwoty „120,00 zł”, daty „2.01.2027”,
+ * Szablony e-maili `order_paid` (SPEC-012 AC-10) i `event_cancelled` (AC-27): HTML + wersja tekstowa, kwoty „120,00 zł”, daty „2.01.2027”,
  * godziny w Europe/Warsaw. Wartości z bazy w HTML zawsze escapowane.
  */
 import { t } from './i18n.ts';
@@ -21,6 +21,11 @@ export interface OutboxRow {
   event_starts_on: string | null;
   event_ends_on: string | null;
   email: string | null;
+  /** SPEC-012 AC-27 (`event_cancelled`): metoda płatności, kwota zwrotu, nazwa i powód odwołania wydarzenia. */
+  payment_method?: string | null;
+  refund_amount?: number | null;
+  event_name?: string | null;
+  cancel_reason?: string | null;
 }
 
 export interface Content {
@@ -143,4 +148,34 @@ export function orderPaidEmail(row: OutboxRow, siteUrl: string): Content {
   ].join('\r\n');
 
   return { subject: t('email.orderPaid.subject', { number }), text, html };
+}
+
+/** AC-27: e-mail o odwołaniu wydarzenia — treść zależy od metody płatności; stopka z numerem zamówienia. */
+export function eventCancelledEmail(row: OutboxRow): Content {
+  const name = row.event_name ?? row.item_name;
+  const dates = row.event_starts_on ? formatDayRange(row.event_starts_on, row.event_ends_on) : '';
+  const amount = formatPrice(row.refund_amount ?? row.amount);
+  const intro = t('email.eventCancelled.intro', { name, dates, reason: row.cancel_reason ?? '' });
+  const refund = row.payment_method === 'tpay'
+    ? t('email.eventCancelled.refundOnline', { amount })
+    : row.payment_method === 'on_site'
+    ? t('email.eventCancelled.refundOnSite', { amount })
+    : t('email.eventCancelled.gift');
+  const heading = t('email.eventCancelled.heading');
+  const footer = t('email.eventCancelled.footer', { number: row.order_number });
+
+  const text = [heading, '', intro, '', refund, '', '-- ', footer, ''].join('\r\n');
+  const e = escapeHtml;
+  const html = [
+    '<!doctype html>',
+    '<html lang="pl"><head><meta charset="utf-8"><title>' + e(heading) + '</title></head>',
+    '<body style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5">',
+    `<h1 style="font-size:20px">${e(heading)}</h1>`,
+    `<p>${e(intro)}</p>`,
+    `<p>${e(refund)}</p>`,
+    `<p style="color:#555">${e(footer)}</p>`,
+    '</body></html>',
+  ].join('\r\n');
+
+  return { subject: t('email.eventCancelled.subject', { name }), text, html };
 }

@@ -447,6 +447,10 @@ verify_jwt = false
 [functions.mail-send]
 verify_jwt = false
 
+# SPEC-012 §7: panel (JWT admina — rolę sprawdza baza) albo pg_cron + pg_net z sekretem MAIL_INVOKE_SECRET (dokończenie zwrotów).
+[functions.event-cancel]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

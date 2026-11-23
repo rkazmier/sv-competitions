@@ -241,3 +241,51 @@ Deno.test('ADR-0009: błąd bazy — 500, bez wysyłki', async () => {
   assert(response.status === 500, `status ${response.status}`);
   assert(mailer.sent.length === 0, 'nic nie wysłano');
 });
+
+const CANCELLED: OutboxRow = {
+  ...ROW,
+  id: '11111111-0000-0000-0000-000000000009',
+  kind: 'event_cancelled',
+  item_name: 'Wejściówka: Piknik strzelecki',
+  amount: 5000,
+  terms_version: null,
+  early_performance_consent_at: null,
+  pass_kind: 'event_ticket',
+  event_starts_on: '2027-03-14',
+  event_ends_on: '2027-03-15',
+  payment_method: 'tpay',
+  refund_amount: 5000,
+  event_name: 'Piknik <strzelecki>',
+  cancel_reason: 'Awaria osłon kulochwytu',
+};
+
+Deno.test('AC-27: e-mail event_cancelled — powód, zwrot online, stopka z numerem, bez załącznika i PDF', async () => {
+  const { urls, results, fetch } = mockFetch({ batches: [[CANCELLED]] });
+  const mailer = mockMailer();
+  const response = await handle(post(), { fetch, config: CONFIG, createMailer: mailer.createMailer, log: () => {} });
+  assert(response.status === 200, `status ${response.status}`);
+  assert(results.length === 1 && results[0].p_error === null, 'wysłany');
+  assert(!urls.some((url) => url.includes('/regulamin-sprzedazy/')), 'bez pobierania PDF');
+  const mail = mailer.sent[0];
+  assert(mail.attachments.length === 0, 'bez załącznika');
+  assert(mail.to === 'klient@example.test' && mail.replyTo === CONFIG.mailFrom, 'odbiorca i Reply-To');
+  assert(
+    mail.text.includes('Wydarzenie Piknik <strzelecki> (14–15.03.2027) zostało odwołane. Powód: Awaria osłon kulochwytu.'),
+    'treść odwołania',
+  );
+  assert(mail.text.includes('Zwrot 50,00 zł zlecony na rachunek lub kartę, z której zapłacono.'), 'zwrot online');
+  assert(mail.text.includes('SV-2027-000123'), 'numer zamówienia w stopce');
+  assert(mail.html.includes('Piknik &lt;strzelecki&gt;') && !mail.html.includes('<strzelecki>'), 'HTML escapowany');
+});
+
+Deno.test('AC-27: e-mail event_cancelled — na miejscu i prezent', async () => {
+  const gift: OutboxRow = { ...CANCELLED, id: 'x2', payment_method: 'gift', amount: 0, refund_amount: null };
+  const { fetch } = mockFetch({ batches: [[{ ...CANCELLED, payment_method: 'on_site' }, gift]] });
+  const mailer = mockMailer();
+  await handle(post(), { fetch, config: CONFIG, createMailer: mailer.createMailer, log: () => {} });
+  assert(
+    mailer.sent[0].text.includes('W sprawie zwrotu 50,00 zł za wejściówkę kupioną na strzelnicy odpowiedz na tę wiadomość.'),
+    'na miejscu',
+  );
+  assert(mailer.sent[1].text.includes('Wejściówka została anulowana.') && !mailer.sent[1].text.includes('Zwrot'), 'prezent');
+});

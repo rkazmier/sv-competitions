@@ -13,7 +13,7 @@ export const COMPETITION_PAGE_COLUMNS =
   'discipline:disciplines(name), rulebook:rulebooks(file_path), schedule_items(id, day, time, description, position)';
 export const EVENT_COLUMNS =
   'id, name, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity, ' +
-  'category:event_categories(name)';
+  'cancelled_at, cancel_reason, category:event_categories(name)';
 
 export interface CompetitionRow {
   id: string;
@@ -40,6 +40,9 @@ export interface EventRow {
   access_mode?: 'external' | 'free' | 'paid';
   ticket_price?: number | null;
   capacity?: number | null;
+  /** SPEC-012 AC-25: odwołanie (publiczne) */
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
   category: { name: string } | null;
 }
 
@@ -119,7 +122,12 @@ export function eventEntry(row: EventRow): CalendarEntry {
     label: row.category?.name ?? '',
     description: row.description,
     externalUrl: safeExternalUrl(row.external_url),
-    ...(row.access_mode === 'paid' && row.ticket_price ? { ticketPrice: row.ticket_price, capacity: row.capacity ?? null } : {}),
+    // SPEC-012 AC-25: odwołane — plakietka i powód zamiast ceny, „Kup wejściówkę” i liczby miejsc.
+    ...(row.cancelled_at
+      ? { cancelReason: row.cancel_reason ?? '' }
+      : row.access_mode === 'paid' && row.ticket_price
+      ? { ticketPrice: row.ticket_price, capacity: row.capacity ?? null }
+      : {}),
   };
 }
 

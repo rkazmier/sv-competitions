@@ -179,6 +179,7 @@ export async function mountPassGrant(root: HTMLElement): Promise<void> {
         .select(GRANT_EVENT_COLUMNS)
         .eq('status', 'published')
         .eq('access_mode', 'paid')
+        .is('cancelled_at', null)
         .or(`ends_on.gte.${today},starts_on.gte.${today}`)
         .order('starts_on'),
     ]);

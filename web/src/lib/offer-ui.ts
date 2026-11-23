@@ -118,12 +118,21 @@ interface OrderItem {
 async function loadTicket(supabase: SupabaseClient, eventId: string): Promise<OrderItem | string> {
   const { data, error } = await supabase
     .from('calendar_events')
-    .select('id, name, starts_on, ends_on, ticket_price')
+    .select('id, name, starts_on, ends_on, ticket_price, cancelled_at')
     .eq('id', eventId)
     .eq('status', 'published')
     .eq('access_mode', 'paid')
-    .maybeSingle<{ id: string; name: string; starts_on: string; ends_on: string | null; ticket_price: number | null }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      starts_on: string;
+      ends_on: string | null;
+      ticket_price: number | null;
+      cancelled_at: string | null;
+    }>();
   if (error) return t('offer.loadError');
+  // SPEC-012 AC-25: odwołane wydarzenie — bez zakupu.
+  if (data?.cancelled_at) return t('eventCancel.eventCancelled');
   if (!data?.ticket_price) return t('offer.unavailable');
   const seats = await supabase.rpc('event_seats_left', { p_event_id: eventId });
   const sale = ticketSale(data.ends_on ?? data.starts_on, todayInWarsaw(), typeof seats.data === 'number' ? seats.data : null);
@@ -146,6 +155,7 @@ const PAY_ERRORS: Record<string, MessageKey> = {
   terms_changed: 'offer.termsChanged',
   consent_required: 'offer.consentRequired',
   product_discontinued: 'offer.discontinued',
+  event_cancelled: 'eventCancel.eventCancelled',
 };
 
 /** AC-7: podsumowanie produktu albo wejściówki (AC-17); AC-8: „Zapłać” → `payments-create` → bramka Tpay. */

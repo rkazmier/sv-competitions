@@ -124,17 +124,18 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
   Kupujący z kontem dostaną e-mail. Tej operacji nie można cofnąć.”, wymagane pole „Powód odwołania (widoczny publicznie)” (3–200 znaków) z podpowiedzią „Nie wpisuj danych osobowych.” i „Odwołaj wydarzenie” / „Wróć”.
 - **AC-24**: Given potwierdzam When Edge Function `event-cancel` wywoła `rpc/cancel_calendar_event(event_id, reason)` Then w jednej transakcji: `calendar_events.cancelled_at`, `cancel_reason`, `cancelled_by`;
   zamówienia już `cancelled`, `refund_pending` lub `refunded` — pomijane (bez zmian, e-maila i wpisu w `audit_log`); `pending` → `cancelled`; `paid` Tpay → `refund_pending` (pełna kwota); `paid` na miejscu → `refunded` z adnotacją „Zwrot gotówki / na terminal — odwołanie wydarzenia”;
-  `paid` prezent → `cancelled`; wszystkie uprawnienia → `cancelled`; dla każdego zamówienia z kontem — `email_outbox` `event_cancelled`; `audit_log` `event_cancel` (wydarzenie, liczby, suma)
+  `paid` prezent → `cancelled`; wszystkie uprawnienia → `cancelled`; dla każdego opłaconego zamówienia z kontem (`paid` → `refund_pending` / `refunded` / `cancelled` prezent) — `email_outbox` `event_cancelled`
+  (zamówienia `pending` → `cancelled` bez e-maila — nic nie zapłacono; decyzja właściciela w PR #179); `audit_log` `event_cancel` (wydarzenie, liczby, suma)
   i `order_refund` dla każdego zwrotu; wyzwalacz `site-rebuild`. Potem funkcja zleca zwroty w Tpay po kolei; nieudane wracają do `paid` (`revert_order_refund`), uprawnienie zostaje `cancelled` (AC-51).
 - **AC-25**: Given wydarzenie odwołane When ktoś ogląda kalendarz lub kartę wydarzenia Then widzi plakietkę „Odwołane” i „Powód: <treść>”, bez „Kup wejściówkę” i liczby miejsc;
   `create_tpay_order`, `create_on_site_order` i `grant_pass` odrzucają wejściówkę (`event_cancelled`); wejściówki tego wydarzenia są nieważne (`pass_valid_on`, `passes_for_range_entry`),
   także gdyby któraś była `active`; wydarzenie nie blokuje karnetów (US-8).
 - **AC-26**: Given wydarzenie odwołane When admin otwiera je w panelu Then widzi listę „Zwroty po odwołaniu”: osoba (lub „Osoba bez konta”), numer zamówienia, metoda, kwota, stan
   („Zwrot w toku” / „Zwrócone” / „Do zwrotu na miejscu” / „Zwrot Tpay nieudany — Ponów zwrot”); „Ponów zwrot” = „Anuluj i zwróć” dla tego zamówienia.
-- **AC-27**: Given e-mail `event_cancelled` When jest wysyłany Then treść: „Wydarzenie <nazwa> (<daty>) zostało odwołane. Powód: <powód>.” oraz w zależności od metody:
+- **AC-27**: Given e-mail `event_cancelled` When jest wysyłany Then temat: „Wydarzenie odwołane: <nazwa> — Steel Valley”; treść: „Wydarzenie <nazwa> (<daty>) zostało odwołane. Powód: <powód>.” oraz w zależności od metody:
   online — „Zwrot <kwota> zlecony na rachunek lub kartę, z której zapłacono.”; na miejscu — „W sprawie zwrotu <kwota> za wejściówkę kupioną na strzelnicy odpowiedz na tę wiadomość.”;
   prezent — „Wejściówka została anulowana.”; stopka z numerem zamówienia.
-- **AC-28**: Given wpłata Tpay za zamówienie anulowane z powodu odwołania (przyszła po odwołaniu) When `payments-notify` ją przyjmie Then zamówienie → `paid`, uprawnienie od razu `cancelled`,
+- **AC-28**: Given wpłata Tpay za zamówienie anulowane z powodu odwołania (przyszła po odwołaniu) When `payments-notify` ją przyjmie Then zamówienie → `paid`, uprawnienie od razu `cancelled`, bez e-maila `order_paid`,
   pozycja pojawia się na liście AC-26 jako „Zwrot Tpay nieudany — Ponów zwrot” (admin zleca zwrot ręcznie).
 - **AC-29**: Given wydarzenie odwołane When admin próbuje je edytować lub usunąć Then dozwolone są tylko opis i powód odwołania; „Odwołaj wydarzenie” nie występuje
   dla wydarzeń zakończonych i już odwołanych. Odwołać można wydarzenie w każdym trybie (bezpłatne i zewnętrzne — tylko oznaczenie i e-maili brak).
