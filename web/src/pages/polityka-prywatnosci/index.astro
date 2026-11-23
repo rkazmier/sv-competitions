@@ -1,0 +1,76 @@
+---
+/**
+ * Polityka prywatności (SPEC-011 AC-1…AC-3): strona statyczna, treść z i18n (`privacyPolicy.sections`),
+ * data „Obowiązuje od” z `privacyPolicy.effectiveDate` (AC-4).
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { t } from '../../i18n';
+import { linkParts, privacyPolicyBlocks, type ListItem, type Span } from '../../lib/privacy-policy';
+
+const blocks = privacyPolicyBlocks(t('privacyPolicy.sections'));
+---
+<BaseLayout title={t('privacyPolicy.title')}>
+  <section class="section">
+    <div class="container privacy-policy">
+      <h1>{t('privacyPolicy.title')}</h1>
+      <p class="effective">{t('privacyPolicy.effectiveFrom', { date: t('privacyPolicy.effectiveDate') })}</p>
+      {
+        blocks.map((block) => {
+          const text = (value: string) =>
+            linkParts(value).map((part) =>
+              part.href === undefined ? (
+                part.text
+              ) : part.external ? (
+                <a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>
+              ) : (
+                <a href={part.href}>{part.text}</a>
+              ),
+            );
+          const spans = (items: readonly Span[]) =>
+            items.map((s) => (s.bold ? <strong>{text(s.text)}</strong> : s.italic ? <em>{text(s.text)}</em> : text(s.text)));
+          const list = (items: readonly ListItem[], ordered: boolean) =>
+            ordered ? (
+              <ol>{items.map((item) => <li>{spans(item.spans)}{item.children.length > 0 && list(item.children, true)}</li>)}</ol>
+            ) : (
+              <ul>{items.map((item) => <li>{spans(item.spans)}</li>)}</ul>
+            );
+          switch (block.kind) {
+            case 'h1':
+            case 'h2':
+              return <h2>{spans(block.spans)}</h2>;
+            case 'p':
+              return <p>{spans(block.spans)}</p>;
+            default:
+              return list(block.items, block.kind === 'ol');
+          }
+        })
+      }
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .privacy-policy {
+    max-width: 48rem;
+    overflow-wrap: anywhere; /* długie adresy i e-maile na 320 px */
+  }
+
+  .privacy-policy .effective {
+    color: var(--color-text-muted);
+    margin-top: 0;
+  }
+
+  .privacy-policy h2 {
+    margin: var(--space-6) 0 var(--space-3);
+    font-size: var(--text-lg);
+  }
+
+  .privacy-policy ol,
+  .privacy-policy ul {
+    padding-left: 1.5rem;
+  }
+
+  .privacy-policy li {
+    margin-bottom: var(--space-2);
+  }
+</style>

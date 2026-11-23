@@ -14,7 +14,10 @@ for (const width of WIDTHS) {
       await expect(header.getByRole('link', { name: 'Steel Valley Competitions' })).toBeVisible();
       await expect(header.getByRole('link', { name: 'Kalendarz' })).toHaveAttribute('href', '/');
       await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Kalendarz strzelnicy');
-      await expect(page.getByRole('contentinfo').getByRole('link')).toHaveAttribute('href', 'https://steel-valley.pl');
+      await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Strzelnica Steel Valley' })).toHaveAttribute(
+        'href',
+        'https://steel-valley.pl',
+      );
 
       const layout = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,

@@ -1,6 +1,8 @@
 ---
 /**
  * Klauzula informacyjna RODO (SPEC-002 AC-2, AC-3, §9). Treść: `privacy.body` w i18n (#39).
+ * Pod klauzulą link do polityki prywatności w nowej karcie — formularz rejestracji nie traci danych (SPEC-011 AC-7).
+ * `/panel/ksiazka/` używa samego `PrivacyNoticeText`, bez linku (SPEC-011 AC-9).
  */
 import { t } from '../i18n';
 import PrivacyNoticeText from './PrivacyNoticeText.astro';
@@ -13,3 +15,4 @@ const { headingId } = Astro.props;
 ---
 <h2 id={headingId}>{t('privacy.title')}</h2>
 <PrivacyNoticeText />
+<p><a href="/polityka-prywatnosci/" target="_blank" rel="noopener">{t('privacyPolicy.link')}</a></p>

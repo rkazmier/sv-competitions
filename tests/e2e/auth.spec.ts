@@ -121,6 +121,10 @@ test('AC-3: pierwsze logowanie bez potwierdzonej klauzuli (Google) → klauzula 
   await page.goto('/konto/');
   await expect(page.getByRole('heading', { name: 'Informacja o przetwarzaniu danych osobowych' })).toBeVisible();
   await expect(page.getByText(/^Administratorem Twoich danych osobowych/)).toBeVisible();
+  // SPEC-011 AC-7: pod klauzulą link do polityki prywatności w nowej karcie
+  const policyLink = page.getByRole('main').getByRole('link', { name: 'Polityka prywatności' });
+  await expect(policyLink).toHaveAttribute('href', '/polityka-prywatnosci/');
+  await expect(policyLink).toHaveAttribute('target', '_blank');
   await page.getByRole('button', { name: 'Rozumiem' }).click();
   await expect(page.getByRole('heading', { name: 'Moje konto' })).toBeVisible();
   const { data } = await admin().from('profiles').select('privacy_notice_ack_at').eq('id', id).single();

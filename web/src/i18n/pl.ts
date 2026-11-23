@@ -68,13 +68,96 @@ export const pl = {
       'Przetwarzamy Twoje dane w następujących celach: (1) prowadzenie konta w serwisie events.steel-valley.pl i sprzedaż wejść, karnetów i wejściówek — na podstawie umowy (art. 6 ust. 1 lit. b RODO); (2) prowadzenie książki rejestru pobytu na strzelnicy — w wykonaniu obowiązku prawnego ciążącego na strzelnicy (art. 6 ust. 1 lit. c RODO); (3) wystawianie faktur i przechowywanie dokumentacji księgowej — obowiązek prawny (art. 6 ust. 1 lit. c RODO); (4) zapewnienie bezpieczeństwa serwisu i rozliczalności zmian danych oraz ustalenie, dochodzenie lub obrona roszczeń — nasz prawnie uzasadniony interes (art. 6 ust. 1 lit. f RODO).\n\n' +
       'Przetwarzamy: imię i nazwisko, adres e-mail, numer telefonu (dobrowolnie), numer decyzji o pozwoleniu na broń wraz z organem wydającym albo adres zamieszkania, podpis złożony przy wpisie do książki, a jeśli prosisz o fakturę — NIP, nazwę i adres firmy. Nie zbieramy numeru PESEL ani daty urodzenia. Osoba wpisywana do książki bez konta podaje wyłącznie dane potrzebne do wpisu i podpis — nie zapisujemy ich nigdzie poza książką.\n\n' +
       'Podanie imienia i nazwiska oraz numeru decyzji z organem albo adresu zamieszkania jest warunkiem wpisu do książki, a więc wejścia na strzelnicę. Podanie adresu e-mail jest warunkiem założenia konta. Pozostałe dane są dobrowolne.\n\n' +
-      'Odbiorcy danych: dostawcy usług, z których korzystamy w naszym imieniu — hosting bazy danych i logowania (Supabase, serwery w Unii Europejskiej, Frankfurt), obsługa płatności (Tpay — otrzymuje imię i nazwisko oraz e-mail płatnika), a przy logowaniu przez Google — Google. Dane mogą też otrzymać uprawnione organy państwowe, gdy wynika to z przepisów. Dostawcy mogą mieć dostęp do danych z państw spoza Europejskiego Obszaru Gospodarczego (EOG); odbywa się to na podstawie standardowych klauzul umownych lub decyzji Komisji Europejskiej o adekwatności (EU–US Data Privacy Framework).\n\n' +
+      // Akapit „Odbiorcy danych” — SPEC-011 §12.2 (decyzja 4A w #153: klauzula mówi to samo co polityka).
+      'Odbiorcy danych: dostawcy usług, z których korzystamy w naszym imieniu — hosting bazy danych, logowania i plików oraz wysyłka wiadomości e-mail (Supabase, serwery w Unii Europejskiej, Frankfurt) i hosting stron serwisu (GitHub — otrzymuje adres IP i informacje o przeglądarce przy wyświetlaniu stron). Odrębnymi administratorami danych są: Tpay (Krajowy Integrator Płatności S.A.) w zakresie obsługi płatności — otrzymuje imię i nazwisko oraz e-mail płatnika, oraz Google w zakresie konta Google, jeśli logujesz się przez Google. Dane mogą też otrzymać uprawnione organy państwowe, gdy wynika to z przepisów. Dostawcy mogą mieć dostęp do danych z państw spoza Europejskiego Obszaru Gospodarczego (EOG); odbywa się to na podstawie standardowych klauzul umownych lub decyzji Komisji Europejskiej o adekwatności (EU–US Data Privacy Framework). Szczegóły: polityka prywatności na events.steel-valley.pl/polityka-prywatnosci/.\n\n' +
       'Okres przechowywania: dane konta — do czasu usunięcia konta; wpisy w książce rejestru pobytu wraz z podpisem — 1 rok od dnia wpisu, potem są automatycznie usuwane; historia zmian danych — 1 rok; zamówienia i dane do faktur — 5 lat od końca roku, w którym dokonano zakupu (przepisy podatkowe).\n\n' +
       'Masz prawo dostępu do swoich danych, ich sprostowania, usunięcia lub ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu wobec przetwarzania opartego na prawnie uzasadnionym interesie. Usunięcie danych nie obejmuje danych, które musimy przechowywać z mocy prawa (książka, faktury) — do końca okresu ich przechowywania. Masz prawo wnieść skargę do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa).\n\n' +
       'Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, w tym profilowaniu.',
     close: 'Zamknij',
     ackIntro: 'Zanim przejdziesz dalej, zapoznaj się z informacją o przetwarzaniu danych osobowych.',
     ack: 'Rozumiem',
+  },
+  privacyPolicy: {
+    title: 'Polityka prywatności',
+    // Data otwarcia PR-a publikującego stronę (SPEC-011 AC-4, decyzja 5A w #153). Zmiana polityki = nowa data.
+    effectiveDate: '23 listopada 2026',
+    effectiveFrom: 'Obowiązuje od: {date}',
+    link: 'Polityka prywatności',
+    // Punkty 1–11 polityki (SPEC-011 §12.1) 1:1. Format jak `salesTerms.body` (`## ` = nagłówek punktu,
+    // `- ` = lista, pusta linia = nowy blok) oraz `[tekst](adres)` = link (`privacyPolicyBlocks`, lib/privacy-policy.ts).
+    sections: String.raw`## 1. Kto jest administratorem danych
+
+Administratorem Twoich danych osobowych jest Rafał Kaźmierowski, ul. Lęborska 22E/39, 80-387 Gdańsk, NIP 9581488219 (dalej: Steel Valley), prowadzący serwis events.steel-valley.pl. W sprawach danych osobowych napisz na adres [rkazmierowski@gmail.com](mailto:rkazmierowski@gmail.com). Nie wyznaczyliśmy inspektora ochrony danych.
+
+Polityka dotyczy serwisu events.steel-valley.pl: kalendarza zawodów, kont, zakupów wejść, karnetów i wejściówek oraz elektronicznej książki rejestru pobytu na strzelnicy.
+
+## 2. Jakie dane przetwarzamy
+
+Przetwarzamy: imię i nazwisko, adres e-mail, numer telefonu (dobrowolnie), numer decyzji o pozwoleniu na broń wraz z organem wydającym albo adres zamieszkania, podpis złożony przy wpisie do książki, a jeśli prosisz o fakturę — NIP, nazwę i adres firmy. Przetwarzamy też historię zamówień i płatności, historię wejść na strzelnicę oraz dane techniczne: adres IP i informacje o przeglądarce przy wyświetlaniu stron i logowaniu. Nie zbieramy numeru PESEL ani daty urodzenia.
+
+Jeśli logujesz się przez Google, otrzymujemy od Google adres e-mail oraz dane profilu Google (imię i nazwisko, zdjęcie profilowe), zapisywane w danych logowania.
+
+Osoba wpisywana do książki bez konta podaje wyłącznie dane potrzebne do wpisu i podpis — nie zapisujemy ich nigdzie poza książką.
+
+## 3. W jakich celach i na jakiej podstawie
+
+(1) Prowadzenie konta, logowanie (także przez Google) i wysyłanie wiadomości związanych z kontem (potwierdzenie adresu e-mail, zmiana hasła) — na podstawie umowy o prowadzenie konta (art. 6 ust. 1 lit. b RODO).
+
+(2) Sprzedaż wejść, karnetów i wejściówek oraz obsługa płatności i zwrotów — na podstawie umowy (art. 6 ust. 1 lit. b RODO).
+
+(3) Prowadzenie książki rejestru pobytu na strzelnicy — w wykonaniu obowiązku prawnego ciążącego na strzelnicy (art. 6 ust. 1 lit. c RODO).
+
+(4) Wystawianie faktur i przechowywanie dokumentacji księgowej — obowiązek prawny (art. 6 ust. 1 lit. c RODO).
+
+(5) Zapewnienie bezpieczeństwa serwisu, rozliczalność zmian danych oraz ustalenie, dochodzenie lub obrona roszczeń — nasz prawnie uzasadniony interes (art. 6 ust. 1 lit. f RODO).
+
+## 4. Czy musisz podać dane
+
+Podanie imienia i nazwiska oraz numeru decyzji z organem albo adresu zamieszkania jest warunkiem wpisu do książki, a więc wejścia na strzelnicę. Podanie adresu e-mail jest warunkiem założenia konta. Dane do faktury są potrzebne, jeśli chcesz otrzymać fakturę. Pozostałe dane są dobrowolne.
+
+## 5. Komu przekazujemy dane
+
+Dostawcy usług, z których korzystamy w naszym imieniu:
+
+- Supabase — hosting bazy danych, logowania i plików (serwery w Unii Europejskiej, Frankfurt) oraz wysyłka wiadomości e-mail z serwisu;
+- GitHub — hosting stron serwisu; przy każdym wyświetleniu strony otrzymuje adres IP i informacje o przeglądarce. [Polityka prywatności GitHub](https://docs.github.com/pl/site-policy/privacy-policies/github-general-privacy-statement).
+
+Odrębni administratorzy, którzy przetwarzają dane na podstawie własnych zasad:
+
+- Tpay (Krajowy Integrator Płatności S.A.) — w zakresie obsługi płatności i zwrotów; otrzymuje imię i nazwisko oraz e-mail płatnika. [Polityka prywatności Tpay](https://tpay.com/polityka-prywatnosci);
+- Google — w zakresie konta Google, jeśli logujesz się przez Google. [Polityka prywatności Google](https://policies.google.com/privacy?hl=pl).
+
+Dane mogą też otrzymać uprawnione organy państwowe, gdy wynika to z przepisów.
+
+## 6. Przekazywanie danych poza EOG
+
+Dostawcy (Supabase, GitHub, Google) mogą mieć dostęp do danych z państw spoza Europejskiego Obszaru Gospodarczego (EOG), w szczególności z USA. Odbywa się to na podstawie standardowych klauzul umownych lub decyzji Komisji Europejskiej o adekwatności (EU–US Data Privacy Framework).
+
+## 7. Jak długo przechowujemy dane
+
+- Dane konta — do czasu usunięcia konta.
+- Wpisy w książce rejestru pobytu wraz z podpisem — 1 rok od dnia wpisu, potem są automatycznie usuwane.
+- Historia zmian danych — 1 rok.
+- Zamówienia i dane do faktur — 5 lat od końca roku, w którym dokonano zakupu (przepisy podatkowe).
+- Dane techniczne w logach serwera hostingu stron — według zasad GitHub.
+
+## 8. Twoje prawa
+
+Masz prawo dostępu do swoich danych, ich sprostowania, usunięcia lub ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu wobec przetwarzania opartego na prawnie uzasadnionym interesie. Usunięcie danych nie obejmuje danych, które musimy przechowywać z mocy prawa (książka, faktury) — do końca okresu ich przechowywania. Aby skorzystać z praw lub usunąć konto, napisz na adres z punktu 1.
+
+Masz prawo wnieść skargę do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa).
+
+## 9. Pliki cookies i pamięć przeglądarki
+
+Serwis nie używa plików cookies ani narzędzi analitycznych i reklamowych. Po zalogowaniu zapisujemy w pamięci Twojej przeglądarki (localStorage) dane sesji logowania, aby nie trzeba było logować się na każdej stronie — do wylogowania lub wygaśnięcia sesji. Osobom prowadzącym strzelanie zapisujemy też w pamięci karty przeglądarki (sessionStorage) informację, czy pełnią dziś dyżur — do zamknięcia karty lub wylogowania. Te dane są niezbędne do działania serwisu i nie są wykorzystywane do śledzenia.
+
+## 10. Zautomatyzowane decyzje
+
+Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, w tym profilowaniu.
+
+## 11. Zmiany polityki
+
+Gdy zmienimy sposób przetwarzania danych (np. dostawców usług), zaktualizujemy tę politykę i datę „Obowiązuje od”.`,
   },
   account: {
     title: 'Moje konto',
