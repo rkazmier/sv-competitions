@@ -195,7 +195,8 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 ### US-10: Jako sprzedawca chcę wycofać karnety czasowe z Oferty (decyzja 7-A)
 Typ `days` zostaje w bazie i kodzie (SPEC-003, SPEC-005) — obsługuje karnety sprzedane do 31.12.2026 aż do ich `expires_on` / `valid_until`.
 - **AC-53**: Given `/panel/oferta/` When dodaję produkt Then „Rodzaj” nie ma opcji „Karnet czasowy”; nowy produkt `kind = 'days'` (żądanie z pominięciem przeglądarki)
-  odrzuca wyzwalacz `products_before_write` (`product_kind_discontinued`: „Karnety czasowe zostały wycofane z Oferty.”). Edycja istniejących produktów czasowych — bez zmian (SPEC-003 AC-3).
+  odrzuca wyzwalacz `products_before_write` (`product_kind_discontinued`: „Karnety czasowe zostały wycofane z Oferty.”) — z panelu i z API z JWT użytkownika (także admina).
+  Wyjątek: klucz secret (`service_role`, tylko serwer) — dane testowe E2E dla karnetów sprzedanych przed wycofaniem (decyzja właściciela, PR #174). Edycja istniejących produktów czasowych — bez zmian (SPEC-003 AC-3).
 - **AC-54**: Given produkt `days` When jest 1.01.2027 lub później (Europe/Warsaw) Then `/oferta/` go nie pokazuje (grupy „Karnety czasowe” nie ma); `create_tpay_order`,
   `create_on_site_order` i `grant_pass` go odrzucają (`product_discontinued`: „Ten produkt nie jest już w ofercie.”); w `/panel/oferta/` ma plakietkę „Wycofany”
   i nie ma „Pokaż w ofercie”. Data w jednej stałej `DAYS_PASS_SALES_END = 2027-01-01` (funkcja SQL i `web/src/lib/products.ts`), bez zadania cyklicznego.
