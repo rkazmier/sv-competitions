@@ -15,15 +15,17 @@ insert into public.products (id, kind, name, price, entries, day_type) values
   ('00000000-0000-0000-0000-0000000005f2', 'single_entry', 'Wejście dziś', 5000, null,
    case when extract(isodow from public.range_today()) in (6, 7) then 'weekend' else 'weekday' end);
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-0000000005e0', 'Szkolenia S');
-insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, access_mode, ticket_price, capacity) values
+-- Bez blokady karnetów (SPEC-012 AC-40, AC-43 — 037_pass_blocking_test.sql): osoba bez konta kupuje wejście dziś.
+insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, access_mode, ticket_price, capacity,
+  blocks_passes) values
   ('00000000-0000-0000-0000-0000000005e1', 'Dziś', '00000000-0000-0000-0000-0000000005e0',
-   public.range_today(), public.range_today() + 1, 'published', 'paid', 8000, 2),
+   public.range_today(), public.range_today() + 1, 'published', 'paid', 8000, 2, false),
   ('00000000-0000-0000-0000-0000000005e2', 'Za tydzień', '00000000-0000-0000-0000-0000000005e0',
-   public.range_today() + 7, null, 'published', 'paid', 9000, null),
+   public.range_today() + 7, null, 'published', 'paid', 9000, null, false),
   ('00000000-0000-0000-0000-0000000005e3', 'Wczoraj', '00000000-0000-0000-0000-0000000005e0',
-   public.range_today() - 1, null, 'published', 'paid', 9000, null),
+   public.range_today() - 1, null, 'published', 'paid', 9000, null, false),
   ('00000000-0000-0000-0000-0000000005e4', 'Bezpłatne', '00000000-0000-0000-0000-0000000005e0',
-   public.range_today(), null, 'published', 'free', null, null);
+   public.range_today(), null, 'published', 'free', null, null, false);
 -- Wczorajsza sprzedaż na miejscu — poza dzisiejszą listą (AC-23).
 insert into public.orders (product_id, item_name, amount, payment_method, on_site_method, status, created_at, created_by) values
   ('00000000-0000-0000-0000-0000000005f2', 'Wczoraj', 5000, 'on_site', 'cash', 'paid',

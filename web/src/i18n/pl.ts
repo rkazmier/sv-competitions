@@ -719,6 +719,7 @@ Ja/My (\*) niniejszym informuję/informujemy (\*) o moim/naszym (\*) odstąpieni
     errorSalesClosed: 'Sprzedaż zakończona.',
     errorUnavailable: 'Ten produkt nie jest już dostępny.',
     errorGuest: 'Osobie bez konta można sprzedać tylko wejście na dziś.',
+    errorRangeBlocked: 'Dziś karnety i wejścia jednorazowe nie obowiązują.',
     errorPerson: 'Nie znaleziono osoby. Wyszukaj ją ponownie.',
     errorGeneric: 'Nie udało się zarejestrować sprzedaży. Spróbuj ponownie.',
     todayHeading: 'Dzisiejsza sprzedaż na miejscu',
@@ -1308,6 +1309,13 @@ Ja/My (\*) niniejszym informuję/informujemy (\*) o moim/naszym (\*) odstąpieni
     unpublished: 'Cofnięto publikację.',
     rulebookRequired: 'Aby opublikować zawody, wybierz regulamin.',
     confirmUnpublish: 'Czy na pewno cofnąć publikację zawodów „{name}”? Po odświeżeniu strony publicznej ich strona przestanie istnieć.',
+  },
+  // SPEC-012 US-8 (AC-40…AC-43): karnety nie obowiązują w dniach wydarzeń i zawodów.
+  passBlocking: {
+    label: 'Karnety i wejścia jednorazowe nie obowiązują w dniach tego wpisu',
+    hint: 'Odznacz tylko, gdy wpis nie zajmuje strzelnicy (np. wydarzenie poza strzelnicą).',
+    rangeEntry: 'Dziś: {name} — karnety i wejścia jednorazowe nie obowiązują. Wejście na zasadach wydarzenia (wejściówka).',
+    saleWarning: 'Karnet nie obowiązuje dziś ({name}).',
   },
   calendarEvent: {
     titleNew: 'Nowe wydarzenie',

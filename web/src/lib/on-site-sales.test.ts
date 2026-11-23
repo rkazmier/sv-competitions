@@ -46,6 +46,13 @@ describe('sprzedaż na miejscu (SPEC-003 US-5)', () => {
     expect(dayTypeOf('2026-11-23')).toBe('weekday');
   });
 
+  it('SPEC-012 AC-43: w dzień blokady osobie bez konta tylko wejściówka; z kontem — bez zmian', () => {
+    const blocked = (guest: boolean) => saleItems(products, events, '2026-11-18', guest, ticket, true).map((item) => item.value);
+    expect(blocked(true)).toEqual(['event:dzis']);
+    expect(blocked(false)).toEqual(values(false));
+    expect(saleErrorKey({ message: 'range_blocked' })).toBe('sales.errorRangeBlocked');
+  });
+
   it('AC-21: wartość pola → argumenty create_on_site_order', () => {
     const id = '00000000-0000-0000-0000-0000000000f1';
     expect(itemArgs(`product:${id}`)).toEqual({ p_product_id: id, p_event_id: null });

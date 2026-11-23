@@ -25,6 +25,7 @@ import {
   dutyLost,
   type RangeDuty,
 } from './range-duty';
+import { blockNames, loadRangeBlocks } from './pass-blocking';
 import { mountOfficerPicker } from './range-officer-picker-ui';
 import { ENTRY_SAVED_EVENT } from './range-history';
 import { entryDateTime, permitOrAddress, saveErrorKey, signaturePath, type EntryPerson } from './range-sign';
@@ -141,10 +142,17 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     updateNext();
   }
 
+  // SPEC-012 AC-42: w dzień blokady komunikat; listę (tylko wejściówki) zwraca już baza.
+  const blockedNotice = query(card, '[data-range-blocked]');
   async function loadPasses(): Promise<void> {
     const error = query(card, '[data-passes-error]');
-    const result = await supabase.rpc('passes_for_range_entry', { p_user_id: person!.id });
+    const [result, blocks] = await Promise.all([
+      supabase.rpc('passes_for_range_entry', { p_user_id: person!.id }),
+      loadRangeBlocks(supabase, todayInWarsaw()),
+    ]);
     if (await lostDuty(result.error)) return;
+    blockedNotice.textContent = blocks.length ? t('passBlocking.rangeEntry', { name: blockNames(blocks) }) : '';
+    blockedNotice.hidden = blocks.length === 0;
     error.hidden = !result.error;
     passes = result.error ? [] : ((result.data ?? []) as EntryPass[]);
     if (!result.error) renderPasses();
@@ -171,6 +179,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     if (current.is_range_ready) completeForm.hidden = true;
     passesBox.hidden = true;
     noPass.hidden = true;
+    blockedNotice.hidden = true;
     if (current.is_range_ready && !companion) void loadPasses();
     updateNext();
   }
@@ -449,13 +458,15 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     showStep('sale');
     query(saleForm, '#sale-heading').focus();
     const today = todayInWarsaw();
-    const [products, events] = await Promise.all([
+    const [products, events, blocks] = await Promise.all([
       supabase.from('products').select(PRODUCT_COLUMNS).eq('is_active', true).order('kind').order('position'),
       supabase.from('calendar_events').select(SALE_EVENT_COLUMNS).eq('status', 'published').eq('access_mode', 'paid')
         .lte('starts_on', today).or(`ends_on.gte.${today},ends_on.is.null`),
+      loadRangeBlocks(supabase, today),
     ]);
+    // SPEC-012 AC-42, AC-43: w dzień blokady osobie bez konta — tylko wejściówka.
     const items = saleItems((products.data ?? []) as Product[], (events.data ?? []) as TicketEvent[], today, true,
-      (name) => t('offer.ticketName', { name }));
+      (name) => t('offer.ticketName', { name }), blocks.length > 0);
     itemSelect.replaceChildren(itemSelect.options[0]);
     for (const item of items) {
       itemSelect.add(new Option(t('sales.itemOption', { name: item.name, price: formatPrice(item.price) }), item.value));

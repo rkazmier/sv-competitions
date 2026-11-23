@@ -5,7 +5,8 @@
  * Matchbook: nowy plik do Storage (`matchbooks/<id>/<uuid>.pdf`) → `matchbook_path` → usunięcie starego pliku.
  * Usuwanie zawodów: najpierw wiersz (RLS: tylko szkic; harmonogram kaskadowo), potem pliki z `matchbooks/<id>/`.
  * Publikacja (AC-25…28): „Opublikuj” zapisuje formularz ze stanem `published`; każda zmiana opublikowanych
- * zawodów (także matchbook i harmonogram) uruchamia przebudowę strony publicznej (AC-29, lib/site-rebuild.ts) —
+ * zawodów (także matchbook, harmonogram i flaga blokady karnetów — SPEC-012 AC-40) uruchamia przebudowę strony
+ * publicznej (AC-29, lib/site-rebuild.ts) —
  * poza zmianą samego dyżurnego Prowadzącego (pole niepubliczne, SPEC-007 AC-30).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -41,7 +42,7 @@ import { PDF_MIME, STORAGE_BUCKET, uploadDay, validateFile, type FileError } fro
 import { rebuildAndDescribe } from './site-rebuild';
 
 // Kolumny jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
-const COLUMNS = 'id, name, discipline_id, starts_on, ends_on, description, rulebook_id, matchbook_path, status';
+const COLUMNS = 'id, name, discipline_id, starts_on, ends_on, description, rulebook_id, matchbook_path, status, blocks_passes';
 const ITEM_COLUMNS = 'id, day, time, description, position';
 const EDIT_URL = '/panel/zawody/edytuj/';
 const PREVIEW_URL = '/panel/zawody/podglad/';
@@ -56,6 +57,7 @@ interface Competition {
   rulebook_id: string | null;
   matchbook_path: string | null;
   status: 'draft' | 'published';
+  blocks_passes: boolean;
 }
 
 const FIELD_ERRORS: Record<string, string> = {
@@ -112,6 +114,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
   const rulebookError = query<HTMLElement>(form, '[data-rulebook-error]');
   const publishButton = query<HTMLButtonElement>(form, '[data-publish]');
   const unpublishButton = query<HTMLButtonElement>(form, '[data-unpublish]');
+  const blocksPasses = query<HTMLInputElement>(form, '[name="blocks_passes"]');
 
   const supabase: SupabaseClient = await requireAdmin();
   const storage = supabase.storage.from(STORAGE_BUCKET);
@@ -163,6 +166,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
     field('starts_on').value = c.starts_on;
     field('ends_on').value = c.ends_on ?? '';
     field('description').value = c.description ?? '';
+    blocksPasses.checked = c.blocks_passes;
     savedRow = toRow(readInput(), field('rulebook_id').value);
     const preview = query<HTMLAnchorElement>(form, '[data-preview]');
     preview.href = `${PREVIEW_URL}?id=${encodeURIComponent(c.id)}`;
@@ -192,6 +196,7 @@ export async function mountCompetitionForm(root: HTMLElement): Promise<void> {
       starts_on: field('starts_on').value,
       ends_on: field('ends_on').value,
       description: field('description').value,
+      blocks_passes: blocksPasses.checked,
     };
   }
 

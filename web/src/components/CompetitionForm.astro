@@ -62,6 +62,10 @@ const { mode } = Astro.props;
     <p class="hint" id="c-rulebook-hint">{t('competition.rulebookHint')}</p>
     <p class="message-error field-error" id="c-rulebook-error" data-rulebook-error hidden></p>
 
+    <!-- SPEC-012 AC-40: blokada karnetów w dniach zawodów (domyślnie zaznaczona) -->
+    <label class="check"><input type="checkbox" name="blocks_passes" checked aria-describedby="c-blocks-hint" /> {t('passBlocking.label')}</label>
+    <p class="hint" id="c-blocks-hint">{t('passBlocking.hint')}</p>
+
     <!-- SPEC-007 AC-26: dyżurny Prowadzący zawodów (niepubliczny) -->
     <DutyOfficerField />
 

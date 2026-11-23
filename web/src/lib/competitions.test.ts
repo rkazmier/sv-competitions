@@ -22,6 +22,7 @@ const input: CompetitionInput = {
   starts_on: '2027-06-14',
   ends_on: '',
   description: '',
+  blocks_passes: true,
 };
 
 describe('zawody — formularz', () => {
@@ -34,7 +35,12 @@ describe('zawody — formularz', () => {
       ends_on: null,
       description: null,
       rulebook_id: null,
+      blocks_passes: true,
     });
+  });
+
+  it('SPEC-012 AC-40: odznaczona flaga blokady karnetów trafia do zapisu', () => {
+    expect(toRow({ ...input, blocks_passes: false }, '').blocks_passes).toBe(false);
   });
 
   it('AC-17: brak pól wymaganych i za długa nazwa', () => {

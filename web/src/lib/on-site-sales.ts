@@ -46,6 +46,7 @@ export function dayTypeOf(date: string): 'weekend' | 'weekday' {
 /**
  * Co można sprzedać (AC-21, AC-22). Z kontem: aktywne produkty i wejściówki na wydarzenia, które jeszcze trwają.
  * Bez konta: tylko wejście jednorazowe pasujące do dzisiejszego dnia i wejściówka na wydarzenie trwające dziś.
+ * SPEC-012 AC-43: w dzień blokady (`blocked`) osobie bez konta — tylko wejściówki.
  * Ostateczna kontrola — `create_on_site_order` w bazie.
  */
 export function saleItems(
@@ -54,9 +55,12 @@ export function saleItems(
   today: string,
   guest: boolean,
   ticketName: (name: string) => string,
+  blocked = false,
 ): SaleItem[] {
+  const guestProduct = (p: Pick<Product, 'kind' | 'day_type'>) =>
+    !blocked && p.kind === 'single_entry' && p.day_type === dayTypeOf(today);
   const items: SaleItem[] = products
-    .filter((p) => p.is_active && (!guest || (p.kind === 'single_entry' && p.day_type === dayTypeOf(today))))
+    .filter((p) => p.is_active && (!guest || guestProduct(p)))
     .map((p) => ({ value: `product:${p.id}`, name: p.name, price: p.price }));
   for (const event of events) {
     const lastDay = event.ends_on ?? event.starts_on;
@@ -81,6 +85,7 @@ const ERRORS: Record<string, MessageKey> = {
   event_unavailable: 'sales.errorUnavailable',
   product_not_found: 'sales.errorUnavailable',
   guest_product_not_allowed: 'sales.errorGuest',
+  range_blocked: 'sales.errorRangeBlocked',
   user_not_found: 'sales.errorPerson',
 };
 

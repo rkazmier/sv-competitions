@@ -87,6 +87,10 @@ const MODE_LABELS = {
     <p class="hint" id="e-url-publish">{t('calendarEvent.urlPublishHint')}</p>
     <p class="message-error field-error" id="e-url-error" data-error-for="external_url" hidden></p>
 
+    <!-- SPEC-012 AC-40: blokada karnetów w dniach wydarzenia (domyślnie zaznaczona) -->
+    <label class="check"><input type="checkbox" name="blocks_passes" checked aria-describedby="e-blocks-hint" /> {t('passBlocking.label')}</label>
+    <p class="hint" id="e-blocks-hint">{t('passBlocking.hint')}</p>
+
     <!-- SPEC-007 AC-26: dyżurny Prowadzący wydarzenia (niepubliczny) -->
     <DutyOfficerField />
 

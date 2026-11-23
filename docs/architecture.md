@@ -103,6 +103,8 @@
 - Panel wydarzeń (`/panel/wydarzenia/nowe/`, `/panel/wydarzenia/edytuj/?id=`): `src/components/CalendarEventForm.astro`,
   `src/lib/calendar-event-form-ui.ts` (wyspa), `src/lib/calendar-events.ts` (walidacja jak `check` w `calendar_events`).
   Podgląd karty to `CalendarCard.astro` bez `entry` (ukryty pusty wzór) wypełniany w przeglądarce przez `src/lib/calendar-card-ui.ts`.
+  Formularze zawodów i wydarzeń mają checkbox `blocks_passes` (SPEC-012 AC-40, domyślnie zaznaczony); jego zmiana
+  w opublikowanym wpisie uruchamia `site-rebuild` jak inne pola publiczne.
 - Panel produktów (SPEC-003 AC-1…AC-4, tylko admin): `/panel/oferta/` — formularz dodawania/edycji, lista w grupach rodzaju,
   „Pokaż w ofercie” / „Ukryj”, strzałki kolejności (`rpc/move_product`). Walidacja, ceny (zł ↔ grosze, `120,00 zł`) i grupy
   bez DOM w `src/lib/products.ts`, wyspa `src/lib/products-ui.ts`. Produkt z zamówieniami (`rpc/product_has_orders`) ma zablokowane
@@ -174,6 +176,8 @@
   (`rpc/staff_complete_profile`, AC-7), uprawnienia `rpc/passes_for_range_entry` jako lista wyboru z opisem skutku (AC-10, AC-11),
   bez uprawnienia — „Sprzedaj na miejscu” i „Wpisz jako osobę towarzyszącą” (AC-12). „Dalej” aktywny tylko przy komplecie
   danych i wybranym uprawnieniu. Logika `src/lib/range-entry.ts`, wyspa `src/lib/range-entry-ui.ts`.
+  Dzień blokady (SPEC-012 AC-42): `rpc/range_blocked_on(dziś)` → komunikat „Dziś: <nazwa> — karnety… nie obowiązują”; listę
+  (tylko wejściówki) zwraca już `passes_for_range_entry`.
 - Książka — podpis i zapis (SPEC-005 AC-13…AC-20): ekran podpisu w trybie „podaj urządzenie” (`body.handover` ukrywa
   nawigację): dane wpisu (osoba z kontem — `rpc/staff_person_entry_data`), regulamin strzelnicy i — dla osoby bez konta —
   klauzula informacyjna (`PrivacyNoticeText.astro`, treść `privacy.body`; regulamin strzelnicy osobno — `RangeRulesText.astro`, treść `rangeSign.rulesBody` z #39, podział na rozdziały `src/lib/range-rules.ts`), pole podpisu `<canvas>` (`touch-action: none`,
@@ -243,7 +247,8 @@
     idempotentna; `expires_on` = `pass_expires_on(dzień zakupu)` (+ `pass_validity()` = 1 rok), bez konta — dzień zakupu.
   - `create_on_site_order(user_id | null, product_id | null, 'cash'|'terminal', event_id | null)` — obsługa (AC-21, AC-22):
     dokładnie jedno z produktu i wejściówki; wejściówka jak w `create_tpay_order` (opublikowane płatne wydarzenie, do ostatniego dnia,
-    limit z blokadą wiersza); bez konta tylko wejście jednorazowe pasujące do dziś albo wejściówka na wydarzenie trwające dziś.
+    limit z blokadą wiersza); bez konta tylko wejście jednorazowe pasujące do dziś albo wejściówka na wydarzenie trwające dziś;
+    w dzień blokady (SPEC-012 AC-43) bez konta tylko wejściówka (`range_blocked`).
   - `staff_on_site_sales_today()` — obsługa (AC-23): dzisiejsze (Europe/Warsaw) zamówienia `on_site` od najnowszych — godzina,
     pozycja, kwota, gotówka/terminal, stan, imię i nazwisko sprzedającego (bez danych kupującego); `order_number` (SPEC-006).
   - `cancel_order(order_id, note)` — admin, tylko `paid` bez zużycia (`pass_has_usage`: stan uprawnienia + niewycofane `pass_usages`);
@@ -266,7 +271,7 @@
     `payload_hash`, zgodność `tpay_title` i kwot, `fulfil_order` albo zwrot, wpis do `payment_notifications`; wynik `paid` /
     `already_paid` / `refunded` / `already_refunded` / `ignored_status` / `order_not_found` / `transaction_mismatch` / `amount_mismatch`, powtórzenie → `duplicate:<wynik>`.
   Błędy (`raise`, do mapowania w UI): `forbidden`, `guest_product_not_allowed`, `invalid_on_site_method`, `order_not_paid`, `pass_used`,
-  `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`.
+  `product_unavailable`, `event_unavailable`, `sales_closed`, `sold_out`, `range_blocked`.
 - Przyznanie karnetu (SPEC-010, tylko admin): `orders.payment_method = 'gift'` z `amount = 0` (`check orders_gift_amount`), bez faktury
   (`check orders_gift_no_invoice`); powód i notatka anulowania w `order_grants` (PK = `order_id`, RLS: `select` tylko admin — klient czyta
   cały własny wiersz `orders`, więc powodu tam nie ma). `grant_pass(user_id, product_id | event_id, reason, expires_on, request_key)` — zamówienie
@@ -302,10 +307,17 @@
   `refund_amount = amount`, po oknie wymaga notatki 3–300 znaków dla produktów (`refund_note_required`). `process_tpay_notification`
   porównuje zwrot z `coalesce(refund_amount, amount)` (w `tr_amount` albo `tr_paid`). `admin_list_orders` + `refund_amount`,
   `withdrawal_on`, `pass_kind`, `refund_window_until`, `withdrawal_refund` (zwrot na dziś). `/konto/`: „Zwrócone X z Y”.
-  Planowane (SPEC-012, ADR-0009): `refund_amount`, `withdrawal_on`, `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
+  Blokada karnetów w dniach wydarzeń i zawodów (SPEC-012 US-8) — zrobione (#161): `blocks_passes boolean not null default true`
+  w `competitions` i `calendar_events` (odczyt publiczny; checkbox w formularzach, zmiana opublikowanego wpisu → `site-rebuild`).
+  `range_blocked_on(date)` — publiczna (`anon`), `security definer`: opublikowane wpisy z flagą, `starts_on ≤ D ≤ coalesce(ends_on, starts_on)`
+  → `(kind 'competition'|'event', id, name)`; warunek odwołania (`cancelled_at`) dopisze zadanie odwołania wydarzenia.
+  `pass_valid_on` — poza `event_ticket` dzień z blokadą jest nieważny (bez zmiany `valid_until`/`expires_on`; liczone w chwili
+  sprawdzenia, AC-45), więc także `passes_valid_on`, `passes_for_range_entry` i zapis wpisu. `create_on_site_order` — osoba bez konta,
+  produkt w dzień blokady → `range_blocked`. UI: komunikat w `/panel/ksiazka/`, w sprzedaży bez konta tylko wejściówki (proponowana
+  wejściówka blokującego wydarzenia), karnet osobie z kontem — ostrzeżenie (lib/pass-blocking.ts).
+  Planowane (SPEC-012, ADR-0009):
   e-maile `event_cancelled`, `withdrawal_*` w `mail-send`; odwołanie wydarzenia
-  `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
-  w `pass_valid_on` (karnety i wejścia jednorazowe nieważne w dniach blokady); `range_closures` / `range_closure_passes`
+  `cancel_calendar_event` + Edge Function `event-cancel`; `range_closures` / `range_closure_passes`
   (przedłużenie `expires_on`); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
   Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
@@ -400,7 +412,8 @@
     `signature_missing`, `range_officer_inactive`, `person_not_found`, `person_data_incomplete`, `pass_required`,
     `pass_not_allowed`, `pass_not_valid` (AC-16: „Uprawnienie zostało właśnie wykorzystane”), `entry_exists`.
   - `passes_for_range_entry(user_id)` — `security definer`, `can_keep_range_log()` (SPEC-008), uprawnienia ważne dziś z `priority` 0–4 (AC-10) i nazwą z zamówienia.
-    `pass_valid_on(pass, date)` — reguły ważności jednego uprawnienia (używa jej też `passes_valid_on`).
+    `pass_valid_on(pass, date)` — reguły ważności jednego uprawnienia (używa jej też `passes_valid_on`); od SPEC-012 AC-41
+    poza wejściówką dzień z `range_blocked_on(date)` jest nieważny.
   - `staff_find_by_qr(token)`, `staff_search_people(query)` (od 3 znaków, maks. 10, e-mail częściowo) — obsługa; minimum danych:
     imię i nazwisko, `is_range_ready`, `missing_fields` (`full_name`, `permit_or_address`), godzina dzisiejszego wpisu.
     `staff_person_by_id(id)` — to samo podsumowanie po identyfikatorze (AC-8, powrót ze sprzedaży).

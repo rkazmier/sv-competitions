@@ -3,7 +3,8 @@
  * Tekst z bazy trafia do DOM wyłącznie przez `textContent` / `option.text` (bez HTML).
  *
  * Przebudowa strony publicznej (AC-29, lib/site-rebuild.ts): po publikacji, cofnięciu publikacji,
- * zapisie opublikowanego wydarzenia i usunięciu opublikowanego wydarzenia. Zmiany szkicu jej nie uruchamiają,
+ * zapisie opublikowanego wydarzenia (także zmiana flagi blokady karnetów, SPEC-012 AC-40) i usunięciu
+ * opublikowanego wydarzenia. Zmiany szkicu jej nie uruchamiają,
  * podobnie jak zmiana samego dyżurnego Prowadzącego (pole niepubliczne, SPEC-007 AC-30).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -30,7 +31,8 @@ import { priceInputValue } from './products';
 import { rebuildAndDescribe } from './site-rebuild';
 
 // Kolumny jawnie: `created_by` nie jest udostępniany klientom (docs/architecture.md).
-const COLUMNS = 'id, name, category_id, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity';
+const COLUMNS =
+  'id, name, category_id, starts_on, ends_on, description, external_url, status, access_mode, ticket_price, capacity, blocks_passes';
 const EDIT_URL = '/panel/wydarzenia/edytuj/';
 const FIELDS: CalendarEventField[] = [
   'name',
@@ -56,6 +58,7 @@ interface CalendarEvent {
   access_mode: AccessMode;
   ticket_price: number | null;
   capacity: number | null;
+  blocks_passes: boolean;
 }
 
 const FIELD_ERRORS: Record<string, string> = {
@@ -92,6 +95,7 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
     query<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(form, `[name="${name}"]`);
   const modeList = () => form.elements.namedItem('access_mode') as RadioNodeList;
   const paidFields = query<HTMLElement>(form, '[data-paid-fields]');
+  const blocksPasses = query<HTMLInputElement>(form, '[name="blocks_passes"]');
   const announce = (message: string) => {
     status.textContent = message;
   };
@@ -130,6 +134,7 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       access_mode: (modeList().value || 'external') as AccessMode,
       ticket_price: field('ticket_price').value,
       capacity: field('capacity').value,
+      blocks_passes: blocksPasses.checked,
     };
   }
 
@@ -161,6 +166,7 @@ export async function mountCalendarEventForm(root: HTMLElement): Promise<void> {
       modeList().value = event.access_mode;
       field('ticket_price').value = event.ticket_price ? priceInputValue(event.ticket_price) : '';
       field('capacity').value = event.capacity ? String(event.capacity) : '';
+      blocksPasses.checked = event.blocks_passes;
       const published = event.status === 'published';
       statusTag.hidden = false;
       statusTag.textContent = published ? t('entries.statusPublished') : t('entries.statusDraft');
