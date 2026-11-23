@@ -92,7 +92,8 @@ reset role;
 
 -- ===== AC-1, AC-14: create_tpay_order zwraca numer, także przy duplicate =====
 create temp table tpay as select public.create_tpay_order('00000000-0000-0000-0000-0000000025c1',
-  '00000000-0000-0000-0000-0000000025f1', null, '00000000-0000-0000-0000-0000000025aa') as r;
+  '00000000-0000-0000-0000-0000000025f1', null, '00000000-0000-0000-0000-0000000025aa',
+  public.current_sales_terms_version(), true) as r;
 select is(tpay.r ->> 'order_number', (select order_number from public.orders where id = (tpay.r ->> 'order_id')::uuid),
   'AC-14: create_tpay_order zwraca order_number') from tpay;
 select is(public.create_tpay_order('00000000-0000-0000-0000-0000000025c1', '00000000-0000-0000-0000-0000000025f1', null,

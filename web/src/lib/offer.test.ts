@@ -175,6 +175,8 @@ describe('/konto/ — historia płatności', () => {
       created_at,
       invoice_requested: false,
       invoice_number: null,
+      terms_version: null,
+      early_performance_consent_at: null,
     });
     expect(
       sortOrders([order('a', '2026-11-01T10:00:00Z'), order('b', '2026-11-03T10:00:00Z'), order('c', '2026-11-02T10:00:00Z')]).map(
@@ -203,6 +205,8 @@ describe('SPEC-010: prezent w /konto/', () => {
     created_at: '2026-11-21T10:00:00Z',
     invoice_requested: false,
     invoice_number: null,
+    terms_version: null,
+    early_performance_consent_at: null,
     ...fields,
   });
 

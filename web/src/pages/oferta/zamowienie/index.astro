@@ -1,7 +1,8 @@
 ---
 /**
- * Podsumowanie zamówienia (SPEC-003 AC-7): produkt, cena, ważność, akceptacja regulaminu sprzedaży,
- * „Potrzebuję faktury” (SPEC-004 AC-1…AC-6) i „Zapłać” (AC-8, `payments-create`). Wymaga logowania (AC-6).
+ * Podsumowanie zamówienia (SPEC-003 AC-7): produkt, cena, ważność, akceptacja regulaminu sprzedaży z datą wersji
+ * i zgoda na korzystanie przed upływem 14 dni (SPEC-012 AC-1, AC-6), „Potrzebuję faktury” (SPEC-004 AC-1…AC-6)
+ * i „Zamawiam i płacę” (SPEC-012 AC-2; AC-8, `payments-create`). Wymaga logowania (AC-6).
  */
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import InvoiceFields from '../../../components/InvoiceFields.astro';
@@ -32,12 +33,18 @@ import { OFFER_PAGE, SALES_TERMS_PAGE } from '../../../lib/offer';
         </dl>
 
         <div class="check">
-          <input type="checkbox" id="o-terms" name="terms" required aria-describedby="o-terms-error" />
+          <input type="checkbox" id="o-terms" name="terms" required />
           <label for="o-terms">
-            {t('offer.acceptTerms')} <a href={SALES_TERMS_PAGE} target="_blank" rel="noopener">{t('offer.salesTermsLink')}</a> *
+            {t('offer.acceptTerms')} <a href={SALES_TERMS_PAGE} target="_blank" rel="noopener">{t('offer.salesTermsLink')}</a><span data-terms-version></span> *
           </label>
         </div>
-        <p class="message-error" id="o-terms-error" data-terms-error hidden>{t('offer.termsRequired')}</p>
+
+        <div class="check" data-consent hidden>
+          <input type="checkbox" id="o-consent" name="consent" aria-describedby="o-consent-hint" />
+          <label for="o-consent">{t('offer.consent')} *</label>
+        </div>
+        <p class="hint" id="o-consent-hint" data-consent hidden>{t('offer.consentHint')}</p>
+        <p class="hint" data-ticket-note hidden>{t('offer.ticketNoWithdrawal')}</p>
 
         <fieldset class="order-invoice">
           <legend>{t('invoice.heading')}</legend>
@@ -45,7 +52,8 @@ import { OFFER_PAGE, SALES_TERMS_PAGE } from '../../../lib/offer';
         </fieldset>
 
         <p class="message-error" role="alert" data-form-error hidden></p>
-        <button type="submit" class="button button-primary" aria-describedby="o-pay-hint" data-pay></button>
+        <button type="submit" class="button button-primary" aria-describedby="o-checks-hint o-pay-hint" data-pay disabled></button>
+        <p class="hint" id="o-checks-hint" data-checks-hint>{t('offer.checksRequired')}</p>
         <p class="hint" id="o-pay-hint" data-pay-hint hidden>{t('invoice.confirmRequired')}</p>
         <p role="status" data-paying hidden>{t('offer.paying')}</p>
       </form>

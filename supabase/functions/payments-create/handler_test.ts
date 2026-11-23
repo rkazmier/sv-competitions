@@ -165,6 +165,49 @@ Deno.test('AC-18, §7: odmowa bazy (wyprzedane, ukryty produkt, sprzedaż zakoń
   }
 });
 
+Deno.test('SPEC-012 AC-3, AC-8: wersja regulaminu i zgoda przekazane do create_tpay_order', async () => {
+  const { calls, fetch } = mockFetch();
+  const body = { product_id: PRODUCT, request_key: KEY, terms_version: '2027-01-01', consent: true };
+  const response = await handle(post(body), { fetch, config: CONFIG });
+  assert(response.status === 200, `status ${response.status}`);
+  const args = bodyOf(callTo(calls, '/rpc/create_tpay_order'));
+  assert(args.p_terms_version === '2027-01-01' && args.p_consent === true, JSON.stringify(args));
+});
+
+Deno.test('SPEC-012 AC-3, §7: bez pól — wersja null, zgoda false (decyduje baza)', async () => {
+  const { calls, fetch } = mockFetch();
+  await handle(post({ event_id: PRODUCT, request_key: KEY }), { fetch, config: CONFIG });
+  const args = bodyOf(callTo(calls, '/rpc/create_tpay_order'));
+  assert(args.p_terms_version === null && args.p_consent === false, JSON.stringify(args));
+});
+
+Deno.test('SPEC-012 AC-3: niepoprawna wersja lub zgoda — 400 bez wywołań', async () => {
+  for (const extra of [{ terms_version: '1.01.2027' }, { terms_version: 20270101 }, { consent: 'tak' }]) {
+    const { calls, fetch } = mockFetch();
+    const response = await handle(post({ product_id: PRODUCT, request_key: KEY, ...extra }), { fetch, config: CONFIG });
+    assert(response.status === 400, `status ${response.status} dla ${JSON.stringify(extra)}`);
+    assert(calls.length === 0, 'bez wywołań');
+  }
+});
+
+Deno.test('SPEC-012 AC-3, AC-54: regulamin się zmienił, produkt wycofany — 409 bez transakcji Tpay', async () => {
+  for (const code of ['terms_changed', 'product_discontinued']) {
+    const { calls, fetch } = mockFetch({ order: { status: 400, body: { code: 'P0001', message: code } } });
+    const response = await handle(post({ product_id: PRODUCT, request_key: KEY, consent: true }), { fetch, config: CONFIG });
+    assert(response.status === 409, `status ${response.status}`);
+    assert((await response.json()).error === code, code);
+    assert(!callTo(calls, '/oauth/auth') && !callTo(calls, '/transactions'), 'bez Tpay');
+  }
+});
+
+Deno.test('SPEC-012 AC-7: produkt bez zgody — 400 consent_required, zamówienie nie powstaje, bez Tpay', async () => {
+  const { calls, fetch } = mockFetch({ order: { status: 400, body: { code: '22023', message: 'consent_required' } } });
+  const response = await handle(post({ product_id: PRODUCT, request_key: KEY, consent: false }), { fetch, config: CONFIG });
+  assert(response.status === 400, `status ${response.status}`);
+  assert((await response.json()).error === 'consent_required', 'kod');
+  assert(!callTo(calls, '/oauth/auth') && !callTo(calls, '/rpc/discard_tpay_order'), 'bez Tpay i bez zamówienia');
+});
+
 Deno.test('§7: podwójne kliknięcie „Zapłać” (ten sam request_key) — 409 duplicate_request, bez drugiej transakcji', async () => {
   const { calls, fetch } = mockFetch({ order: { status: 200, body: { ...ORDER_OK, duplicate: true } } });
   const response = await handle(post({ product_id: PRODUCT, request_key: KEY }), { fetch, config: CONFIG });

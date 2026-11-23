@@ -6,6 +6,20 @@
 export const PRODUCT_KINDS = ['entries', 'days', 'single_entry'] as const;
 export type ProductKind = (typeof PRODUCT_KINDS)[number];
 
+/**
+ * SPEC-012 AC-53, AC-54 (decyzja 7-A): karnety czasowe wycofane z Oferty — bez nowych produktów, sprzedaż do dnia
+ * poprzedzającego tę datę (Europe/Warsaw). Ta sama stała w bazie: `public.days_pass_sales_end()`.
+ */
+export const DAYS_PASS_SALES_END = '2027-01-01';
+
+/** AC-53: rodzaje do wyboru przy dodawaniu produktu („Karnet czasowy” tylko przy edycji istniejących). */
+export const isKindDiscontinued = (kind: string) => kind === 'days';
+
+/** AC-54: produkt wycofany dnia `today` (RRRR-MM-DD, Europe/Warsaw) — znika z `/oferta/`, „Wycofany” w panelu. */
+export function isProductDiscontinued(product: Pick<Product, 'kind'>, today: string): boolean {
+  return product.kind === 'days' && today >= DAYS_PASS_SALES_END;
+}
+
 export const DAY_TYPES = ['weekend', 'weekday'] as const;
 export type DayType = (typeof DAY_TYPES)[number];
 
@@ -164,4 +178,9 @@ export function changesFrozenFields(product: Product, row: ProductRow): boolean 
 /** Błąd wyzwalacza `products_before_write` (AC-3). */
 export function isProductHasOrdersError(error: { code?: string; message?: string } | null | undefined): boolean {
   return error?.code === '23514' && error.message === 'product_has_orders';
+}
+
+/** SPEC-012 AC-53: błąd wyzwalacza `products_before_write` — nowy karnet czasowy. */
+export function isProductKindDiscontinuedError(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === '23514' && error.message === 'product_kind_discontinued';
 }

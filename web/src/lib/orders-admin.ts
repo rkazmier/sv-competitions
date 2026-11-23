@@ -34,6 +34,9 @@ export interface AdminOrder {
   /** SPEC-010: powód przyznania i notatka anulowania (`order_grants`); `null` dla innych metod. */
   grant_reason: string | null;
   grant_cancel_note: string | null;
+  /** SPEC-012 AC-5: wersja regulaminu i zgoda na korzystanie przed upływem 14 dni (zamówienia Tpay). */
+  terms_version: string | null;
+  early_performance_consent_at: string | null;
 }
 
 export const ORDER_STATUSES: readonly OrderStatus[] = ['paid', 'pending', 'cancelled', 'refund_pending', 'refunded'];

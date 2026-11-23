@@ -30,6 +30,7 @@ import {
 import { invoiceArgs } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
 import { invoiceErrorKey } from './invoices-admin';
+import { orderTermsNodes } from './offer-ui';
 import { requireAdmin } from './panel';
 import { orderNumberFromSearch } from './pass-grant';
 import { formatPrice } from './products';
@@ -110,6 +111,12 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
       for (const line of grantDetails(order)) {
         const p = document.createElement('p');
         p.textContent = line;
+        notes.append(p);
+      }
+      // SPEC-012 AC-5: „Regulamin z …” (PDF wersji) i data zgody na korzystanie przed upływem 14 dni.
+      for (const line of orderTermsNodes(order)) {
+        const p = document.createElement('p');
+        p.append(line);
         notes.append(p);
       }
       const actions = cell(row, '');

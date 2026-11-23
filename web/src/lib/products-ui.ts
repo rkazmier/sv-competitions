@@ -6,6 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { requireAdmin, showLoadError } from './panel';
+import { todayInWarsaw } from './calendar';
 import {
   PRODUCT_COLUMNS,
   PRODUCT_DAYS_MAX,
@@ -16,7 +17,9 @@ import {
   changesFrozenFields,
   formatPrice,
   groupProducts,
+  isProductDiscontinued,
   isProductHasOrdersError,
+  isProductKindDiscontinuedError,
   productForm,
   validateProduct,
   type Product,
@@ -172,10 +175,13 @@ export async function mountProducts(root: HTMLElement): Promise<void> {
     query<HTMLElement>(li, '[data-details]').textContent = details(product);
     for (const span of li.querySelectorAll<HTMLElement>('[data-sr-name]')) span.textContent = `: ${product.name}`;
     const state = query<HTMLElement>(li, '[data-state]');
-    state.dataset.state = product.is_active ? 'active' : 'hidden';
-    state.textContent = product.is_active ? t('products.active') : t('products.hidden');
+    // SPEC-012 AC-54: karnet czasowy od DAYS_PASS_SALES_END — „Wycofany”, bez „Pokaż w ofercie”.
+    const discontinued = isProductDiscontinued(product, todayInWarsaw());
+    state.dataset.state = discontinued ? 'discontinued' : product.is_active ? 'active' : 'hidden';
+    state.textContent = discontinued ? t('products.discontinued') : product.is_active ? t('products.active') : t('products.hidden');
 
     const toggle = query<HTMLButtonElement>(li, '[data-toggle]');
+    toggle.hidden = discontinued && !product.is_active;
     query<HTMLElement>(toggle, '[data-toggle-text]').textContent = product.is_active
       ? t('products.hide')
       : t('products.show');
@@ -247,6 +253,7 @@ export async function mountProducts(root: HTMLElement): Promise<void> {
       setFrozen(true);
       return setFormError(t('products.hasOrders'));
     }
+    if (isProductKindDiscontinuedError(error)) return setFormError(t('products.kindDiscontinued'));
     if (error) return setFormError(t('panel.saveError'));
     resetForm();
     if (!(await load())) return showLoadError();

@@ -1,7 +1,7 @@
 -- SPEC-003 US-1 (AC-1…AC-4), §5 RLS: produkty Oferty.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'admin@example.test'),
@@ -31,11 +31,18 @@ select lives_ok(
     values ('00000000-0000-0000-0000-00000000e002', 'entries', 'Karnet 5 wejść', 65000, 5)$$,
   'AC-1: drugi karnet ilościowy'
 );
-select lives_ok(
+select throws_ok(
   $$insert into public.products (id, kind, name, price, days)
     values ('00000000-0000-0000-0000-00000000e003', 'days', 'Karnet 30 dni', 30000, 30)$$,
-  'AC-1: admin dodaje karnet czasowy'
+  '23514', 'product_kind_discontinued', 'SPEC-012 AC-53: nowego karnetu czasowego nie da się dodać'
 );
+-- Karnet czasowy sprzedawany przed 7-A (SPEC-012): wiersz istniejący przed wyzwalaczem AC-53.
+reset role;
+alter table public.products disable trigger products_before_write;
+insert into public.products (id, kind, name, price, days, position)
+  values ('00000000-0000-0000-0000-00000000e003', 'days', 'Karnet 30 dni', 30000, 30, 1);
+alter table public.products enable trigger products_before_write;
+set local role authenticated;
 select lives_ok(
   $$insert into public.products (id, kind, name, price, day_type)
     values ('00000000-0000-0000-0000-00000000e004', 'single_entry', 'Wejście weekendowe', 5001, 'weekend')$$,
@@ -115,8 +122,17 @@ select is(
   public.product_has_orders('00000000-0000-0000-0000-00000000e001'), false, 'AC-3: produkt bez zamówień'
 );
 select lives_ok(
-  $$update public.products set kind = 'days', entries = null, days = 10 where id = '00000000-0000-0000-0000-00000000e002'$$,
+  $$update public.products set kind = 'single_entry', entries = null, day_type = 'weekday'
+    where id = '00000000-0000-0000-0000-00000000e002'$$,
   'AC-3: bez zamówień rodzaj można zmienić'
+);
+select throws_ok(
+  $$update public.products set kind = 'days', day_type = null, days = 10 where id = '00000000-0000-0000-0000-00000000e002'$$,
+  '23514', 'product_kind_discontinued', 'SPEC-012 AC-53: zmiana rodzaju na karnet czasowy odrzucona'
+);
+select lives_ok(
+  $$update public.products set name = 'Karnet 30 dni', price = 31000, days = 31 where id = '00000000-0000-0000-0000-00000000e003'$$,
+  'SPEC-012 AC-53: edycja istniejącego karnetu czasowego bez zmian'
 );
 reset role;
 

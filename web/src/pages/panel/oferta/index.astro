@@ -13,6 +13,7 @@ import {
   PRODUCT_ENTRIES_MAX,
   PRODUCT_KINDS,
   PRODUCT_NAME_MAX,
+  isKindDiscontinued,
 } from '../../../lib/products';
 ---
 <PanelLayout title={t('products.title')}>
@@ -28,7 +29,16 @@ import {
       <label class="field-label" for="p-kind">{t('products.kindLabel')}</label>
       <select class="input" id="p-kind" name="kind" required aria-describedby="p-kind-error">
         <option value="">{t('products.choose')}</option>
-        {PRODUCT_KINDS.map((kind) => <option value={kind}>{t(`products.kinds.${kind}`)}</option>)}
+        {
+          /* SPEC-012 AC-53: „Karnet czasowy” niewybieralny — opcja tylko do pokazania rodzaju przy edycji istniejącego produktu. */
+          PRODUCT_KINDS.map((kind) =>
+            isKindDiscontinued(kind) ? (
+              <option value={kind} hidden disabled>{t(`products.kinds.${kind}`)}</option>
+            ) : (
+              <option value={kind}>{t(`products.kinds.${kind}`)}</option>
+            ),
+          )
+        }
       </select>
       <p class="message-error field-error" id="p-kind-error" data-error-for="kind" hidden></p>
 

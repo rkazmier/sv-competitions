@@ -124,6 +124,17 @@ export function salesTermsPdfPath(iso: string): string {
   return `/regulamin-sprzedazy/regulamin-sprzedazy-${iso}.pdf`;
 }
 
+/** Data wersji w krótkiej formie (SPEC-012): `2027-01-01` → „1.01.2027”. */
+export function shortDay(iso: string): string {
+  const [year, month, day] = iso.split('-');
+  return `${Number(day)}.${month}.${year}`;
+}
+
+/** SPEC-012 AC-4: „Wersje regulaminu” od najnowszej — data (krótka) i adres PDF. */
+export function salesTermsVersions(versions: readonly string[]): { date: string; href: string }[] {
+  return [...versions].sort().reverse().map((iso) => ({ date: shortDay(iso), href: salesTermsPdfPath(iso) }));
+}
+
 /** Adres strony polityki prywatności (SPEC-011). */
 export const PRIVACY_POLICY_PATH = '/polityka-prywatnosci/';
 const PRIVACY_POLICY_WORDS = /polityk\p{L}* prywatności/iu;
