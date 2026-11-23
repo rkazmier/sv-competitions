@@ -60,13 +60,13 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Sprzedaż na miejscu | `on_site` | Zamówienie opłacone gotówką lub terminalem, rejestrowane przez obsługę |
 | Uprawnienie (karnet w koncie) | `user_pass` | To, co powstaje z opłaconego zamówienia; ważne 1 rok od zakupu |
 | Zużycie | `pass_usage` | Wykorzystanie uprawnienia przy wpisie do książki (historia karnetu) |
-| Zwrot | `refund` | Anulowanie uprawnienia i zwrot pieniędzy: pełny (niewykorzystane, odwołanie wydarzenia) albo częściowy przy odstąpieniu (SPEC-011) |
+| Zwrot | `refund` | Anulowanie uprawnienia i zwrot pieniędzy: pełny (niewykorzystane, odwołanie wydarzenia) albo częściowy przy odstąpieniu (SPEC-012) |
 | Przyznanie karnetu | `pass grant` (`grant_pass`) | Wydanie przez admina produktu lub wejściówki osobie z kontem bez płatności: zamówienie 0,00 zł z metodą „Prezent” (SPEC-010) |
 | Prezent | `gift` | Metoda zamówienia przyznanego przez admina (`orders.payment_method`); bez faktury |
 | Powód przyznania | `order_grants.reason` | Wymagany opis, dlaczego przyznano karnet; widoczny tylko dla admina |
 | Anulowanie przyznania | `cancel_pass_grant` | Anulowanie prezentu przez admina, także częściowo wykorzystanego; bez zwrotu pieniędzy |
 
-## Regulamin sprzedaży w Ofercie (SPEC-011)
+## Regulamin sprzedaży w Ofercie (SPEC-012)
 
 | PL (UI) | EN (kod) | Definicja |
 | --- | --- | --- |

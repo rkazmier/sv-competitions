@@ -4,7 +4,7 @@
 - Issue z pomysłem: #38 (etap 2 z 4; wymaga SPEC-002)
 - Zadania: #47, #48, #49, #50, #51, #52, #53 (kolejność w sekcji 11); dla właściciela: #39 (regulamin sprzedaży) (`owner-task`)
 - Decyzje: ADR-0002 (Tpay), ADR-0006 (zadania cykliczne)
-- Zmiany: SPEC-011 (#152) — regulamin sprzedaży: e-maile, zgoda 14 dni, odstąpienie i zwrot częściowy, odwołanie wydarzenia, przedłużenie ważności, blokada karnetów w dniach wydarzeń
+- Zmiany: SPEC-012 (#152) — regulamin sprzedaży: e-maile, zgoda 14 dni, odstąpienie i zwrot częściowy, odwołanie wydarzenia, przedłużenie ważności, blokada karnetów w dniach wydarzeń
 
 ## 1. Cel
 
@@ -27,8 +27,8 @@ które zużywa wpis do książki rejestru pobytu (SPEC-005).
 - Faktury → SPEC-004 (tu tylko miejsce na checkbox w podsumowaniu zamówienia).
 - Zużywanie uprawnień i wybór uprawnienia przy wpisie → SPEC-005 (tu: model i reguły ważności).
 - Koszyk, ilość > 1, kody rabatowe, karnety na inną osobę (decyzja 8-A: karnet imienny).
-- Własne e-maile (11-A: potwierdzenie płatności wysyła Tpay) — od SPEC-011 potwierdzenie zamówienia wysyła aplikacja. Paragony / kasa fiskalna.
-- Zwrot częściowo wykorzystanego karnetu (6-A) — od SPEC-011 w oknie 14 dni (odstąpienie). Przedłużanie ważności karnetu — od SPEC-011 przy zamknięciu strzelnicy.
+- Własne e-maile (11-A: potwierdzenie płatności wysyła Tpay) — od SPEC-012 potwierdzenie zamówienia wysyła aplikacja. Paragony / kasa fiskalna.
+- Zwrot częściowo wykorzystanego karnetu (6-A) — od SPEC-012 w oknie 14 dni (odstąpienie). Przedłużanie ważności karnetu — od SPEC-012 przy zamknięciu strzelnicy.
 
 ## 3. Role i uprawnienia
 
@@ -53,7 +53,7 @@ Status zamówienia Tpay zmienia wyłącznie `payments-notify` (CLAUDE.md, ADR-00
 ### US-2: Jako klient chcę kupić karnet lub wejście online
 - **AC-5**: Given `/oferta/` When otwieram stronę Then widzę grupy „Karnety ilościowe”, „Karnety czasowe”, „Wejścia jednorazowe” z nazwą, ceną (`120,00 zł`), opisem i informacją „Ważny 1 rok od zakupu.”; karnet czasowy dodatkowo „Odliczanie dni zaczyna się od pierwszego wejścia.”; wejście jednorazowe „Tylko w soboty i niedziele.” / „Tylko od poniedziałku do piątku.”.
 - **AC-6**: Given jestem niezalogowany When klikam „Kup” Then trafiam do `/logowanie/?next=/oferta/zamowienie/?product=<id>`.
-> Od SPEC-011: checkbox z datą wersji regulaminu, zgoda na korzystanie przed upływem 14 dni, przycisk „Zamawiam i płacę 120,00 zł” (SPEC-011 AC-1…AC-8).
+> Od SPEC-012: checkbox z datą wersji regulaminu, zgoda na korzystanie przed upływem 14 dni, przycisk „Zamawiam i płacę 120,00 zł” (SPEC-012 AC-1…AC-8).
 
 - **AC-7**: Given jestem zalogowany When klikam „Kup” Then widzę podsumowanie: produkt, cena, ważność, checkbox „Akceptuję regulamin sprzedaży”* (link do tekstu), miejsce na „Potrzebuję faktury” (SPEC-004) i przycisk „Zapłać 120,00 zł”.
 - **AC-8**: Given podsumowanie When klikam „Zapłać” Then Edge Function `payments-create` tworzy zamówienie `pending` (cena z bazy, nie z przeglądarki) i transakcję Tpay, a ja jestem przekierowany na bramkę Tpay.
@@ -81,8 +81,8 @@ Status zamówienia Tpay zmienia wyłącznie `payments-notify` (CLAUDE.md, ADR-00
 
 ### US-6: Jako admin chcę przeglądać zamówienia, anulować i zwracać (decyzja 6-A)
 - **AC-24**: Given `/panel/zamowienia/` When filtruję (zakres dat, status, metoda, produkt, osoba) Then widzę listę z sumą kwot; eksport CSV bieżącego widoku.
-> Od SPEC-011: w oknie 14 dni od opłacenia zamówienia online karnetu — „Odstąpienie od umowy” ze zwrotem proporcjonalnym, także po użyciu (SPEC-011 AC-15…AC-20);
-> po oknie regulamin nie przewiduje zwrotu, „Anuluj i zwróć” zostaje jako decyzja admina z wymaganą notatką (SPEC-011 AC-21, AC-22).
+> Od SPEC-012: w oknie 14 dni od opłacenia zamówienia online karnetu — „Odstąpienie od umowy” ze zwrotem proporcjonalnym, także po użyciu (SPEC-012 AC-15…AC-20);
+> po oknie regulamin nie przewiduje zwrotu, „Anuluj i zwróć” zostaje jako decyzja admina z wymaganą notatką (SPEC-012 AC-21, AC-22).
 
 - **AC-25**: Given zamówienie `paid`, którego uprawnienie nie ma żadnego zużycia When klikam „Anuluj i zwróć” i potwierdzam Then uprawnienie przechodzi w `cancelled`; dla Tpay Edge Function `payments-refund` zleca zwrot pełnej kwoty, zamówienie → `refund_pending`, po powiadomieniu Tpay → `refunded`; dla „na miejscu” → od razu `refunded` z adnotacją „Zwrot gotówki / na terminal”.
 - **AC-26**: Given uprawnienie ma co najmniej jedno zużycie When otwieram zamówienie Then przycisku „Anuluj i zwróć” nie ma; widzę „Karnet był używany — zwrot poza systemem.”.
@@ -206,12 +206,12 @@ Skan kodu QR — ten sam komponent co w SPEC-005 (kamera w przeglądarce); do cz
 | Pytanie | Decyzja właściciela | Data |
 | --- | --- | --- |
 | Rodzaje produktów, ważność 1 rok, aktywacja karnetu czasowego | Z issue #38 | 2026-11-17 |
-| Zwroty | 6-A: admin anuluje niewykorzystany karnet i zleca zwrot (Tpay) lub oznacza zwrot gotówki; częściowo wykorzystanych nie zwracamy — **zmienione w SPEC-011**: zwrot proporcjonalny w oknie 14 dni; po oknie brak zwrotu (zwrot tylko jako decyzja admina) | 2026-11-17 |
+| Zwroty | 6-A: admin anuluje niewykorzystany karnet i zleca zwrot (Tpay) lub oznacza zwrot gotówki; częściowo wykorzystanych nie zwracamy — **zmienione w SPEC-012**: zwrot proporcjonalny w oknie 14 dni; po oknie brak zwrotu (zwrot tylko jako decyzja admina) | 2026-11-17 |
 | Wejściówki | 7-A: cena i opcjonalny limit miejsc przy wydarzeniu; zużywana przy wpisie w dniu wydarzenia; płatne i bezpłatne bez wymaganego linku | 2026-11-17 |
 | Karnet imienny | 8-A: tylko dla właściciela konta | 2026-11-17 |
 | Koszyk | 9-A: jedno zamówienie = jeden produkt, ilość 1 | 2026-11-17 |
 | Osoba bez konta | 10-A: sprzedaż na miejscu bez konta, wejście od razu wykorzystane, dane tylko w książce | 2026-11-17 |
-| E-maile | 11-A: potwierdzenie płatności wysyła Tpay — **zmienione w SPEC-011** (2-A, 3-A: e-mail aplikacji z PDF regulaminu) | 2026-11-17 |
+| E-maile | 11-A: potwierdzenie płatności wysyła Tpay — **zmienione w SPEC-012** (2-A, 3-A: e-mail aplikacji z PDF regulaminu) | 2026-11-17 |
 | Regulamin sprzedaży | 12-A: tekst od właściciela (`owner-task`) | 2026-11-17 |
 
 Założenia analityka (zatwierdzane razem ze specyfikacją): nieopłacone zamówienie anulowane po 24 h; rezerwacja miejsca na wydarzeniu przez 30 min od rozpoczęcia płatności;

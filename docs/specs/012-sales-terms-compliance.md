@@ -1,4 +1,4 @@
-# SPEC-011: Zmiany w Ofercie wymagane przez regulamin sprzedaży
+# SPEC-012: Zmiany w Ofercie wymagane przez regulamin sprzedaży
 
 - Status: szkic (merge = zatwierdzenie)
 - Issue z pomysłem: #152 (zmienia SPEC-003; dotyka SPEC-001 — formularze kalendarza, SPEC-005 — ważność uprawnień w książce)
@@ -197,7 +197,7 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 | Tabela | Kolumna | Typ | Wymagane | Dane osobowe | Uwagi |
 | --- | --- | --- | --- | --- | --- |
 | `sales_terms_versions` (nowa) | `effective_from` | `date` PK | tak | nie | wersja = data obowiązywania; plik `web/public/regulamin-sprzedazy/regulamin-sprzedazy-<RRRR-MM-DD>.pdf`; wiersze dodaje migracja (razem z PDF), odczyt publiczny |
-| `orders` (zmiana) | `terms_version` | `date` FK → `sales_terms_versions` | nie | nie | `tpay` od SPEC-011; `null` — na miejscu, prezent, starsze |
+| `orders` (zmiana) | `terms_version` | `date` FK → `sales_terms_versions` | nie | nie | `tpay` od SPEC-012; `null` — na miejscu, prezent, starsze |
 | | `early_performance_consent_at` | `timestamptz` | nie | nie | zgoda z AC-6; wymagana przez `create_tpay_order` dla produktu |
 | | `refund_amount` | `integer` | nie | nie | grosze, 1…`amount`; ustawiane przy każdym zwrocie (pełny = `amount`); starsze `refunded` — `null` = pełny |
 | | `withdrawal_on` | `date` | nie | nie | dzień odstąpienia (AC-16, AC-48) |

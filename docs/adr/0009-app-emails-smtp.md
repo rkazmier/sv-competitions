@@ -1,7 +1,7 @@
 # ADR-0009: E-maile aplikacji przez SMTP skrzynki sprzedawcy, z kolejką w bazie
 
 - Data: 2026-11-23
-- Status: przyjęta (SPEC-011)
+- Status: przyjęta (SPEC-012)
 
 ## Kontekst
 Regulamin sprzedaży i art. 21 ustawy o prawach konsumenta wymagają potwierdzenia zamówienia na trwałym nośniku
