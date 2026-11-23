@@ -270,6 +270,13 @@
   `cancelled`, uprawnienie `active` → `cancelled` mimo zużyć, `audit_log` `pass_grant_cancel`. `cancel_order` odrzuca `gift` (`order_is_gift`),
   `set_order_invoice_details` — `invoice_not_available`. `grant_pass` zwraca `{order_id, order_number, duplicate}`; ten sam `request_key`
   → istniejące zamówienie; wejściówka z `expires_on` → `invalid_request`. `audit_log.changes.expires_on` — dla wejściówki ostatni dzień wydarzenia. UI: `/panel/zamowienia/przyznaj/` (`requireAdmin`), metoda „Prezent” w `/panel/zamowienia/` i `/konto/`.
+- Regulamin sprzedaży w Ofercie (SPEC-011, ADR-0009) — planowane: `sales_terms_versions` (wersje = daty obowiązywania, PDF w
+  `web/public/regulamin-sprzedazy/`), `orders.terms_version`, `early_performance_consent_at`, `refund_amount`, `withdrawal_on`,
+  `refund_requested_at`; zwrot częściowy `withdrawal_quote` / `withdraw_order` (okno: dzień opłacenia + 14 dni, Europe/Warsaw);
+  e-maile przez `email_outbox` + Edge Function `mail-send` (SMTP 465, `pg_cron` `mail-send-retry` co 10 min); odwołanie wydarzenia
+  `cancel_calendar_event` + Edge Function `event-cancel`; `blocks_passes` w `competitions` i `calendar_events` + `range_blocked_on(date)`
+  w `pass_valid_on` (karnety i wejścia jednorazowe nieważne w dniach blokady); `range_closures` / `range_closure_passes`
+  + `user_passes.valid_extra_days` (przedłużenie ważności); `opening_hours`, `opening_hours_exceptions`; `withdrawal_requests`.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
@@ -478,13 +485,16 @@ Storage bucket signatures (prywatny): signatures/<RRRR>/<MM>/<range_log.id>.png
 disciplines 1──* competitions *──0..1 rulebooks
 competitions 1──* schedule_items
 event_categories 1──* calendar_events
+orders *──0..1 sales_terms_versions; orders 1──* email_outbox; orders 1──0..1 withdrawal_requests — SPEC-011
+range_closures 1──* range_closure_passes *──1 user_passes                         — SPEC-011
+opening_hours (dni tygodnia), opening_hours_exceptions (dni)                      — SPEC-011
 Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uuid>.pdf
 ```
 
 | Tabela | Zawiera | Dane osobowe | Odczyt publiczny |
 | --- | --- | --- | --- |
 | `profiles` | rola, dane do książki, `qr_token` | tak | nie (własny wiersz; obsługa i admin — wszystkie) |
-| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007, `pass_grant`, `pass_grant_cancel` — SPEC-010) | tak | nie (admin) |
+| `audit_log` | dziennik zmian (`profile_update`, `role_change`, `account_delete`, `order_refund`, `pass_usage_revert`, `range_log_export`, `invoice_issued`, `invoice_unmarked`, `range_officer_review` — SPEC-007, `pass_grant`, `pass_grant_cancel` — SPEC-010, `event_cancel`, `range_closure`, `email_resend` — SPEC-011) | tak | nie (admin) |
 | `products` | produkty Oferty | nie | tylko aktywne |
 | `orders` | zamówienia (+ kopia danych faktury) | tak | nie (własne; obsługa, admin) |
 | `payment_notifications` | idempotencja powiadomień Tpay | nie | nie |
@@ -500,4 +510,9 @@ Storage bucket documents: rulebooks/<uuid>.pdf, matchbooks/<competition_id>/<uui
 | `rulebooks` | biblioteka regulaminów PDF | `created_by` | tylko używane w opublikowanych zawodach, bez `created_by` |
 | `competitions` | zawody (`draft` / `published`) | `created_by` | tylko opublikowane, bez `created_by` |
 | `schedule_items` | punkty harmonogramu | nie | tylko opublikowanych zawodów |
-| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`; tryb `external` / `free` / `paid` — SPEC-003) | `created_by` | tylko opublikowane, bez `created_by` |
+| `calendar_events` | wydarzenia w kalendarzu (`draft` / `published`; tryb `external` / `free` / `paid` — SPEC-003; odwołanie, `blocks_passes` — SPEC-011) | `created_by`, `cancelled_by` | tylko opublikowane, bez `created_by`, `cancelled_by` |
+| `sales_terms_versions` | wersje regulaminu sprzedaży (SPEC-011) | nie | tak |
+| `email_outbox` | kolejka e-maili aplikacji, bez adresu i treści (SPEC-011) | nie | nie (funkcje) |
+| `range_closures`, `range_closure_passes` | zamknięcia strzelnicy i przedłużenia ważności (SPEC-011) | `created_by`, przyczyna (tekst) | nie (admin) |
+| `opening_hours`, `opening_hours_exceptions` | godziny otwarcia (SPEC-011) | nie | tak |
+| `withdrawal_requests` | oświadczenia o odstąpieniu z `/konto/` (SPEC-011) | tak | nie (funkcje) |
