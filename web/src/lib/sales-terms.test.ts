@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
-import { parseSpans, salesTermsBlocks, salesTermsEffectiveFrom, salesTermsPdfPath, spansText } from './sales-terms';
+import {
+  linkPrivacyPolicy,
+  parseSpans,
+  PRIVACY_POLICY_PATH,
+  salesTermsBlocks,
+  salesTermsEffectiveFrom,
+  salesTermsPdfPath,
+  spansText,
+  type LinkedSpan,
+} from './sales-terms';
 
 describe('regulamin sprzedaży — format treści (#154)', () => {
   it('rozpoznaje pogrubienie, kursywę i dosłowną gwiazdkę', () => {
@@ -47,6 +56,36 @@ describe('regulamin sprzedaży — treść od właściciela (#154)', () => {
     expect(headings[13]).toBe('Załącznik nr 1 — Wzór formularza odstąpienia od umowy');
     const counts = blocks.flatMap((b) => (b.kind === 'ol' ? [b.items.length] : []));
     expect(counts).toEqual([6, 10, 5, 10, 7, 5, 5, 7, 4, 4, 3, 3, 6]);
+  });
+
+  it('AC-10 (SPEC-011): w § 12 ust. 1 „Polityka prywatności” jest linkiem, reszta treści bez zmian', () => {
+    const linked = linkPrivacyPolicy(blocks);
+    const index = blocks.findIndex((b) => b.kind === 'h2' && spansText(b.spans).startsWith('§ 12.'));
+    const before = blocks[index + 1];
+    const after = linked[index + 1];
+    if (before.kind !== 'ol' || after.kind !== 'ol') throw new Error('lista');
+    const links = linked
+      .flatMap((b): LinkedSpan[] => ('items' in b ? b.items.flatMap((i) => i.spans) : b.spans))
+      .filter((s) => s.href !== undefined);
+    expect(links).toEqual([
+      { text: 'Polityka prywatności', bold: false, italic: false, href: PRIVACY_POLICY_PATH },
+    ]);
+    expect(PRIVACY_POLICY_PATH).toBe('/polityka-prywatnosci/');
+    expect(spansText(after.items[0].spans)).toBe(spansText(before.items[0].spans));
+    expect(linked.filter((_, i) => i !== index + 1)).toEqual(blocks.filter((_, i) => i !== index + 1));
+    expect(after.items.slice(1)).toEqual(before.items.slice(1));
+  });
+
+  it('AC-10 (SPEC-011): bez słów „polityka prywatności” w § 12 ust. 1 — błąd zamiast cichego braku linku', () => {
+    expect(() => linkPrivacyPolicy(salesTermsBlocks('## § 12. Dane osobowe\n\n1. Inny tekst.'))).toThrow();
+    expect(() => linkPrivacyPolicy(salesTermsBlocks('## § 11. X\n\n1. Polityka prywatności.'))).toThrow();
+    const odmiana = linkPrivacyPolicy(salesTermsBlocks('## § 12. D\n\n1. Zob. **politykę prywatności** tutaj.'));
+    if (odmiana[1].kind !== 'ol') throw new Error('lista');
+    expect(odmiana[1].items[0].spans).toEqual([
+      { text: 'Zob. ', bold: false, italic: false },
+      { text: 'politykę prywatności', bold: true, italic: false, href: PRIVACY_POLICY_PATH },
+      { text: ' tutaj.', bold: false, italic: false },
+    ]);
   });
 
   it('obowiązuje od 1 stycznia 2027 r. i nie zawiera tekstu zastępczego', () => {
