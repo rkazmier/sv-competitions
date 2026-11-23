@@ -38,6 +38,7 @@ import {
   type UserPass,
 } from './offer';
 import { PRODUCT_KINDS, formatPrice, groupProducts, isProductDiscontinued, type Product } from './products';
+import { extensionsByPass, extensionText, type PassExtension } from './range-closures';
 import { entryPassText, usageHistory, type MyRangeEntry } from './range-history';
 import { BILLING_COLUMNS, invoiceStatus, type InvoiceDetails } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
@@ -325,7 +326,7 @@ export async function mountPaymentStatus(root: HTMLElement): Promise<void> {
 
 // ===== /konto/ — karnety i płatności =====
 
-function passItem(pass: UserPass, active: boolean): HTMLLIElement {
+function passItem(pass: UserPass, active: boolean, extensions: readonly PassExtension[] = []): HTMLLIElement {
   const item = node('li', undefined, 'card pass-item');
   const lines: string[] = [];
   if (pass.kind === 'entries') {
@@ -338,6 +339,8 @@ function passItem(pass: UserPass, active: boolean): HTMLLIElement {
     lines.push(first ? t('offer.firstUsed', { date: formatDate(first) }) : t('offer.notUsedYet'));
   }
   lines.push(t('offer.validTo', { date: formatDate(passValidTo(pass)) }));
+  // SPEC-012 AC-33: „Przedłużono o 10 dni (zamknięcie strzelnicy 3–12.02.2027).” — pod „Ważny do”.
+  lines.push(...extensions.map(extensionText));
   item.append(node('h3', pass.orders?.item_name ?? ''));
   if (!active) item.append(node('p', t(passHistoryState(pass)), 'tag'));
   item.append(...lines.map((line) => node('p', line)));
@@ -406,19 +409,22 @@ function orderRow(order: UserOrder): HTMLTableRowElement {
 export async function renderPassesAndPayments(supabase: SupabaseClient, userId: string): Promise<void> {
   const root = document.querySelector<HTMLElement>('[data-passes-root]');
   if (!root) return;
-  const [passes, orders, entries] = await Promise.all([
+  const [passes, orders, entries, extensions] = await Promise.all([
     supabase.from('user_passes').select(PASS_COLUMNS).eq('user_id', userId),
     supabase.from('orders').select(ORDER_COLUMNS).eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.rpc('my_range_entries'),
+    supabase.rpc('my_pass_extensions'),
   ]);
-  if (passes.error || orders.error || entries.error) {
+  if (passes.error || orders.error || entries.error || extensions.error) {
     el(root, '[data-passes-error]').hidden = false;
     return;
   }
   const { active, history } = splitPasses((passes.data ?? []) as unknown as UserPass[]);
-  el(root, '[data-passes]').replaceChildren(...active.map((pass) => passItem(pass, true)));
+  const extended = extensionsByPass((extensions.data ?? []) as PassExtension[]);
+  const item = (pass: UserPass, isActive: boolean) => passItem(pass, isActive, extended.get(pass.id));
+  el(root, '[data-passes]').replaceChildren(...active.map((pass) => item(pass, true)));
   el(root, '[data-passes-empty]').hidden = active.length > 0;
-  el(root, '[data-pass-history]').replaceChildren(...history.map((pass) => passItem(pass, false)));
+  el(root, '[data-pass-history]').replaceChildren(...history.map((pass) => item(pass, false)));
   el(root, '[data-pass-history-empty]').hidden = history.length > 0;
 
   const sorted = sortOrders((orders.data ?? []) as UserOrder[]);
