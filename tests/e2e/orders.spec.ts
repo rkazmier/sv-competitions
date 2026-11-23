@@ -14,8 +14,11 @@ interface Seeded {
   orderNumber: string;
 }
 
-/** Opłacone zamówienie z uprawnieniem (`fulfil_order` kluczem secret) dla nowej osoby. */
-async function seedOrder(method: 'tpay' | 'on_site', amount: number): Promise<Seeded> {
+/**
+ * Opłacone zamówienie z uprawnieniem (`fulfil_order` kluczem secret) dla nowej osoby.
+ * `paidDaysAgo` — przesunięcie `paid_at` (SPEC-012: okno 14 dni od opłacenia), `entries` — wejścia karnetu.
+ */
+async function seedOrder(method: 'tpay' | 'on_site', amount: number, { paidDaysAgo = 0, entries = 5 } = {}): Promise<Seeded> {
   const db = admin();
   const item = unique('Karnet zwrot E2E');
   const person = unique('Ewa Zwrotna');
@@ -26,7 +29,7 @@ async function seedOrder(method: 'tpay' | 'on_site', amount: number): Promise<Se
   expect(userError).toBeNull();
   const userId = user.user!.id;
   expect((await db.from('profiles').update({ full_name: person }).eq('id', userId)).error).toBeNull();
-  const { data: product } = await db.from('products').insert({ kind: 'entries', name: item, price: amount, entries: 5 })
+  const { data: product } = await db.from('products').insert({ kind: 'entries', name: item, price: amount, entries })
     .select('id').single();
   const { data: order, error } = await db.from('orders').insert({
     user_id: userId,
@@ -39,6 +42,10 @@ async function seedOrder(method: 'tpay' | 'on_site', amount: number): Promise<Se
   }).select('id, order_number').single();
   expect(error).toBeNull();
   expect((await db.rpc('fulfil_order', { p_order_id: order!.id })).error).toBeNull();
+  if (paidDaysAgo) {
+    const paidAt = new Date(Date.now() - paidDaysAgo * 24 * 60 * 60 * 1000).toISOString();
+    expect((await db.from('orders').update({ paid_at: paidAt }).eq('id', order!.id)).error).toBeNull();
+  }
   return { item, person, orderId: order!.id, orderNumber: order!.order_number };
 }
 
@@ -125,11 +132,14 @@ test.describe('admin', () => {
     await rowOf(page, sale.item).getByRole('button', { name: `Anuluj i zwróć: ${sale.item}, 50,00 zł` }).click();
     const dialog = page.getByRole('dialog', { name: 'Anuluj i zwróć' });
     await expect(dialog).toContainText('Oddaj 50,00 zł gotówką lub na terminal');
+    // SPEC-012 AC-22: na miejscu w oknie 14 dni — bez ostrzeżenia, notatka wymagana.
+    await expect(dialog.getByText('Minęło 14 dni od zakupu.', { exact: false })).toBeHidden();
+    await dialog.getByLabel('Notatka * (3–300 znaków)').fill('Gotówka oddana');
     await dialog.getByRole('button', { name: 'Potwierdź zwrot' }).click();
 
     await expect(page.getByText('Zamówienie zwrócone. Oddaj pieniądze klientowi.')).toBeVisible();
     await expect(rowOf(page, sale.item)).toContainText('Zwrócone');
-    await expect(rowOf(page, sale.item)).toContainText('Zwrot gotówki / na terminal');
+    await expect(rowOf(page, sale.item)).toContainText('Gotówka oddana');
     await expect(rowOf(page, sale.item).getByRole('button')).toHaveCount(0);
 
     const db = admin();
@@ -139,11 +149,11 @@ test.describe('admin', () => {
       .eq('changes->>order_id', sale.orderId);
     expect(log).toHaveLength(1);
     expect(log![0].actor_id).not.toBeNull();
-    expect(log![0].changes).toMatchObject({ amount: 5000 });
+    expect(log![0].changes).toMatchObject({ amount: 5000, refund_amount: 5000 });
   });
 
-  test('AC-25: „Anuluj i zwróć” online — wywołanie payments-refund z notatką', async ({ page }) => {
-    const sale = await seedOrder('tpay', 12000);
+  test('AC-25, SPEC-012 AC-21: „Anuluj i zwróć” online po 14 dniach — ostrzeżenie, wymagana notatka, payments-refund', async ({ page }) => {
+    const sale = await seedOrder('tpay', 12000, { paidDaysAgo: 20 });
     let body: unknown = null;
     // Bez edge-runtime: odpowiedź funkcji zamockowana; zmiana stanu jak w `cancel_order` (refund_pending).
     await page.route('**/functions/v1/payments-refund', async (route) => {
@@ -157,24 +167,73 @@ test.describe('admin', () => {
     await rowOf(page, sale.item).getByRole('button', { name: /^Anuluj i zwróć/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Anuluj i zwróć' });
     await expect(dialog).toContainText('Tpay zwróci 120,00 zł');
-    await dialog.getByLabel('Notatka (opcjonalnie, maks. 300 znaków)').fill('Na prośbę klienta');
+    await expect(dialog).toContainText(
+      'Minęło 14 dni od zakupu. Regulamin nie przewiduje zwrotu — zwróć tylko w uzasadnionym przypadku (np. reklamacja).',
+    );
+    const note = dialog.getByLabel('Notatka * (3–300 znaków)');
+    await expect(note).toHaveAttribute('required', '');
+    await note.fill('Reklamacja klienta');
     await dialog.getByRole('button', { name: 'Potwierdź zwrot' }).click();
 
     await expect(page.getByText('Zlecono zwrot w Tpay.', { exact: false })).toBeVisible();
-    expect(body).toEqual({ order_id: sale.orderId, refund_note: 'Na prośbę klienta' });
+    expect(body).toEqual({ order_id: sale.orderId, refund_note: 'Reklamacja klienta' });
     await expect(rowOf(page, sale.item)).toContainText('Zwrot w toku');
   });
 
-  test('AC-26: karnet używany — bez „Anuluj i zwróć”, informacja o zwrocie poza systemem', async ({ page }) => {
-    const sale = await seedOrder('tpay', 7000);
+  test('AC-26: karnet używany po 14 dniach — bez „Anuluj i zwróć”, informacja o zwrocie poza systemem', async ({ page }) => {
+    const sale = await seedOrder('tpay', 7000, { paidDaysAgo: 20 });
     expect((await admin().from('user_passes').update({ entries_left: 4 }).eq('order_id', sale.orderId)).error).toBeNull();
     await page.goto('/panel/zamowienia/');
     await filterByPerson(page, sale.person);
 
     await expect(rowOf(page, sale.item)).toContainText('Karnet był używany — zwrot poza systemem.');
     await expect(rowOf(page, sale.item).getByRole('button', { name: /Anuluj i zwróć/ })).toHaveCount(0);
+    await expect(rowOf(page, sale.item).getByRole('button', { name: /Odstąpienie od umowy/ })).toHaveCount(0);
   });
 
+  test('SPEC-012 AC-15…AC-20: odstąpienie w oknie — wyliczenie, „Zleć zwrot” (mode withdrawal), zwrot częściowy', async ({ page }) => {
+    const sale = await seedOrder('tpay', 10000, { entries: 3 });
+    expect((await admin().from('user_passes').update({ entries_left: 2 }).eq('order_id', sale.orderId)).error).toBeNull();
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Warsaw' }).format(new Date());
+    const [year, month, day] = today.split('-');
+    const last = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 14));
+    const until = `${last.getUTCDate()}.${String(last.getUTCMonth() + 1).padStart(2, '0')}.${last.getUTCFullYear()}`;
+    let body: unknown = null;
+    // Bez edge-runtime: odpowiedź funkcji zamockowana; zmiana stanu jak w `withdraw_order`.
+    await page.route('**/functions/v1/payments-refund', async (route) => {
+      body = route.request().postDataJSON();
+      await admin().from('orders').update({ status: 'refund_pending', refund_amount: 6667, withdrawal_on: today })
+        .eq('id', sale.orderId);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'refund_pending' }) });
+    });
+    await page.goto('/panel/zamowienia/');
+    await filterByPerson(page, sale.person);
+
+    const row = rowOf(page, sale.item);
+    await expect(row).toContainText(`Odstąpienie możliwe do ${until}`);
+    await expect(row.getByRole('button', { name: /Anuluj i zwróć/ })).toHaveCount(0);
+    await row.getByRole('button', { name: `Odstąpienie od umowy: zamówienie ${sale.orderNumber}` }).click();
+    const dialog = page.getByRole('dialog', { name: 'Odstąpienie od umowy' });
+    await expect(dialog.getByLabel('Dzień odstąpienia *')).toHaveValue(today);
+    await expect(dialog).toContainText('Cena 100,00 zł, wykorzystano 1 z 3 wejść (33,33 zł). Zwrot: 66,67 zł.');
+    await dialog.getByRole('button', { name: 'Zleć zwrot' }).click();
+
+    await expect(page.getByText('Zlecono zwrot 66,67 zł w Tpay.', { exact: false })).toBeVisible();
+    expect(body).toEqual({ order_id: sale.orderId, mode: 'withdrawal', withdrawal_on: today, refund_note: null });
+    await expect(row).toContainText('Zwrot w toku: 66,67 zł');
+    await expect(page.getByText('Zwroty: −66,67 zł', { exact: false })).toBeVisible();
+  });
+
+  test('SPEC-012 AC-18: usługa wykonana w całości — „Odstąpienie od umowy” nieaktywne', async ({ page }) => {
+    const sale = await seedOrder('tpay', 9000, { entries: 3 });
+    expect((await admin().from('user_passes').update({ entries_left: 0 }).eq('order_id', sale.orderId)).error).toBeNull();
+    await page.goto('/panel/zamowienia/');
+    await filterByPerson(page, sale.person);
+
+    const row = rowOf(page, sale.item);
+    await expect(row.getByRole('button', { name: /Odstąpienie od umowy/ })).toBeDisabled();
+    await expect(row).toContainText('Usługa wykonana w całości — prawo odstąpienia wygasło.');
+  });
 });
 
 test('AC-24: obsługa nie ma dostępu do zamówień', async ({ page }) => {

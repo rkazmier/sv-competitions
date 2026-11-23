@@ -21,10 +21,13 @@ import {
   numberSearchKey,
   orderDateTime,
   ordersCsv,
+  isRefundNoteValid,
+  orderAction,
   ordersTotal,
   personLabel,
-  refundAction,
   refundErrorKey,
+  refundsTotal,
+  withdrawalQuoteText,
   statusKey,
   type AdminOrder,
   type OrderFilters,
@@ -32,10 +35,12 @@ import {
 import { invoiceArgs } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
 import { invoiceErrorKey } from './invoices-admin';
+import { isPartialRefund, orderStatusText } from './offer';
 import { orderTermsNodes } from './offer-ui';
 import { requireAdmin } from './panel';
 import { orderNumberFromSearch } from './pass-grant';
 import { formatPrice } from './products';
+import { shortDay } from './sales-terms';
 
 function query<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
@@ -105,7 +110,7 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
       cell(row, order.item_name);
       cell(row, formatPrice(order.amount));
       cell(row, methodKeys(order).map((key) => t(key)).join(' / '));
-      cell(row, t(statusKey(order)));
+      cell(row, isPartialRefund(order) ? orderStatusText(order) : t(statusKey(order)));
       cell(row, personLabel(order) ?? t('orders.noAccount'));
       cell(row, order.seller_name ?? '—');
       const notes = cell(row, order.refund_note ?? '');
@@ -147,17 +152,43 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
         button.addEventListener('click', () => openGrantCancel(order));
         actions.append(button);
       }
-      const action = refundAction(order);
-      if (action === 'refund') {
+      const action = orderAction(order, todayInWarsaw());
+      const actionButton = (text: string, label: string, onClick: () => void) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'button';
-        button.textContent = t('orders.refund');
-        button.setAttribute('aria-label', t('orders.refundLabel', { item: order.item_name, amount: formatPrice(order.amount) }));
-        button.addEventListener('click', () => openRefund(order));
+        button.textContent = text;
+        button.setAttribute('aria-label', label);
+        button.addEventListener('click', onClick);
         actions.append(button);
-      } else if (action === 'used') {
-        actions.textContent = t('orders.passUsed');
+        return button;
+      };
+      const actionNote = (text: string) => {
+        const p = document.createElement('p');
+        p.textContent = text;
+        actions.append(p);
+      };
+      if (action?.kind === 'refund') {
+        actionButton(t('orders.refund'), t('orders.refundLabel', { item: order.item_name, amount: formatPrice(order.amount) }),
+          () => openRefund(order, action.warning, action.noteRequired));
+      } else if (action?.kind === 'used') {
+        actionNote(t('orders.passUsed'));
+      } else if (action?.kind === 'withdrawal' || action?.kind === 'done') {
+        // SPEC-012 AC-15, AC-18: „Odstąpienie od umowy” (nieaktywne przy zwrocie 0 zł).
+        const button = actionButton(t('orders.withdrawal'), t('orders.withdrawalLabel', { number: order.order_number }),
+          () => openWithdrawal(order));
+        if (action.kind === 'withdrawal') {
+          actionNote(t('orders.withdrawalUntil', { date: shortDay(action.until) }));
+        } else {
+          button.disabled = true;
+          actionNote(t('orders.withdrawalDone'));
+        }
+      } else if (action?.kind === 'retry') {
+        // SPEC-012 AC-52: Tpay odrzucił zwrot po odstąpieniu — ta sama kwota, bez ponownego wyliczenia.
+        actionNote(t('orders.retryFailed'));
+        const amount = formatPrice(action.refund);
+        const button = actionButton(t('orders.retry'), t('orders.retryLabel', { amount, number: order.order_number }),
+          () => void withdraw(order, null, '', button));
       }
       const invoice = invoiceAction(order);
       if (invoice === 'add') {
@@ -183,6 +214,9 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
     notice.hidden = !numberKey;
     query<HTMLElement>(root, '[data-empty]').hidden = orders.length > 0 || numberKey !== null;
     summary.textContent = t('orders.summary', { count: orders.length, amount: formatPrice(ordersTotal(orders)) });
+    // SPEC-012 AC-20: zwroty osobno.
+    const refunds = refundsTotal(orders);
+    if (refunds > 0) summary.textContent += `. ${t('orders.summaryRefunds', { amount: formatPrice(refunds) })}`;
     exportButton.disabled = orders.length === 0;
   }
 
@@ -230,12 +264,21 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
   }
 
   let pending: AdminOrder | null = null;
+  let noteRequired = false;
+  const lateWarning = query<HTMLElement>(dialog, '[data-late-warning]');
+  const noteLabel = query<HTMLElement>(dialog, '[data-note-label]');
 
-  function openRefund(order: AdminOrder): void {
+  // SPEC-012 AC-21, AC-22: po 14 dniach ostrzeżenie; notatka wymagana (3–300 znaków) po 14 dniach i przy sprzedaży na miejscu.
+  function openRefund(order: AdminOrder, warning: boolean, required: boolean): void {
     pending = order;
+    noteRequired = required;
     status.textContent = '';
     showError(null);
     note.value = '';
+    note.required = required;
+    note.minLength = required ? 3 : 0;
+    lateWarning.hidden = !warning;
+    noteLabel.textContent = t(required ? 'orders.noteRequired' : 'orders.note');
     const amount = formatPrice(order.amount);
     query<HTMLElement>(dialog, '[data-confirm-item]').textContent = t('orders.confirmItem', {
       number: order.order_number,
@@ -277,7 +320,93 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
   dialog.addEventListener('close', () => {
     const order = pending;
     pending = null;
-    if (order && dialog.returnValue === 'confirm') void refund(order, note.value.trim());
+    if (!order || dialog.returnValue !== 'confirm') return;
+    if (noteRequired && !isRefundNoteValid(note.value)) {
+      showError('orders.refundNoteRequired');
+      return;
+    }
+    void refund(order, note.value.trim());
+  });
+
+  // SPEC-012 AC-16…AC-19: „Odstąpienie od umowy” — dzień, wyliczenie z `withdrawal_quote`, notatka, „Zleć zwrot”.
+  const withdrawalDialog = query<HTMLDialogElement>(root, '[data-withdrawal-dialog]');
+  const withdrawalDay = query<HTMLInputElement>(withdrawalDialog, '[data-withdrawal-day]');
+  const withdrawalQuote = query<HTMLElement>(withdrawalDialog, '[data-withdrawal-quote]');
+  const withdrawalNote = query<HTMLTextAreaElement>(withdrawalDialog, '[data-withdrawal-note]');
+  const withdrawalConfirm = query<HTMLButtonElement>(withdrawalDialog, '[data-withdrawal-confirm]');
+  let withdrawalOrder: AdminOrder | null = null;
+  let quoteRequest = 0;
+
+  async function loadQuote(order: AdminOrder): Promise<void> {
+    const request = ++quoteRequest;
+    withdrawalConfirm.disabled = true;
+    withdrawalQuote.textContent = t('orders.withdrawalQuoteLoading');
+    const { data, error } = await supabase.rpc('withdrawal_quote', { p_order_id: order.id, p_day: withdrawalDay.value || null });
+    if (request !== quoteRequest) return;
+    const quote = (data as { amount: number; used: number; total: number; used_value: number; refund_amount: number; paid_on: string; last_day: string }[] | null)?.[0];
+    if (error || !quote) {
+      withdrawalQuote.textContent = t(error?.message === 'withdrawal_window_closed' ? 'orders.withdrawalWindowClosed' : 'orders.withdrawalQuoteError');
+      return;
+    }
+    const today = todayInWarsaw();
+    withdrawalDay.min = quote.paid_on;
+    withdrawalDay.max = quote.last_day < today ? quote.last_day : today;
+    withdrawalQuote.textContent = quote.refund_amount > 0 ? withdrawalQuoteText(quote) : t('orders.withdrawalDone');
+    withdrawalConfirm.disabled = quote.refund_amount === 0;
+  }
+
+  function openWithdrawal(order: AdminOrder): void {
+    withdrawalOrder = order;
+    status.textContent = '';
+    showError(null);
+    withdrawalNote.value = '';
+    withdrawalDay.value = todayInWarsaw();
+    withdrawalDay.removeAttribute('min');
+    withdrawalDay.removeAttribute('max');
+    query<HTMLElement>(withdrawalDialog, '[data-withdrawal-item]').textContent = t('orders.confirmItem', {
+      number: order.order_number,
+      item: order.item_name,
+      person: personLabel(order) ?? t('orders.noAccount'),
+      date: orderDateTime(order.created_at),
+    });
+    withdrawalDialog.showModal();
+    void loadQuote(order);
+  }
+
+  withdrawalDay.addEventListener('change', () => {
+    if (withdrawalOrder) void loadQuote(withdrawalOrder);
+  });
+
+  // AC-19 / AC-52: `payments-refund` z `mode = 'withdrawal'` (ponowienie — bez dnia, ta sama kwota).
+  async function withdraw(order: AdminOrder, day: string | null, refundNote: string, button?: HTMLButtonElement): Promise<void> {
+    if (button) button.disabled = true;
+    status.textContent = t('orders.refunding');
+    showError(null);
+    let code: string | null = null;
+    let ok = false;
+    try {
+      const result = await supabase.functions.invoke('payments-refund', {
+        body: { order_id: order.id, mode: 'withdrawal', withdrawal_on: day, refund_note: refundNote || null },
+      });
+      ok = !result.error;
+      code = ok ? null : await functionErrorCode(result.error);
+    } catch {
+      // błąd sieci — komunikat ogólny
+    }
+    status.textContent = '';
+    await load();
+    const refunded = ok ? orders.find((row) => row.id === order.id)?.refund_amount : null;
+    if (!ok) showError(refundErrorKey(code));
+    else status.textContent = refunded ? t('orders.withdrawalRefunded', { amount: formatPrice(refunded) }) : t('orders.refundedOnline');
+  }
+
+  withdrawalDialog.addEventListener('close', () => {
+    const order = withdrawalOrder;
+    withdrawalOrder = null;
+    quoteRequest++;
+    if (order && withdrawalDialog.returnValue === 'confirm') {
+      void withdraw(order, withdrawalDay.value, withdrawalNote.value.trim());
+    }
   });
 
   // SPEC-010 AC-18…AC-21: anulowanie przyznania — bez zwrotu pieniędzy, zużycia zostają (wszystko w `cancel_pass_grant`).

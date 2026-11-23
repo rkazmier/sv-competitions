@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
-import { PAYMENT_METHOD_TEXT } from './offer';
+import { orderStatusText, PAYMENT_METHOD_TEXT } from './offer';
 import {
   canCancelGrant,
   canResendEmail,
@@ -16,10 +16,13 @@ import {
   PAYMENT_METHODS,
   ordersCsv,
   numberSearchKey,
+  isRefundNoteValid,
+  orderAction,
   ordersTotal,
   personLabel,
-  refundAction,
   refundErrorKey,
+  refundsTotal,
+  withdrawalQuoteText,
   type AdminOrder,
 } from './orders-admin';
 import { formatPrice, NBSP } from './products';
@@ -48,6 +51,11 @@ const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   early_performance_consent_at: null,
   email_status: null,
   email_sent_at: null,
+  refund_amount: null,
+  withdrawal_on: null,
+  pass_kind: 'entries',
+  refund_window_until: null,
+  withdrawal_refund: null,
   ...fields,
 });
 
@@ -137,9 +145,9 @@ describe('AC-24: eksport CSV', () => {
     );
     const lines = csv.replace('﻿', '').trimEnd().split('\r\n');
     expect(csv.startsWith('﻿')).toBe(true);
-    expect(lines[0]).toBe('"Numer zamówienia";"Data";"Produkt";"Kwota";"Metoda";"Status";"Osoba";"Sprzedał(a)";"Uwagi";"Powód przyznania"');
-    expect(lines[1]).toBe('"SV-2026-000123";"18.11.2026, 09:05";"Karnet 10 wejść";"1200,00";"Online";"Opłacone";"Jan Kowalski";"";"";""');
-    expect(lines[2]).toContain('"Na miejscu / gotówka";"Zwrócone";"Bez konta";"Anna";"Zwrot gotówki / na terminal";""');
+    expect(lines[0]).toBe('"Numer zamówienia";"Data";"Produkt";"Kwota";"Metoda";"Status";"Osoba";"Sprzedał(a)";"Uwagi";"Powód przyznania";"Kwota zwrotu";"Dzień odstąpienia"');
+    expect(lines[1]).toBe('"SV-2026-000123";"18.11.2026, 09:05";"Karnet 10 wejść";"1200,00";"Online";"Opłacone";"Jan Kowalski";"";"";"";"";""');
+    expect(lines[2]).toContain('"Na miejscu / gotówka";"Zwrócone";"Bez konta";"Anna";"Zwrot gotówki / na terminal";"";"1200,00";""');
   });
 
   it('cudzysłowy podwojone, formuły arkusza zneutralizowane', () => {
@@ -155,18 +163,19 @@ describe('AC-24: eksport CSV', () => {
 });
 
 describe('AC-25, AC-26: „Anuluj i zwróć”', () => {
+  const TODAY = '2026-11-18';
   it('AC-25: opłacone bez zużycia — przycisk zwrotu', () => {
-    expect(refundAction(order())).toBe('refund');
+    expect(orderAction(order(), TODAY)).toEqual({ kind: 'refund', warning: false, noteRequired: false });
   });
 
   it('AC-26: uprawnienie używane — bez przycisku, informacja', () => {
-    expect(refundAction(order({ pass_used: true }))).toBe('used');
+    expect(orderAction(order({ pass_used: true }), TODAY)).toEqual({ kind: 'used' });
     expect(t('orders.passUsed')).toBe('Karnet był używany — zwrot poza systemem.');
   });
 
   it('AC-25: inne stany — bez akcji', () => {
     for (const status of ['pending', 'cancelled', 'refund_pending', 'refunded'] as const) {
-      expect(refundAction(order({ status }))).toBeNull();
+      expect(orderAction(order({ status }), TODAY)).toBeNull();
     }
   });
 
@@ -209,15 +218,15 @@ describe('SPEC-010: prezent w zamówieniach', () => {
 
   it('AC-14: CSV — metoda „Prezent”, kolumna „Powód przyznania” (pusta dla innych metod); suma bez zmian', () => {
     const lines = ordersCsv([gift(), order()], (key) => t(key)).replace('﻿', '').trimEnd().split('\r\n');
-    expect(lines[0].endsWith('"Uwagi";"Powód przyznania"')).toBe(true);
+    expect(lines[0].endsWith('"Uwagi";"Powód przyznania";"Kwota zwrotu";"Dzień odstąpienia"')).toBe(true);
     expect(lines[1]).toContain('"0,00";"Prezent";"Opłacone";"Jan Kowalski";"Admin Adamski";"";"Nagroda — zawody X"');
     expect(lines[2].endsWith('"";""')).toBe(true);
     expect(ordersTotal([gift(), order()])).toBe(ordersTotal([order()]));
   });
 
   it('AC-17: prezent — bez „Anuluj i zwróć” i „Dodaj dane do faktury”', () => {
-    expect(refundAction(gift())).toBeNull();
-    expect(refundAction(gift({ pass_used: true }))).toBeNull();
+    expect(orderAction(gift(), '2026-11-18')).toBeNull();
+    expect(orderAction(gift({ pass_used: true }), '2026-11-18')).toBeNull();
     expect(invoiceAction(gift())).toBeNull();
   });
 
@@ -239,5 +248,74 @@ describe('SPEC-010: prezent w zamówieniach', () => {
     expect(t(grantCancelErrorKey('order_not_paid'))).toBe('Przyznanie zostało już anulowane.');
     expect(grantCancelErrorKey('invalid_note')).toBe('orders.grantNoteTooLong');
     expect(grantCancelErrorKey(null)).toBe('orders.grantCancelError');
+  });
+});
+
+describe('SPEC-012 US-4: odstąpienie od umowy w panelu', () => {
+  const TODAY = '2027-01-05';
+  const inWindow = { refund_window_until: '2027-01-16', withdrawal_refund: 6667, amount: 10000 };
+
+  it('AC-15: w oknie — „Odstąpienie od umowy” (także używany karnet) i „Odstąpienie możliwe do 16.01.2027”', () => {
+    expect(orderAction(order(inWindow), TODAY)).toEqual({ kind: 'withdrawal', until: '2027-01-16', refund: 6667 });
+    expect(orderAction(order({ ...inWindow, pass_used: true }), TODAY)?.kind).toBe('withdrawal');
+    expect(orderAction(order(inWindow), '2027-01-16')?.kind).toBe('withdrawal');
+    expect(t('orders.withdrawalUntil', { date: '16.01.2027' })).toBe('Odstąpienie możliwe do 16.01.2027');
+  });
+
+  it('AC-16, AC-17: wyliczenie — „Cena 100,00 zł, wykorzystano 1 z 3 wejść (33,33 zł). Zwrot: 66,67 zł.”', () => {
+    expect(withdrawalQuoteText({ amount: 10000, used: 1, total: 3, used_value: 3333, refund_amount: 6667 })).toBe(
+      `Cena 100,00${NBSP}zł, wykorzystano 1 z 3 wejść (33,33${NBSP}zł). Zwrot: 66,67${NBSP}zł.`,
+    );
+    expect(withdrawalQuoteText({ amount: 5000, used: 0, total: 1, used_value: 0, refund_amount: 5000 })).toBe(
+      `Cena 50,00${NBSP}zł, bez wykorzystania. Zwrot: 50,00${NBSP}zł.`,
+    );
+  });
+
+  it('AC-18: zwrot 0 zł — przycisk nieaktywny z informacją', () => {
+    expect(orderAction(order({ ...inWindow, withdrawal_refund: 0, pass_used: true }), TODAY)).toEqual({ kind: 'done' });
+    expect(t('orders.withdrawalDone')).toBe('Usługa wykonana w całości — prawo odstąpienia wygasło.');
+    expect(refundErrorKey('withdrawal_nothing_to_refund')).toBe('orders.withdrawalDone');
+  });
+
+  it('AC-21: po oknie — „Anuluj i zwróć” z ostrzeżeniem i wymaganą notatką; używany — bez zmian', () => {
+    expect(orderAction(order({ refund_window_until: '2027-01-04' }), TODAY)).toEqual({ kind: 'refund', warning: true, noteRequired: true });
+    expect(orderAction(order({ ...inWindow, refund_window_until: '2027-01-04' }), TODAY)?.kind).toBe('refund');
+    expect(orderAction(order({ refund_window_until: '2027-01-04', pass_used: true }), TODAY)).toEqual({ kind: 'used' });
+    expect(t('orders.lateWarning')).toBe(
+      'Minęło 14 dni od zakupu. Regulamin nie przewiduje zwrotu — zwróć tylko w uzasadnionym przypadku (np. reklamacja).',
+    );
+    expect(isRefundNoteValid(' ab ')).toBe(false);
+    expect(isRefundNoteValid('Reklamacja')).toBe(true);
+    expect(isRefundNoteValid('x'.repeat(301))).toBe(false);
+    expect(refundErrorKey('refund_note_required')).toBe('orders.refundNoteRequired');
+  });
+
+  it('AC-22: wejściówka i sprzedaż na miejscu — bez odstąpienia; na miejscu w oknie — notatka wymagana bez ostrzeżenia', () => {
+    expect(orderAction(order({ pass_kind: 'event_ticket' }), TODAY)).toEqual({ kind: 'refund', warning: false, noteRequired: false });
+    expect(orderAction(order({ payment_method: 'on_site', on_site_method: 'cash', refund_window_until: '2027-01-16' }), TODAY))
+      .toEqual({ kind: 'refund', warning: false, noteRequired: true });
+  });
+
+  it('AC-55: karnet czasowy w oknie — „Anuluj i zwróć” bez ostrzeżenia; aktywowany — zwrot poza systemem', () => {
+    const days: Partial<AdminOrder> = { pass_kind: 'days', refund_window_until: '2027-01-16', withdrawal_refund: null };
+    expect(orderAction(order(days), TODAY)).toEqual({ kind: 'refund', warning: false, noteRequired: false });
+    expect(orderAction(order({ ...days, pass_used: true }), TODAY)).toEqual({ kind: 'used' });
+  });
+
+  it('AC-52: zwrot po odstąpieniu odrzucony — „Ponów zwrot” tej samej kwoty', () => {
+    const failed = order({ withdrawal_on: '2027-01-04', refund_amount: 6667, pass_used: true });
+    expect(orderAction(failed, '2027-02-01')).toEqual({ kind: 'retry', refund: 6667 });
+  });
+
+  it('AC-20: status „Zwrócone 66,67 zł z 100,00 zł” / „Zwrot w toku: 66,67 zł”, suma zwrotów, CSV', () => {
+    const partial = order({ amount: 10000, refund_amount: 6667, status: 'refunded', withdrawal_on: '2027-01-04' });
+    expect(orderStatusText(partial)).toBe(`Zwrócone 66,67${NBSP}zł z 100,00${NBSP}zł`);
+    expect(orderStatusText({ ...partial, status: 'refund_pending' })).toBe(`Zwrot w toku: 66,67${NBSP}zł`);
+    expect(orderStatusText(order({ amount: 10000, refund_amount: 10000, status: 'refunded' }))).toBe('Zwrócone');
+    expect(refundsTotal([partial, order({ amount: 5000, status: 'refunded' }), order()])).toBe(11667);
+    expect(t('orders.summaryRefunds', { amount: formatPrice(6667) })).toBe(`Zwroty: −66,67${NBSP}zł`);
+    const line = ordersCsv([partial], (key) => t(key)).trimEnd().split('\r\n')[1];
+    expect(line).toContain(`"Zwrócone 66,67${NBSP}zł z 100,00${NBSP}zł"`);
+    expect(line.endsWith('"66,67";"4.01.2027"')).toBe(true);
   });
 });

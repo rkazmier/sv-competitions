@@ -95,10 +95,27 @@ import { GRANT_URL } from '../../../lib/pass-grant';
         <h2 id="refund-heading">{t('orders.confirmHeading')}</h2>
         <p data-confirm-item></p>
         <p data-confirm-text></p>
-        <label class="field-label" for="o-note">{t('orders.note')}</label>
+        <p class="message-error" role="alert" data-late-warning hidden>{t('orders.lateWarning')}</p>
+        <label class="field-label" for="o-note" data-note-label>{t('orders.note')}</label>
         <textarea class="input" id="o-note" name="note" maxlength="300" rows="2" data-note></textarea>
         <div class="actions">
           <button type="submit" class="button button-primary" value="confirm" data-confirm>{t('orders.confirm')}</button>
+          <button type="submit" class="button" value="cancel" formnovalidate>{t('orders.back')}</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="card confirm" aria-labelledby="withdrawal-heading" data-withdrawal-dialog>
+      <form method="dialog" class="stack">
+        <h2 id="withdrawal-heading">{t('orders.withdrawal')}</h2>
+        <p data-withdrawal-item></p>
+        <label class="field-label" for="o-withdrawal-day">{t('orders.withdrawalDay')}</label>
+        <input class="input" id="o-withdrawal-day" name="day" type="date" required data-withdrawal-day />
+        <p aria-live="polite" data-withdrawal-quote></p>
+        <label class="field-label" for="o-withdrawal-note">{t('orders.note')}</label>
+        <textarea class="input" id="o-withdrawal-note" name="note" maxlength="300" rows="2" data-withdrawal-note></textarea>
+        <div class="actions">
+          <button type="submit" class="button button-primary" value="confirm" data-withdrawal-confirm disabled>{t('orders.withdrawalConfirm')}</button>
           <button type="submit" class="button" value="cancel" formnovalidate>{t('orders.back')}</button>
         </div>
       </form>

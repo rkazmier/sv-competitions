@@ -5,9 +5,10 @@
  * Interfejs: lib/orders-admin-ui.ts.
  */
 import { t, type MessageKey } from '../i18n';
-import { orderStatusKey, PAYMENT_METHOD_TEXT, shortDateTime, type OrderStatus } from './offer';
+import { isPartialRefund, orderStatusKey, orderStatusText, PAYMENT_METHOD_TEXT, shortDateTime, type OrderStatus } from './offer';
 import { normalizeOrderNumber } from './order-number';
-import { priceInputValue } from './products';
+import { formatPrice, priceInputValue } from './products';
+import { shortDay } from './sales-terms';
 
 export type PaymentMethod = 'tpay' | 'on_site';
 /** Metoda zamówienia w panelu: płatność albo `gift` — przyznanie karnetu (SPEC-010). */
@@ -40,6 +41,64 @@ export interface AdminOrder {
   /** SPEC-012 AC-14: stan e-maila `order_paid` (`email_outbox`); `null` — zamówienie bez e-maila. */
   email_status: EmailStatus | null;
   email_sent_at: string | null;
+  /** SPEC-012 AC-19, AC-20: kwota zwrotu (grosze; `null` przy starszym zwrocie = pełny) i dzień odstąpienia. */
+  refund_amount: number | null;
+  withdrawal_on: string | null;
+  /** Rodzaj uprawnienia (`user_passes.kind`); `null` — bez uprawnienia. */
+  pass_kind: 'entries' | 'days' | 'single_entry' | 'event_ticket' | null;
+  /** SPEC-012 AC-15, AC-21: ostatni dzień 14 dni od opłacenia (zamówienia na produkt); `null` — wejściówka / nieopłacone. */
+  refund_window_until: string | null;
+  /** SPEC-012 AC-16…AC-18: zwrot przy odstąpieniu na dziś; `null` — odstąpienie niedostępne. */
+  withdrawal_refund: number | null;
+}
+
+/**
+ * SPEC-012 US-4: akcja zwrotu przy zamówieniu.
+ * - `withdrawal` — „Odstąpienie od umowy” w oknie 14 dni (AC-15), `done` — zwrot 0 zł, przycisk nieaktywny (AC-18);
+ * - `retry` — zwrot po odstąpieniu odrzucony przez Tpay, „Ponów zwrot” tej samej kwoty (AC-52);
+ * - `refund` — „Anuluj i zwróć”; po 14 dniach ostrzeżenie i wymagana notatka (AC-21), „na miejscu” — notatka wymagana (AC-22);
+ * - `used` — „Karnet był używany — zwrot poza systemem.” (SPEC-003 AC-26).
+ */
+export type OrderAction =
+  | { kind: 'withdrawal'; until: string; refund: number }
+  | { kind: 'done' }
+  | { kind: 'retry'; refund: number }
+  | { kind: 'refund'; warning: boolean; noteRequired: boolean }
+  | { kind: 'used' };
+
+export function orderAction(order: AdminOrder, today: string): OrderAction | null {
+  if (order.status !== 'paid' || isGift(order)) return null;
+  if (order.payment_method === 'tpay' && order.withdrawal_on) {
+    return { kind: 'retry', refund: order.refund_amount ?? order.amount };
+  }
+  const until = order.refund_window_until;
+  if (order.withdrawal_refund !== null && until && today <= until) {
+    return order.withdrawal_refund > 0 ? { kind: 'withdrawal', until, refund: order.withdrawal_refund } : { kind: 'done' };
+  }
+  if (order.pass_used) return { kind: 'used' };
+  const afterWindow = until !== null && today > until;
+  return { kind: 'refund', warning: afterWindow, noteRequired: afterWindow || (until !== null && order.payment_method === 'on_site') };
+}
+
+/** SPEC-012 AC-21: notatka przy „Anuluj i zwróć” po 14 dniach — 3–300 znaków. */
+export const isRefundNoteValid = (note: string) => note.trim().length >= 3 && note.trim().length <= 300;
+
+/**
+ * SPEC-012 AC-16: wyliczenie z `withdrawal_quote` — „Cena 100,00 zł, wykorzystano 1 z 3 wejść (33,33 zł). Zwrot: 66,67 zł.”;
+ * bez wykorzystania — zwrot pełnej kwoty.
+ */
+export function withdrawalQuoteText(quote: { amount: number; used: number; total: number; used_value: number; refund_amount: number }): string {
+  const price = formatPrice(quote.amount);
+  const refund = formatPrice(quote.refund_amount);
+  if (quote.used === 0) return t('orders.withdrawalQuoteUnused', { price, refund });
+  return t('orders.withdrawalQuote', { price, used: quote.used, total: quote.total, value: formatPrice(quote.used_value), refund });
+}
+
+/** SPEC-012 AC-20: suma zwrotów bieżącego widoku (zwroty w toku i wykonane; starsze bez `refund_amount` — pełna kwota). */
+export function refundsTotal(orders: readonly AdminOrder[]): number {
+  return orders
+    .filter((order) => order.status === 'refunded' || order.status === 'refund_pending')
+    .reduce((sum, order) => sum + (order.refund_amount ?? order.amount), 0);
 }
 
 export type EmailStatus = 'pending' | 'sent' | 'failed' | 'skipped';
@@ -115,15 +174,6 @@ export function ordersTotal(orders: readonly AdminOrder[]): number {
 
 export const isGift = (order: Pick<AdminOrder, 'payment_method'>) => order.payment_method === 'gift';
 
-/**
- * AC-25, AC-26: co pokazać przy zamówieniu — przycisk zwrotu, informację o używanym karnecie albo nic.
- * SPEC-010 AC-17: prezent nie ma „Anuluj i zwróć” (zamiast tego `canCancelGrant`).
- */
-export function refundAction(order: AdminOrder): 'refund' | 'used' | null {
-  if (order.status !== 'paid' || isGift(order)) return null;
-  return order.pass_used ? 'used' : 'refund';
-}
-
 /** SPEC-010 AC-18, AC-21: „Anuluj przyznanie” przy prezencie w stanie `paid` — także przy używanym karnecie. */
 export function canCancelGrant(order: AdminOrder): boolean {
   return isGift(order) && order.status === 'paid';
@@ -190,19 +240,24 @@ export function ordersCsv(orders: readonly AdminOrder[], text: (key: MessageKey)
   const header: MessageKey[] = [
     'orders.csvNumber', 'orders.colDate', 'orders.colItem', 'orders.colAmount', 'orders.colMethod', 'orders.colStatus',
     'orders.colPerson', 'orders.colSeller', 'orders.colNote', 'orders.csvGrantReason',
+    'orders.csvRefundAmount', 'orders.csvWithdrawalOn',
   ];
+  const refunded = (order: AdminOrder) => order.status === 'refunded' || order.status === 'refund_pending';
   const rows = orders.map((order) => [
     order.order_number,
     orderDateTime(order.created_at),
     order.item_name,
     priceInputValue(order.amount),
     methodKeys(order).map(text).join(' / '),
-    text(statusKey(order)),
+    isPartialRefund(order) ? orderStatusText(order) : text(statusKey(order)),
     personLabel(order) ?? text('orders.noAccount'),
     order.seller_name ?? '',
     // SPEC-010 AC-14: notatka anulowania prezentu w „Uwagi”, powód w osobnej kolumnie (pusta dla innych metod).
     order.refund_note ?? order.grant_cancel_note ?? '',
     order.grant_reason ?? '',
+    // SPEC-012 AC-20: „Kwota zwrotu” (zwrot w toku / wykonany) i „Dzień odstąpienia”.
+    refunded(order) ? priceInputValue(order.refund_amount ?? order.amount) : '',
+    order.withdrawal_on ? shortDay(order.withdrawal_on) : '',
   ]);
   return '﻿' + [header.map(text), ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n') + '\r\n';
 }
@@ -215,6 +270,11 @@ export function csvFileName(filters: OrderFilters): string {
 
 const REFUND_ERRORS: Record<string, MessageKey> = {
   pass_used: 'orders.passUsed',
+  refund_note_required: 'orders.refundNoteRequired',
+  withdrawal_nothing_to_refund: 'orders.withdrawalDone',
+  withdrawal_window_closed: 'orders.withdrawalWindowClosed',
+  withdrawal_not_available: 'orders.errorNotPaid',
+  withdrawal_invalid_day: 'orders.withdrawalInvalidDay',
   order_not_paid: 'orders.errorNotPaid',
   order_not_found: 'orders.errorNotPaid',
   refund_failed: 'orders.errorTpay',
