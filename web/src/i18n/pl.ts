@@ -227,8 +227,157 @@ export const pl = {
   },
   salesTerms: {
     title: 'Regulamin sprzedaży',
-    placeholder:
-      'Treść regulaminu sprzedaży zostanie tu opublikowana wkrótce. W sprawach zakupów skontaktuj się z obsługą strzelnicy.',
+    effectiveFrom: 'Obowiązuje od: {date}',
+    pdfHeading: 'Regulamin sprzedaży — obowiązuje od {date}',
+    pdfPage: 'Strona {page} z {pages}',
+    // Regulamin sprzedaży od właściciela (#154, SPEC-003 12-A) — treść 1:1 z komentarza w issue (Markdown).
+    // Podzbiór Markdown opisuje `salesTermsBlocks` (lib/sales-terms.ts). Z tej treści powstaje też PDF wersji
+    // (`npm run pdf:sales-terms`). Zmiana treści = nowa wersja z nową datą obowiązywania (SPEC-012).
+    body: String.raw`# Regulamin sprzedaży
+
+## § 1. Postanowienia ogólne
+
+1. Regulamin określa zasady sprzedaży karnetów, wejść jednorazowych i wejściówek na wydarzenia na strzelnicy Steel Valley — online, przez zakładkę „Oferta” w serwisie events.steel-valley.pl, oraz na miejscu, w strzelnicy.
+2. Sprzedawcą jest Rafał Kaźmierowski, prowadzący działalność gospodarczą pod firmą RAFAŁ KAŹMIEROWSKI, ul. Lęborska 22E/39, 80-387 Gdańsk, NIP 9581488219, REGON 368862966, wpisany do Centralnej Ewidencji i Informacji o Działalności Gospodarczej.
+3. Kontakt ze Sprzedawcą: e-mail rkazmierowski@gmail.com, telefon 503 911 707, adres do korespondencji jak w ust. 2.
+4. Strzelnica, na której realizowane są usługi, mieści się pod adresem Morawy Wielkie 67, 06-316.
+5. Regulamin jest udostępniany nieodpłatnie pod adresem events.steel-valley.pl/regulamin-sprzedazy/ w sposób umożliwiający jego pobranie, utrwalenie i wydrukowanie.
+6. Akceptacja Regulaminu jest warunkiem złożenia zamówienia online.
+
+## § 2. Definicje
+
+1. **Klient** — osoba fizyczna, osoba prawna lub jednostka organizacyjna nieposiadająca osobowości prawnej, która kupuje Produkt.
+2. **Konsument** — Klient będący osobą fizyczną, który kupuje Produkt w celu niezwiązanym bezpośrednio z jego działalnością gospodarczą lub zawodową.
+3. **Przedsiębiorca na prawach konsumenta** — osoba fizyczna prowadząca jednoosobową działalność gospodarczą, która kupuje Produkt w celu bezpośrednio związanym z tą działalnością, gdy z treści umowy wynika, że nie ma ona dla niej charakteru zawodowego (art. 38a ustawy o prawach konsumenta). Postanowienia Regulaminu dotyczące Konsumentów stosuje się do niej odpowiednio.
+4. **Serwis** — aplikacja internetowa dostępna pod adresem events.steel-valley.pl.
+5. **Konto** — konto Klienta w Serwisie, w którym widoczne są jego Uprawnienia, historia płatności i kod QR.
+6. **Produkt** — usługa udostępnienia strzelnicy w postaci:
+   1. **Karnetu ilościowego** — uprawnia do określonej liczby wejść na strzelnicę;
+   2. **Wejścia jednorazowego** — uprawnia do jednego wejścia na strzelnicę w dniu weekendowym albo w dniu powszednim, zależnie od rodzaju;
+   3. **Wejściówki** — uprawnia do udziału w wydarzeniu organizowanym przez Sprzedawcę w dniu lub dniach tego wydarzenia.
+7. **Uprawnienie** — prawo do skorzystania z Produktu, powstające po opłaceniu zamówienia i przypisane do Konta.
+8. **Wejście** — jeden pobyt na strzelnicy w danym dniu, potwierdzony wpisem do książki rejestru pobytu na strzelnicy.
+9. **Regulamin strzelnicy** — regulamin użytkowania strzelnicy w miejscowości Morawy Wielkie, dostępny w Serwisie i na strzelnicy.
+10. **Obsługa** — osoby działające w imieniu Sprzedawcy na strzelnicy, w tym prowadzący strzelanie.
+
+## § 3. Wymagania techniczne i Konto
+
+1. Do korzystania z Serwisu potrzebne są: urządzenie z dostępem do internetu, aktualna przeglądarka internetowa z włączoną obsługą JavaScript i plików cookies niezbędnych do logowania oraz aktywny adres e-mail. Do skanowania kodu QR na strzelnicy przydatny jest telefon z ekranem.
+2. Zakup online wymaga zalogowania się do Konta — przez konto Google albo adres e-mail.
+3. Prowadzenie Konta jest nieodpłatne i trwa przez czas nieokreślony. Klient może w każdej chwili zażądać usunięcia Konta, pisząc na adres z § 1 ust. 3.
+4. Przed usunięciem Konta Sprzedawca informuje Klienta o niewykorzystanych Uprawnieniach. Usunięcie Konta na żądanie Klienta oznacza rezygnację z niewykorzystanych Uprawnień. Dane zamówień i faktur są przechowywane zgodnie z § 12.
+5. Klientowi nie wolno dostarczać przez Serwis treści o charakterze bezprawnym ani udostępniać Konta innym osobom.
+
+## § 4. Produkty i ceny
+
+1. Aktualna oferta, ceny i opisy Produktów są dostępne w zakładce „Oferta” oraz — dla Wejściówek — na kartach wydarzeń w kalendarzu Serwisu.
+2. Ceny podawane są w złotych polskich i są cenami brutto, które Klient płaci; zawierają podatek VAT.
+3. Wiążąca jest cena widoczna w podsumowaniu zamówienia w chwili kliknięcia przycisku zapłaty. Zmiana cen nie dotyczy zamówień złożonych wcześniej.
+4. Każde Uprawnienie jest imienne — przysługuje wyłącznie właścicielowi Konta, na które zostało kupione, i nie może być przekazane innej osobie.
+5. **Ważność.** Uprawnienie z Karnetu ilościowego albo Wejścia jednorazowego jest ważne 1 rok od dnia zakupu. Po tym terminie niewykorzystane Wejścia przepadają. Sprzedawca nie przedłuża ważności Uprawnień, chyba że Regulamin stanowi inaczej (ust. 9).
+6. **Karnet ilościowy** — każde Wejście zmniejsza liczbę pozostałych Wejść o jedno.
+7. **Wejście jednorazowe** jest ważne w dniu weekendowym (sobota, niedziela) albo w dniu powszednim (poniedziałek–piątek), zależnie od rodzaju wskazanego w ofercie. Święto przypadające w dniu powszednim traktuje się jak dzień powszedni.
+8. **Wejściówka** jest ważna wyłącznie w dniu lub dniach wydarzenia, na które została kupiona, i obejmuje wszystkie dni tego wydarzenia. Liczba Wejściówek może być ograniczona limitem miejsc. Sprzedaż kończy się z upływem ostatniego dnia wydarzenia albo po wyczerpaniu miejsc.
+9. Jeżeli strzelnica jest zamknięta z przyczyn leżących po stronie Sprzedawcy przez więcej niż 7 kolejnych dni, ważność Uprawnień przedłuża się o czas zamknięcia.
+10. Uprawnienie nie stanowi rezerwacji stanowiska strzeleckiego w określonym terminie. Godziny otwarcia strzelnicy są publikowane w Serwisie. Karnety i Wejścia jednorazowe uprawniają do wejścia tylko wtedy, gdy na strzelnicy nie odbywają się wydarzenia ani zawody sportowe. W czasie wydarzenia lub zawodów, których terminy są podane w kalendarzu Serwisu, wstęp na strzelnicę jest możliwy wyłącznie na zasadach tego wydarzenia, w szczególności z Wejściówką.
+
+## § 5. Zamówienie online
+
+1. Aby złożyć zamówienie, Klient:
+   1. loguje się do Konta;
+   2. wybiera Produkt w zakładce „Oferta” albo przycisk „Kup wejściówkę” na karcie wydarzenia;
+   3. w podsumowaniu sprawdza nazwę Produktu, cenę i ważność, opcjonalnie zaznacza „Potrzebuję faktury” i podaje dane do faktury;
+   4. akceptuje Regulamin;
+   5. klika przycisk „Zapłać” z podaną kwotą, co oznacza złożenie zamówienia z obowiązkiem zapłaty, i zostaje przekierowany do serwisu płatności Tpay.
+2. Jedno zamówienie obejmuje jeden Produkt w ilości 1.
+3. Umowa sprzedaży zostaje zawarta z chwilą złożenia zamówienia w sposób opisany w ust. 1 pkt 5.
+4. Klient powinien opłacić zamówienie w ciągu 24 godzin od jego złożenia. Po tym terminie nieopłacone zamówienie jest anulowane, a umowa wygasa. W przypadku Wejściówki miejsce jest rezerwowane dla Klienta przez 30 minut od rozpoczęcia płatności.
+5. Uprawnienie staje się aktywne niezwłocznie po otrzymaniu przez Sprzedawcę potwierdzenia płatności od Tpay. Status płatności i Uprawnienia Klient widzi w Koncie.
+6. Potwierdzenie zawarcia umowy, wraz z treścią Regulaminu, Sprzedawca przekazuje Klientowi na trwałym nośniku — e-mailem na adres przypisany do Konta, z Regulaminem w formacie PDF w załączniku — niezwłocznie po otrzymaniu płatności. Potwierdzenie płatności wysyła Klientowi także Tpay.
+7. Jeżeli wpłata wpłynie po anulowaniu zamówienia, Sprzedawca realizuje zamówienie albo — gdy nie jest to możliwe (np. brak miejsc na wydarzeniu) — zwraca wpłatę w terminie 14 dni.
+
+## § 6. Płatności i faktury
+
+1. Płatności online obsługuje Tpay — Krajowy Integrator Płatności S.A. z siedzibą w Poznaniu. Klient może wybrać każdą metodę płatności udostępnioną przez Tpay i wyświetloną w serwisie Tpay przy płatności, w szczególności BLIK, szybki przelew, kartę płatniczą i portfele elektroniczne.
+2. Na strzelnicy można kupić Produkt gotówką albo kartą w terminalu płatniczym. Sprzedaż jest rejestrowana przez Obsługę w Serwisie, a Uprawnienie pojawia się w Koncie Klienta.
+3. Osoba, która nie ma Konta, może kupić na miejscu wyłącznie Wejście jednorazowe ważne w dniu zakupu albo Wejściówkę na wydarzenie odbywające się w dniu zakupu. Takie Uprawnienie jest wykorzystywane w dniu zakupu i wygasa z jego końcem.
+4. Fakturę wystawia się na żądanie Klienta zgłoszone przy zakupie (pole „Potrzebuję faktury” i NIP) albo po zakupie, na adres z § 1 ust. 3, w terminie wynikającym z przepisów o VAT. Faktury są wystawiane w Krajowym Systemie e-Faktur (KSeF) i udostępniane nabywcy przez KSeF.
+5. Dane firmy do faktury Serwis może pobrać z publicznych rejestrów (Biała lista VAT, REGON) na podstawie podanego NIP. Klient odpowiada za poprawność danych wpisanych ręcznie.
+
+## § 7. Korzystanie z Uprawnień
+
+1. Wejście na strzelnicę wymaga wpisu do książki rejestru pobytu na strzelnicy, prowadzonej w formie elektronicznej, i potwierdzenia zapoznania się z Regulaminem strzelnicy. Klient okazuje Obsłudze kod QR z Konta albo podaje dane pozwalające go zidentyfikować.
+2. Wpis do książki rejestru pobytu zużywa Uprawnienie wybrane przy wpisie: jedno Wejście z Karnetu ilościowego, Wejście jednorazowe albo dzień wydarzenia z Wejściówki.
+3. Klient korzysta ze strzelnicy zgodnie z Regulaminem strzelnicy i poleceniami prowadzącego strzelanie. Sprzedawca nie stawia Klientom innych wymagań niż akceptacja Regulaminu strzelnicy i stosowanie się do niego.
+4. Prowadzący strzelanie może odmówić wpuszczenia na strzelnicę albo usunąć z niej osobę, która narusza Regulamin strzelnicy lub zagraża bezpieczeństwu. W takim przypadku wykorzystane Wejście nie podlega zwrotowi.
+5. Jeżeli Klient nie może skorzystać z Wejścia z przyczyn leżących po stronie Sprzedawcy (np. zamknięcie strzelnicy w godzinach otwarcia), Wejście nie jest zużywane.
+
+## § 8. Prawo odstąpienia od umowy (Konsumenci)
+
+1. Konsument, który kupił online Karnet ilościowy albo Wejście jednorazowe, może odstąpić od umowy bez podania przyczyny w terminie **14 dni od dnia jej zawarcia**.
+2. Jeżeli Konsument wyraźnie zażąda rozpoczęcia świadczenia usługi przed upływem terminu na odstąpienie (pierwsze Wejście w tym terminie), a następnie odstąpi od umowy, zapłaci za usługi spełnione do chwili odstąpienia. Kwotę tę oblicza się proporcjonalnie: cena Karnetu ilościowego podzielona przez liczbę Wejść, pomnożona przez liczbę wykorzystanych Wejść.
+3. Prawo odstąpienia nie przysługuje, gdy usługa została w pełni wykonana za wyraźną zgodą Konsumenta, który przed rozpoczęciem świadczenia został poinformowany, że po spełnieniu świadczenia utraci prawo odstąpienia (art. 38 ust. 1 pkt 1 ustawy o prawach konsumenta) — dotyczy to w szczególności wykorzystanego Wejścia jednorazowego i w pełni wykorzystanego karnetu.
+4. Prawo odstąpienia nie przysługuje w odniesieniu do **Wejściówek**, ponieważ są to usługi związane z wydarzeniami sportowymi lub rekreacyjnymi, dla których w umowie oznaczono dzień świadczenia (art. 38 ust. 1 pkt 12 ustawy o prawach konsumenta).
+5. Ustawowe prawo odstąpienia nie dotyczy umów zawartych na miejscu, w strzelnicy.
+6. Aby odstąpić od umowy, Konsument składa oświadczenie: przez funkcję „Odstąp od umowy” w Koncie, e-mailem na adres z § 1 ust. 3 albo pisemnie na adres Sprzedawcy. Może skorzystać ze wzoru w Załączniku nr 1, ale nie jest to obowiązkowe. Do zachowania terminu wystarczy wysłanie oświadczenia przed jego upływem.
+7. Sprzedawca niezwłocznie potwierdza otrzymanie oświadczenia na trwałym nośniku, anuluje Uprawnienie i zwraca należną kwotę (całą cenę albo cenę pomniejszoną o kwotę z ust. 2) w terminie 14 dni od otrzymania oświadczenia, przy użyciu takiego samego sposobu płatności, jakiego użył Konsument, chyba że Konsument zgodzi się na inny sposób niewiążący się dla niego z kosztami.
+
+## § 9. Rezygnacja, odwołanie wydarzenia i inne zwroty
+
+1. Poza przypadkami opisanymi w § 8, w ust. 2–3 poniżej i w przepisach prawa cena Uprawnienia nie podlega zwrotowi, także gdy Uprawnienie nie zostało wykorzystane.
+2. Jeżeli Sprzedawca odwoła wydarzenie, zwraca Klientom pełną cenę Wejściówek w terminie 14 dni od odwołania, bez konieczności składania wniosku.
+3. Jeżeli Sprzedawca zmieni termin wydarzenia, Klient może zachować Wejściówkę na nowy termin albo zażądać zwrotu pełnej ceny w terminie 30 dni od otrzymania informacji o zmianie, o ile Wejściówka nie została wykorzystana.
+4. Zwroty płatności online realizowane są przez Tpay na rachunek lub kartę, z których dokonano płatności. Zwroty za zakupy na miejscu — gotówką albo na kartę użytą w terminalu.
+
+## § 10. Reklamacje
+
+1. Sprzedawca odpowiada za należyte wykonanie umowy na zasadach określonych w przepisach prawa, w szczególności w Kodeksie cywilnym i ustawie o prawach konsumenta.
+2. Reklamację można złożyć e-mailem na adres z § 1 ust. 3 lub pisemnie na adres Sprzedawcy. Zalecane jest podanie: imienia i nazwiska, adresu e-mail Konta, numeru zamówienia, opisu problemu i oczekiwanego sposobu rozwiązania.
+3. Sprzedawca odpowiada na reklamację w terminie 14 dni od jej otrzymania, na trwałym nośniku (e-mailem albo pisemnie).
+4. Reklamacje dotyczące samej płatności (np. podwójne obciążenie) Sprzedawca rozpatruje we współpracy z Tpay.
+
+## § 11. Pozasądowe rozwiązywanie sporów
+
+1. Konsument może skorzystać z pozasądowych sposobów rozpatrywania reklamacji i dochodzenia roszczeń, w szczególności:
+   1. zwrócić się o pomoc do miejskiego lub powiatowego rzecznika konsumentów albo organizacji konsumenckiej (np. Federacji Konsumentów);
+   2. wystąpić do stałego polubownego sądu konsumenckiego lub o mediację przy Wojewódzkim Inspektoracie Inspekcji Handlowej w Gdańsku.
+2. Informacje o tych procedurach są dostępne na stronie Urzędu Ochrony Konkurencji i Konsumentów (uokik.gov.pl).
+3. Sprzedawca nie zobowiązuje się z góry do udziału w pozasądowym rozwiązywaniu sporów; decyzję o udziale podejmuje indywidualnie w każdej sprawie.
+
+## § 12. Dane osobowe
+
+1. Administratorem danych osobowych Klientów jest Sprzedawca. Szczegółowe zasady przetwarzania danych opisuje Polityka prywatności dostępna pod adresem events.steel-valley.pl/polityka-prywatnosci/.
+2. W celu realizacji płatności Sprzedawca przekazuje Tpay adres e-mail oraz imię i nazwisko płatnika.
+3. Dane zamówień i faktur są przechowywane przez 5 lat od końca roku kalendarzowego, w którym dokonano zakupu, ze względu na przepisy podatkowe i rachunkowe. Po usunięciu Konta zamówienia nie są powiązane z osobą Klienta, z wyjątkiem danych na fakturach.
+
+## § 13. Postanowienia końcowe
+
+1. Sprzedawca może zmienić Regulamin z ważnych przyczyn, w szczególności zmiany przepisów, zakresu oferty lub sposobu płatności. Do zamówień złożonych przed zmianą stosuje się Regulamin w brzmieniu zaakceptowanym przy zamówieniu.
+2. O zmianie Regulaminu Sprzedawca informuje w Serwisie co najmniej 7 dni przed jej wejściem w życie.
+3. W sprawach nieuregulowanych stosuje się prawo polskie, w szczególności Kodeks cywilny, ustawę o prawach konsumenta i ustawę o świadczeniu usług drogą elektroniczną.
+4. Postanowienia Regulaminu nie ograniczają uprawnień Konsumentów wynikających z bezwzględnie obowiązujących przepisów prawa. W razie sprzeczności stosuje się te przepisy.
+5. Spory z Klientami niebędącymi Konsumentami ani Przedsiębiorcami na prawach konsumenta rozstrzyga sąd właściwy dla siedziby Sprzedawcy.
+6. Regulamin obowiązuje od 1 stycznia 2027 r.
+
+## Załącznik nr 1 — Wzór formularza odstąpienia od umowy
+
+*(formularz należy wypełnić i odesłać tylko w przypadku chęci odstąpienia od umowy)*
+
+**Adresat:** RAFAŁ KAŹMIEROWSKI, ul. Lęborska 22E/39, 80-387 Gdańsk, e-mail: rkazmierowski@gmail.com
+
+Ja/My (\*) niniejszym informuję/informujemy (\*) o moim/naszym (\*) odstąpieniu od umowy o świadczenie następującej usługi:
+
+- Produkt (nazwa karnetu / wejścia): ……………………………………
+- Numer zamówienia: ……………………………………
+- Data zawarcia umowy: ……………………………………
+- Imię i nazwisko Konsumenta: ……………………………………
+- Adres e-mail Konta: ……………………………………
+- Adres Konsumenta: ……………………………………
+- Podpis Konsumenta (tylko jeżeli formularz jest przesyłany w wersji papierowej): ……………………………………
+- Data: ……………………………………
+
+(\*) Niepotrzebne skreślić.
+`,
   },
   profile: {
     title: 'Twoje dane',
