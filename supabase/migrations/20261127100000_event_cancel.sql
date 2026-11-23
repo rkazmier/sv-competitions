@@ -376,6 +376,27 @@ $$;
 revoke execute on function public.admin_event_refunds(uuid) from public, anon;
 grant execute on function public.admin_event_refunds(uuid) to authenticated;
 
+-- ===== order_paid po odwołaniu (AC-28) =====
+
+-- Wpłata za wejściówkę odwołanego wydarzenia nie dostaje potwierdzenia zakupu — wejściówka jest od razu `cancelled`,
+-- a zwrot zleca admin (AC-26). Treść jak w 20261124100000_email_outbox.sql + warunek odwołania.
+create or replace function public.orders_after_paid_email()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if new.status = 'paid' and old.status in ('pending', 'cancelled')
+     and new.payment_method = 'tpay' and new.terms_version is not null
+     and not exists (select 1 from public.calendar_events e
+                      where e.id = new.calendar_event_id and e.cancelled_at is not null) then
+    insert into public.email_outbox (kind, order_id) values ('order_paid', new.id)
+      on conflict (kind, order_id) do nothing;
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function public.orders_after_paid_email() from public, anon, authenticated;
+
 -- ===== mail_outbox_claim — dane e-maila `event_cancelled` (AC-27) =====
 
 -- Wynik + `payment_method`, `refund_amount`, `event_name`, `cancel_reason`. Treść jak w 20261124100000_email_outbox.sql.

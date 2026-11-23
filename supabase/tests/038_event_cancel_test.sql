@@ -1,7 +1,7 @@
 -- SPEC-012 US-5 (AC-23…AC-29, AC-51): odwołanie wydarzenia, zwroty, e-maile, blokada edycji, nieważne wejściówki.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(41);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000038a1', 'cancel-admin@example.test'),
@@ -164,11 +164,16 @@ select is((select row(o.status, p.status)::text from public.orders o join public
            where o.id = '00000000-0000-0000-0000-0000000038d1'),
   row('paid', 'cancelled')::text, 'AC-51: zamówienie → paid, wejściówka zostaje cancelled');
 
--- AC-28: wpłata po odwołaniu za anulowane zamówienie.
+-- AC-28: wpłata po odwołaniu za anulowane zamówienie (z wersją regulaminu — bez odwołania byłby e-mail order_paid).
+update public.orders set terms_version = public.current_sales_terms_version()
+  where id = '00000000-0000-0000-0000-0000000038d4';
 select ok(public.fulfil_order('00000000-0000-0000-0000-0000000038d4') is not null, 'AC-28: wpłata realizuje zamówienie');
 select is((select row(o.status, p.status)::text from public.orders o join public.user_passes p on p.order_id = o.id
            where o.id = '00000000-0000-0000-0000-0000000038d4'),
   row('paid', 'cancelled')::text, 'AC-28: zamówienie paid, wejściówka od razu cancelled');
+select is((select count(*)::integer from public.email_outbox
+           where kind = 'order_paid' and order_id = '00000000-0000-0000-0000-0000000038d4'), 0,
+  'AC-28: wpłata po odwołaniu — bez potwierdzenia zakupu (order_paid)');
 
 -- ===== AC-26: lista „Zwroty po odwołaniu” i „Ponów zwrot” =====
 

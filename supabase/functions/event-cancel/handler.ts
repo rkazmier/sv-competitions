@@ -87,7 +87,7 @@ async function readBody(request: Request): Promise<{ event_id: string; reason: s
   }
 }
 
-async function call(url: string, init: RequestInit, deps: Deps): Promise<{ ok: boolean; body: any }> {
+async function call(url: string, init: RequestInit, deps: Deps): Promise<{ ok: boolean; body: unknown }> {
   const response = await deps.fetch(url, init);
   const text = await response.text();
   let body: unknown = null;
@@ -97,6 +97,17 @@ async function call(url: string, init: RequestInit, deps: Deps): Promise<{ ok: b
     body = null;
   }
   return { ok: response.ok, body };
+}
+
+/** Obiekt JSON (nie tablica) albo `null` — zawężenie `unknown`. */
+function asObject(body: unknown): Record<string, unknown> | null {
+  return body !== null && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+}
+
+/** Niepuste pole tekstowe obiektu JSON albo `null`. */
+function stringField(body: unknown, key: string): string | null {
+  const value = asObject(body)?.[key];
+  return typeof value === 'string' && value ? value : null;
 }
 
 /** Zlecanie zwrotów odwołanych wydarzeń (pełna kwota). `actorId` — admin albo `null` (zadanie cykliczne). */
@@ -126,9 +137,10 @@ export async function processRefunds(actorId: string | null, deps: Deps): Promis
       headers: asService,
       body: '{}',
     }, deps);
-    const row = claimed.ok && Array.isArray(claimed.body) ? claimed.body[0] : null;
-    if (!row || typeof row.id !== 'string') break;
-    const orderId: string = row.id;
+    const row: unknown = claimed.ok && Array.isArray(claimed.body) ? claimed.body[0] : null;
+    const orderId = stringField(row, 'id');
+    if (!orderId) break;
+    const transactionId = stringField(row, 'tpay_transaction_id');
 
     if (!accessToken) {
       try {
@@ -137,7 +149,7 @@ export async function processRefunds(actorId: string | null, deps: Deps): Promis
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ client_id: tpayClientId!, client_secret: tpayClientSecret! }),
         }, deps);
-        accessToken = token.ok && typeof token.body?.access_token === 'string' ? token.body.access_token : null;
+        accessToken = token.ok ? stringField(token.body, 'access_token') : null;
       } catch {
         accessToken = null;
       }
@@ -149,10 +161,10 @@ export async function processRefunds(actorId: string | null, deps: Deps): Promis
     }
 
     let accepted = false;
-    if (typeof row.tpay_transaction_id === 'string' && row.tpay_transaction_id) {
+    if (transactionId) {
       try {
         const refund = await call(
-          `${tpayApiUrl}/transactions/${encodeURIComponent(row.tpay_transaction_id)}/refunds`,
+          `${tpayApiUrl}/transactions/${encodeURIComponent(transactionId)}/refunds`,
           {
             method: 'POST',
             headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -160,7 +172,7 @@ export async function processRefunds(actorId: string | null, deps: Deps): Promis
           },
           deps,
         );
-        accepted = refund.ok && refund.body?.result === 'success';
+        accepted = refund.ok && stringField(refund.body, 'result') === 'success';
       } catch {
         accepted = false;
       }
@@ -209,20 +221,21 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   let summary: Record<string, unknown>;
   try {
     const user = await call(`${config.supabaseUrl}/auth/v1/user`, { headers: asCaller }, deps);
-    if (!user.ok || typeof user.body?.id !== 'string') return json(401, { error: 'unauthorized' });
-    actorId = user.body.id;
+    const userId = user.ok ? stringField(user.body, 'id') : null;
+    if (!userId) return json(401, { error: 'unauthorized' });
+    actorId = userId;
     const cancelled = await call(`${config.supabaseUrl}/rest/v1/rpc/cancel_calendar_event`, {
       method: 'POST',
       headers: asCaller,
       body: JSON.stringify({ p_event_id: input.event_id, p_reason: input.reason }),
     }, deps);
     if (!cancelled.ok) {
-      const code = cancelled.body?.message;
-      if (typeof code === 'string' && code in REFUSALS) return json(REFUSALS[code], { error: code });
+      const code = stringField(cancelled.body, 'message');
+      if (code && code in REFUSALS) return json(REFUSALS[code], { error: code });
       log(`event-cancel: cancel_calendar_event — błąd (wydarzenie ${input.event_id})`);
       return json(500, { error: 'cancel_failed' });
     }
-    summary = cancelled.body ?? {};
+    summary = asObject(cancelled.body) ?? {};
   } catch {
     log(`event-cancel: błąd połączenia z bazą (wydarzenie ${input.event_id})`);
     return json(500, { error: 'cancel_failed' });
