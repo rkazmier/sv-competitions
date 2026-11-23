@@ -21,6 +21,7 @@ const input: CalendarEventInput = {
   access_mode: 'external',
   ticket_price: '',
   capacity: '',
+  blocks_passes: true,
 };
 
 describe('wydarzenie — formularz', () => {
@@ -36,7 +37,12 @@ describe('wydarzenie — formularz', () => {
       access_mode: 'external',
       ticket_price: null,
       capacity: null,
+      blocks_passes: true,
     });
+  });
+
+  it('SPEC-012 AC-40: odznaczona flaga blokady karnetów trafia do zapisu', () => {
+    expect(toEventRow({ ...input, blocks_passes: false }).blocks_passes).toBe(false);
   });
 
   it('AC-48: brak nazwy, kategorii, daty początku', () => {

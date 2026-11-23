@@ -15,6 +15,8 @@ export interface CompetitionInput {
   starts_on: string;
   ends_on: string;
   description: string;
+  /** SPEC-012 AC-40: karnety nie obowiązują w dniach zawodów (domyślnie zaznaczone) */
+  blocks_passes: boolean;
 }
 
 export type CompetitionErrors = Partial<
@@ -59,6 +61,7 @@ export function toRow(input: CompetitionInput, rulebookId: string) {
     ends_on: input.ends_on || null,
     description: description || null,
     rulebook_id: rulebookId || null,
+    blocks_passes: input.blocks_passes,
   };
 }
 

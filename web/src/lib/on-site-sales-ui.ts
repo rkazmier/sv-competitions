@@ -20,6 +20,7 @@ import {
 } from './on-site-sales';
 import { BILLING_COLUMNS, invoiceArgs, type InvoiceDetails } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
+import { blockNames, loadRangeBlocks, proposedTicket, type RangeBlock } from './pass-blocking';
 import { PRODUCT_COLUMNS, formatPrice, type Product } from './products';
 import { requireStaff } from './panel';
 import { scanQrCode } from './qr-scanner';
@@ -56,6 +57,9 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
   let products: Product[] = [];
   let events: TicketEvent[] = [];
   let items: SaleItem[] = [];
+  let blocks: RangeBlock[] = [];
+  const blockedWarning = query<HTMLElement>(form, '[data-blocked-warning]');
+  itemSelect.addEventListener('change', renderBlockedWarning);
 
   const isGuest = () => form.querySelector<HTMLInputElement>('input[name="who"]:checked')?.value === 'guest';
   const method = () => form.querySelector<HTMLInputElement>('input[name="method"]:checked')?.value;
@@ -66,15 +70,25 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
     output.hidden = !message;
   }
 
+  // SPEC-012 AC-43: karnet osobie z kontem w dzień blokady — dozwolony, z ostrzeżeniem.
+  function renderBlockedWarning(): void {
+    const show = !isGuest() && blocks.length > 0 && itemSelect.value.startsWith('product:');
+    blockedWarning.textContent = show ? t('passBlocking.saleWarning', { name: blockNames(blocks) }) : '';
+    blockedWarning.hidden = !show;
+  }
+
   function renderItems(): void {
     const previous = itemSelect.value;
-    items = saleItems(products, events, todayInWarsaw(), isGuest(), (name) => t('offer.ticketName', { name }));
+    items = saleItems(products, events, todayInWarsaw(), isGuest(), (name) => t('offer.ticketName', { name }), blocks.length > 0);
     itemSelect.replaceChildren(itemSelect.options[0]);
     for (const item of items) {
       itemSelect.add(new Option(t('sales.itemOption', { name: item.name, price: formatPrice(item.price) }), item.value));
     }
-    itemSelect.value = items.some((item) => item.value === previous) ? previous : '';
+    // SPEC-012 AC-42: w dzień blokady domyślnie wejściówka na blokujące wydarzenie (jeśli płatne).
+    const values = items.map((item) => item.value);
+    itemSelect.value = values.includes(previous) ? previous : (proposedTicket(blocks, values) ?? '');
     itemsEmpty.hidden = items.length > 0;
+    renderBlockedWarning();
   }
 
   // SPEC-004 AC-9: dla osoby z kontem podpowiadają się jej `billing_details` (RLS: odczyt dla obsługi);
@@ -171,7 +185,7 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
 
   async function loadItems(): Promise<void> {
     const today = todayInWarsaw();
-    const [productsResult, eventsResult] = await Promise.all([
+    const [productsResult, eventsResult, todayBlocks] = await Promise.all([
       supabase.from('products').select(PRODUCT_COLUMNS).eq('is_active', true).order('kind').order('position'),
       supabase
         .from('calendar_events')
@@ -180,7 +194,9 @@ export async function mountOnSiteSales(root: HTMLElement): Promise<void> {
         .eq('access_mode', 'paid')
         .or(`ends_on.gte.${today},starts_on.gte.${today}`)
         .order('starts_on'),
+      loadRangeBlocks(supabase, today),
     ]);
+    blocks = todayBlocks;
     if (productsResult.error || eventsResult.error) {
       formError.textContent = t('panel.loadError');
       formError.hidden = false;

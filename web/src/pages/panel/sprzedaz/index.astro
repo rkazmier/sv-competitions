@@ -47,10 +47,12 @@ import { ON_SITE_METHODS, SEARCH_MIN_LENGTH } from '../../../lib/on-site-sales';
       <fieldset>
         <legend>{t('sales.itemHeading')}</legend>
         <label class="field-label" for="s-item">{t('sales.itemLabel')}</label>
-        <select class="input" id="s-item" name="item" required data-item>
+        <select class="input" id="s-item" name="item" required data-item aria-describedby="s-item-blocked">
           <option value="">{t('sales.itemChoose')}</option>
         </select>
         <p class="hint" data-items-empty hidden>{t('sales.itemsEmpty')}</p>
+        <!-- SPEC-012 AC-43: karnet sprzedany w dzień blokady nie obowiązuje dziś -->
+        <p class="message-error" id="s-item-blocked" role="status" data-blocked-warning hidden></p>
         <p class="message-error field-error" data-error-for="item" hidden></p>
       </fieldset>
 

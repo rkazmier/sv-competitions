@@ -31,9 +31,10 @@ insert into public.products (id, kind, name, price, entries, days, day_type) val
    case when extract(isodow from public.range_today()) in (6, 7) then 'weekend' else 'weekday' end);
 alter table public.products enable trigger products_before_write;
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-00000000f0e0', 'Zawody SV');
-insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, external_url) values
+-- Bez blokady karnetów (SPEC-012 AC-40) — tu testujemy kolejność uprawnień; blokada: 037_pass_blocking_test.sql.
+insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, external_url, blocks_passes) values
   ('00000000-0000-0000-0000-00000000f0e1', 'Dzisiejsze zawody', '00000000-0000-0000-0000-00000000f0e0',
-   public.range_today(), public.range_today(), 'published', 'https://example.test');
+   public.range_today(), public.range_today(), 'published', 'https://example.test', false);
 
 create temp table t (name text primary key, id uuid);
 grant all on t to public;

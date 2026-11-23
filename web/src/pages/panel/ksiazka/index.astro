@@ -135,6 +135,8 @@ const completeFields = [
             <button type="submit" class="button button-primary" data-complete-submit>{t('rangeEntry.completeSave')}</button>
           </form>
           <p role="status" data-complete-status></p>
+          <!-- SPEC-012 AC-42: dzień wydarzenia lub zawodów — karnety nieważne, tylko wejściówki -->
+          <p class="message-error" role="status" data-range-blocked hidden></p>
           <fieldset data-passes hidden>
             <legend>{t('rangeEntry.passesLegend')}</legend>
             <div class="stack" data-pass-list></div>

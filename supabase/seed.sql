@@ -33,14 +33,15 @@ insert into public.schedule_items (competition_id, day, "time", description) val
   ('5eed0000-0000-4000-8000-0000000000c1', current_date + 30, null, 'Rejestracja zawodników'),
   ('5eed0000-0000-4000-8000-0000000000c1', current_date + 31, '08:00', 'Drugi dzień — start');
 
+-- Trwające wydarzenie poza strzelnicą (`blocks_passes = false`, SPEC-012 AC-40) — karnety w książce działają dziś.
 insert into public.calendar_events
-  (id, name, category_id, starts_on, ends_on, description, external_url, status)
+  (id, name, category_id, starts_on, ends_on, description, external_url, status, blocks_passes)
 values
   ('5eed0000-0000-4000-8000-0000000000e1', 'Wydarzenie przykładowe A', '5eed0000-0000-4000-8000-000000000002',
-   current_date + 30, null, E'Opis wydarzenia przykładowego.\n\nDrugi akapit opisu.', 'https://example.com/wydarzenie', 'published'),
+   current_date + 30, null, E'Opis wydarzenia przykładowego.\n\nDrugi akapit opisu.', 'https://example.com/wydarzenie', 'published', true),
   ('5eed0000-0000-4000-8000-0000000000e2', 'Wydarzenie przykładowe trwające', '5eed0000-0000-4000-8000-000000000002',
-   current_date - 40, current_date + 5, null, 'https://example.com/trwajace', 'published'),
+   current_date - 40, current_date + 5, null, 'https://example.com/trwajace', 'published', false),
   ('5eed0000-0000-4000-8000-0000000000e3', 'Wydarzenie przykładowe szkic', '5eed0000-0000-4000-8000-000000000002',
-   current_date + 30, null, null, null, 'draft'),
+   current_date + 30, null, null, null, 'draft', true),
   ('5eed0000-0000-4000-8000-0000000000e4', 'Wydarzenie przykładowe minione', '5eed0000-0000-4000-8000-000000000002',
-   current_date - 10, current_date - 9, null, 'https://example.com/minione', 'published');
+   current_date - 10, current_date - 9, null, 'https://example.com/minione', 'published', true);

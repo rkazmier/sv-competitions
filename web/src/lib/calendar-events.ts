@@ -34,6 +34,8 @@ export interface CalendarEventInput {
   ticket_price: string;
   /** Limit miejsc (opcjonalny, tylko `paid`) */
   capacity: string;
+  /** SPEC-012 AC-40: karnety nie obowiązują w dniach wydarzenia (domyślnie zaznaczone) */
+  blocks_passes: boolean;
 }
 
 export type CalendarEventField = keyof CalendarEventInput;
@@ -112,6 +114,7 @@ export function toEventRow(input: CalendarEventInput) {
     access_mode: input.access_mode,
     ticket_price: paid ? parseTicketPrice(input.ticket_price) : null,
     capacity: paid ? (parseCapacity(input.capacity) ?? null) : null,
+    blocks_passes: input.blocks_passes,
   };
 }
 
