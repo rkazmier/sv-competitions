@@ -64,6 +64,9 @@
   z linkiem do `/konto/` (`user`) / menu obsługi (`staff`) / treść i pełne menu (`admin`). `requireAdmin()` zwraca klienta
   tylko adminowi; skrypty stron kalendarza i słowników pobierają dane dopiero po niej. Strony z `PanelLayout access="staff"`
   (książka, sprzedaż na miejscu) pokazują treść także obsłudze i pobierają dane po `requireStaff()`. Menu obsługi i admina — `PanelLayout.astro`.
+- Teksty prawne (SPEC-011): `/polityka-prywatnosci/` (treść w i18n `privacyPolicy`, link w `SiteFooter.astro` i pod klauzulą
+  w `PrivacyNotice.astro`), `/regulamin-sprzedazy/`. Klauzula `privacy.body` opisuje to samo przetwarzanie co polityka —
+  zmiana dostawcy (hosting, e-mail, płatności) zmienia oba teksty i datę „Obowiązuje od”.
 - Konta (SPEC-002 AC-1…AC-6): `/rejestracja/`, `/logowanie/` (z „Nie pamiętam hasła”), `/logowanie/nowe-haslo/`, `/konto/`.
   Logika bez DOM w `src/lib/auth.ts` (`?next=` tylko ścieżki aplikacji, walidacja, mapowanie błędów Auth), wyspy w `src/lib/auth-ui.ts`.
   Google i link potwierdzający wracają na `/konto/` — tam pierwsze logowanie bez `privacy_notice_ack_at` pokazuje klauzulę
