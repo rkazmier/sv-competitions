@@ -94,3 +94,10 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Podpis | `signature` | Obraz podpisu odręcznego złożonego palcem na ekranie, w prywatnym buckecie |
 | Adnotacja | `range_log_annotation` | Korekta wpisu: kto, kiedy, treść; wpis pozostaje bez zmian |
 | Retencja | `retention` | Automatyczne usuwanie wpisów i podpisów starszych niż okres przechowywania |
+
+## Teksty prawne (SPEC-011)
+
+| PL (UI) | EN (kod) | Definicja |
+| --- | --- | --- |
+| Informacja o przetwarzaniu danych osobowych (klauzula) | `privacy notice` (`privacy.body`) | Skrócona informacja RODO przy rejestracji, pierwszym logowaniu i wpisie bez konta; zgodna z polityką prywatności |
+| Polityka prywatności | `privacy policy` (`privacyPolicy`) | Pełny opis przetwarzania danych w serwisie pod `/polityka-prywatnosci/`, z datą „Obowiązuje od” |
