@@ -56,6 +56,9 @@ const order = (fields: Partial<AdminOrder> = {}): AdminOrder => ({
   pass_kind: 'entries',
   refund_window_until: null,
   withdrawal_refund: null,
+  withdrawal_submitted_at: null,
+  withdrawal_processed_at: null,
+  withdrawal_comment: null,
   ...fields,
 });
 
@@ -317,5 +320,42 @@ describe('SPEC-012 US-4: odstąpienie od umowy w panelu', () => {
     const line = ordersCsv([partial], (key) => t(key)).trimEnd().split('\r\n')[1];
     expect(line).toContain(`"Zwrócone 66,67${NBSP}zł z 100,00${NBSP}zł"`);
     expect(line.endsWith('"66,67";"4.01.2027"')).toBe(true);
+  });
+});
+
+describe('SPEC-012 AC-49, AC-52: zgłoszenia odstąpienia z konta w panelu', () => {
+  const TODAY = '2027-01-06';
+  const requested: Partial<AdminOrder> = {
+    payment_method: 'tpay',
+    amount: 10000,
+    refund_amount: 6667,
+    withdrawal_on: '2027-01-05',
+    withdrawal_submitted_at: '2027-01-05T09:15:00Z',
+  };
+
+  it('AC-49: „Odstąpienie zgłoszone 5.01.2027 — zwróć do 19.01.2027” i „Zleć zwrot” kwoty ze zgłoszenia', () => {
+    expect(orderAction(order(requested), TODAY)).toEqual({ kind: 'request', submitted: '2027-01-05', until: '2027-01-19', refund: 6667 });
+    expect(t('orders.requestNote', { date: '5.01.2027', until: '19.01.2027' })).toBe('Odstąpienie zgłoszone 5.01.2027 — zwróć do 19.01.2027');
+    expect(t('orders.requestRefund')).toBe('Zleć zwrot');
+  });
+
+  it('AC-49: zgłoszenie po 23:00 UTC liczone w Europe/Warsaw', () => {
+    expect(orderAction(order({ ...requested, withdrawal_submitted_at: '2027-01-04T23:30:00Z' }), TODAY)).toMatchObject({
+      submitted: '2027-01-05',
+      until: '2027-01-19',
+    });
+  });
+
+  it('AC-52: nieudany zwrot zgłoszenia — „Ponów zwrot” tej samej kwoty', () => {
+    expect(orderAction(order({ ...requested, withdrawal_processed_at: '2027-01-06T10:00:00Z' }), TODAY)).toEqual({
+      kind: 'retry',
+      refund: 6667,
+    });
+  });
+
+  it('AC-49: filtr „Zgłoszone odstąpienia”', () => {
+    expect(t('orders.statusWithdrawalRequested')).toBe('Zgłoszone odstąpienia');
+    expect(filterArgs({ from: '', to: '', status: 'withdrawal_requested', method: '', item: '', person: '' }).p_status)
+      .toBe('withdrawal_requested');
   });
 });

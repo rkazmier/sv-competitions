@@ -5,11 +5,19 @@
  * 1. bez `SMTP_HOST` (lokalnie, CI, staging bez sekretów) → `503 mail_not_configured`, wpisy czekają;
  * 2. `rpc/mail_outbox_claim` (klucz secret) — wpisy do wysłania z danymi zamówienia i adresem konta (bez konta → `skipped` w bazie);
  * 3. `order_paid`: PDF regulaminu (`terms_version`) z `SITE_URL` — bez załącznika e-mail nie wychodzi (AC-11);
- *    `event_cancelled` (AC-27): bez załącznika;
+ *    `event_cancelled` (AC-27), `withdrawal_received` (AC-48): bez załącznika;
+ *    `withdrawal_admin` (AC-48): na `MAIL_FROM`, bez danych osoby;
  * 4. SMTP (TLS, port 465), potem `rpc/mail_outbox_result` — `sent` albo kod błędu (ponowienia z odstępem liczy baza).
  * Logi i `last_error`: tylko rodzaj, id wpisu i kod błędu — bez adresu i treści (§8, §9).
  */
-import { eventCancelledEmail, type OutboxRow, orderPaidEmail, termsPdfName } from './templates.ts';
+import {
+  eventCancelledEmail,
+  type OutboxRow,
+  orderPaidEmail,
+  termsPdfName,
+  withdrawalAdminEmail,
+  withdrawalReceivedEmail,
+} from './templates.ts';
 import { t } from './i18n.ts';
 
 export interface SmtpConfig {
@@ -142,9 +150,16 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   }
 
   async function compose(row: OutboxRow): Promise<Mail> {
-    if (row.kind !== 'order_paid' && row.kind !== 'event_cancelled') throw new MailError('unsupported_kind');
-    if (!row.email) throw new MailError('no_recipient');
     const from = { name: t('email.senderName'), address: mailFrom };
+    // SPEC-012 AC-48: powiadomienie sprzedawcy — na skrzynkę sprzedawcy, bez adresu klienta.
+    if (row.kind === 'withdrawal_admin') {
+      return { from, replyTo: mailFrom, to: mailFrom, ...withdrawalAdminEmail(row, siteUrl), attachments: [] };
+    }
+    if (!['order_paid', 'event_cancelled', 'withdrawal_received'].includes(row.kind)) throw new MailError('unsupported_kind');
+    if (!row.email) throw new MailError('no_recipient');
+    if (row.kind === 'withdrawal_received') {
+      return { from, replyTo: mailFrom, to: row.email, ...withdrawalReceivedEmail(row), attachments: [] };
+    }
     // SPEC-012 AC-27: e-mail o odwołaniu wydarzenia — bez załącznika (regulamin dołączamy tylko do potwierdzenia zamówienia).
     if (row.kind === 'event_cancelled') {
       return { from, replyTo: mailFrom, to: row.email, ...eventCancelledEmail(row), attachments: [] };

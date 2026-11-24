@@ -9,6 +9,8 @@ import { isPartialRefund, orderStatusKey, orderStatusText, PAYMENT_METHOD_TEXT, 
 import { normalizeOrderNumber } from './order-number';
 import { formatPrice, priceInputValue } from './products';
 import { shortDay } from './sales-terms';
+import { todayInWarsaw } from './calendar';
+import { addDays } from './range-entry';
 
 export type PaymentMethod = 'tpay' | 'on_site';
 /** Metoda zamówienia w panelu: płatność albo `gift` — przyznanie karnetu (SPEC-010). */
@@ -50,11 +52,16 @@ export interface AdminOrder {
   refund_window_until: string | null;
   /** SPEC-012 AC-16…AC-18: zwrot przy odstąpieniu na dziś; `null` — odstąpienie niedostępne. */
   withdrawal_refund: number | null;
+  /** SPEC-012 AC-49, AC-52: zgłoszenie z `/konto/` w stanie `new` (`null` — brak lub zlecony zwrot); `processed_at` — nieudany zwrot. */
+  withdrawal_submitted_at: string | null;
+  withdrawal_processed_at: string | null;
+  withdrawal_comment: string | null;
 }
 
 /**
  * SPEC-012 US-4: akcja zwrotu przy zamówieniu.
  * - `withdrawal` — „Odstąpienie od umowy” w oknie 14 dni (AC-15), `done` — zwrot 0 zł, przycisk nieaktywny (AC-18);
+ * - `request` — odstąpienie zgłoszone z `/konto/`, „Zleć zwrot” kwoty ze zgłoszenia, termin = zgłoszenie + 14 dni (AC-49);
  * - `retry` — zwrot po odstąpieniu odrzucony przez Tpay, „Ponów zwrot” tej samej kwoty (AC-52);
  * - `refund` — „Anuluj i zwróć”; po 14 dniach ostrzeżenie i wymagana notatka (AC-21), „na miejscu” — notatka wymagana (AC-22);
  * - `used` — „Karnet był używany — zwrot poza systemem.” (SPEC-003 AC-26).
@@ -62,6 +69,7 @@ export interface AdminOrder {
 export type OrderAction =
   | { kind: 'withdrawal'; until: string; refund: number }
   | { kind: 'done' }
+  | { kind: 'request'; submitted: string; until: string; refund: number }
   | { kind: 'retry'; refund: number }
   | { kind: 'refund'; warning: boolean; noteRequired: boolean }
   | { kind: 'used' };
@@ -69,7 +77,12 @@ export type OrderAction =
 export function orderAction(order: AdminOrder, today: string): OrderAction | null {
   if (order.status !== 'paid' || isGift(order)) return null;
   if (order.payment_method === 'tpay' && order.withdrawal_on) {
-    return { kind: 'retry', refund: order.refund_amount ?? order.amount };
+    const refund = order.refund_amount ?? order.amount;
+    if (order.withdrawal_submitted_at && !order.withdrawal_processed_at) {
+      const submitted = todayInWarsaw(new Date(order.withdrawal_submitted_at));
+      return { kind: 'request', submitted, until: addDays(submitted, 14), refund };
+    }
+    return { kind: 'retry', refund };
   }
   const until = order.refund_window_until;
   if (order.withdrawal_refund !== null && until && today <= until) {
@@ -123,6 +136,8 @@ export function canResendEmail(order: Pick<AdminOrder, 'email_status'>): boolean
 }
 
 export const ORDER_STATUSES: readonly OrderStatus[] = ['paid', 'pending', 'cancelled', 'refund_pending', 'refunded'];
+/** SPEC-012 AC-49: filtr „Zgłoszone odstąpienia” — wartość pola „Status” (baza pomija daty i pozostałe filtry). */
+export const WITHDRAWAL_REQUESTED = 'withdrawal_requested';
 /** SPEC-010 AC-14: filtr „Metoda” — „Online”, „Na miejscu”, „Prezent”. */
 export const PAYMENT_METHODS: readonly OrderMethod[] = ['tpay', 'on_site', 'gift'];
 
@@ -150,7 +165,9 @@ export function filterArgs(filters: OrderFilters): Record<string, string | null>
   return {
     p_from: DATE.test(filters.from) ? filters.from : null,
     p_to: DATE.test(filters.to) ? filters.to : null,
-    p_status: (ORDER_STATUSES as readonly string[]).includes(filters.status) ? filters.status : null,
+    p_status: (ORDER_STATUSES as readonly string[]).includes(filters.status) || filters.status === WITHDRAWAL_REQUESTED
+      ? filters.status
+      : null,
     p_method: (PAYMENT_METHODS as readonly string[]).includes(filters.method) ? filters.method : null,
     p_product_id: item?.[1] === 'product' ? item[2] : null,
     p_event_id: item?.[1] === 'event' ? item[2] : null,

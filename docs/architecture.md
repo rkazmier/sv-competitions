@@ -354,8 +354,17 @@
   dla wszystkich (także `anon`), zapis `is_admin()`. Nie wpływają na ważność uprawnień ani książkę (AC-39).
   `range_blocked_between(from, to)` — publiczna, warunki jak `range_blocked_on` (wpisy blokujące w okresie ≤ 366 dni, AC-37).
   `purge_opening_hours_exceptions()` — `pg_cron` `purge-opening-hours-exceptions` (`25 2 * * *` UTC): wyjątki sprzed `range_today() − 30`.
-  Planowane (SPEC-012, ADR-0009):
-  e-maile `withdrawal_*` w `mail-send`; `withdrawal_requests`.
+  Odstąpienie z konta (SPEC-012 US-9) — zrobione (#165): `withdrawal_requests` (`order_id` PK, `user_id` on delete set null,
+  `comment` ≤ 500 — tylko admin, `status` `new`/`processed`, `submitted_at`, `processed_at`, `processed_by`; RLS bez dostępu klientów).
+  `submit_withdrawal(order_id, comment)` — właściciel, `tpay` `paid` karnet ilościowy / wejście jednorazowe w oknie, zwrot > 0
+  (`withdrawal_exists`, `withdrawal_window_closed`, `withdrawal_nothing_to_refund`, `withdrawal_not_available` — także karnet czasowy):
+  wpis, uprawnienie → `cancelled`, `withdrawal_on` = dziś, `refund_amount` na dziś, `email_outbox` `withdrawal_received`
+  i `withdrawal_admin` (na `MAIL_FROM`, bez danych osoby; nie jest pomijany po usunięciu konta), `invoke_mail_send()`.
+  `my_withdrawals()` — własne zamówienia z odstąpieniem możliwym dziś (wyliczenie) albo zgłoszonym. Zamówienie pozostaje `paid`
+  z `withdrawal_on`, więc „Zleć zwrot” to gałąź ponowienia `withdraw_order` (zgłoszenie → `processed`); `revert_order_refund` → `new`
+  (`processed_at` zostaje — panel pokazuje „Zwrot nieudany”). `admin_list_orders` + `withdrawal_submitted_at`, `withdrawal_processed_at`,
+  `withdrawal_comment` (zgłoszenie `new`); `p_status = 'withdrawal_requested'` — filtr „Zgłoszone odstąpienia” bez dat i innych filtrów.
+  `mail_outbox_claim` + `withdrawal_on`, `withdrawal_submitted_at`, `withdrawal_comment` (tylko `withdrawal_received`).
   Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz

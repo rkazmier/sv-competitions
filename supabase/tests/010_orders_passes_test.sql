@@ -21,6 +21,10 @@ insert into public.products (id, kind, name, price, entries, days, day_type) val
   ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście weekendowe', 5000, null, null, 'weekend'),
   ('00000000-0000-0000-0000-00000000f004', 'single_entry', 'Wejście w tygodniu', 4000, null, null, 'weekday');
 alter table public.products enable trigger products_before_write;
+-- Seed ma blokujące zawody/wydarzenia względem `current_date` (np. +30/+31 dni) — testy ważności używają stałych dat,
+-- więc wyłączamy blokady z seeda, żeby wynik nie zależał od dnia uruchomienia CI (np. 24.11 → zawody 24–25.12).
+update public.competitions set blocks_passes = false;
+update public.calendar_events set blocks_passes = false;
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-00000000f0e0', 'Zawody SV');
 insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, external_url) values
   ('00000000-0000-0000-0000-00000000f0e1', 'Puchar SV', '00000000-0000-0000-0000-00000000f0e0',

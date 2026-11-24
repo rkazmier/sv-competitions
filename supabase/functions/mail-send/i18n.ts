@@ -33,6 +33,24 @@ export const pl = {
       gift: 'Wejściówka została anulowana.',
       footer: 'Zamówienie {number} — Steel Valley',
     },
+    // SPEC-012 AC-48: potwierdzenie oświadczenia o odstąpieniu (do klienta).
+    withdrawalReceived: {
+      subject: 'Odstąpienie od umowy — zamówienie {number} — Steel Valley',
+      heading: 'Otrzymaliśmy Twoje oświadczenie o odstąpieniu od umowy',
+      statement: 'Odstępuję od umowy zakupu {item} (zamówienie {number}, opłacone {date}).',
+      submittedAt: 'Data złożenia oświadczenia: {date}',
+      comment: 'Uwagi: {comment}',
+      passCancelled: 'Karnet przestał działać z chwilą wysłania oświadczenia.',
+      refund: 'Zwrot {amount} otrzymasz w ciągu 14 dni na rachunek lub kartę, z której zapłacono.',
+      footer: 'Zamówienie {number} — Steel Valley',
+    },
+    // SPEC-012 AC-48, §9: powiadomienie dla sprzedawcy (na MAIL_FROM) — bez danych osoby.
+    withdrawalAdmin: {
+      subject: 'Zgłoszone odstąpienie — zamówienie {number}',
+      intro: 'Klient złożył w koncie oświadczenie o odstąpieniu od umowy (zamówienie {number}).',
+      refund: 'Kwota do zwrotu: {amount}. Zleć zwrot w ciągu 14 dni (do {date}).',
+      link: 'Zamówienie w panelu: {url}',
+    },
   },
 } as const;
 

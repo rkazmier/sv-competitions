@@ -43,6 +43,7 @@ import { entryPassText, usageHistory, type MyRangeEntry } from './range-history'
 import { BILLING_COLUMNS, invoiceStatus, type InvoiceDetails } from './invoice';
 import { bindInvoiceFields } from './invoice-ui';
 import { functionErrorCode, getSupabase } from './supabase';
+import { COMMENT_MAX, isCommentValid, withdrawalErrorKey, withdrawalQuote, withdrawalStatement, type MyWithdrawal } from './withdrawal';
 
 const el = <T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string) => root.querySelector<T>(selector)!;
 
@@ -385,12 +386,31 @@ export function orderTermsNodes(order: OrderTerms): HTMLElement[] {
   return nodes;
 }
 
-function orderRow(order: UserOrder): HTMLTableRowElement {
+/**
+ * SPEC-012 AC-46, AC-48: przy zamówieniu z odstąpieniem możliwym dziś — „Odstąp od umowy” (karnet czasowy, wejściówka,
+ * na miejscu, po oknie i zwrot 0 zł — bez przycisku, AC-55); po oświadczeniu — „Odstąpienie zgłoszone…”.
+ */
+function withdrawalNodes(order: UserOrder, withdrawal: MyWithdrawal | undefined, open: (order: UserOrder, w: MyWithdrawal) => void): HTMLElement[] {
+  if (!withdrawal) return [];
+  const amount = formatPrice(withdrawal.refund_amount);
+  if (withdrawal.submitted_at) {
+    if (order.status !== 'paid') return [];
+    return [node('span', t('offer.withdrawSubmitted', { date: formatDay(withdrawal.submitted_at), amount }), 'order-ref')];
+  }
+  const button = node('button', t('offer.withdraw'), 'button withdraw-button');
+  button.type = 'button';
+  button.setAttribute('aria-label', t('offer.withdrawLabel', { number: order.order_number }));
+  button.addEventListener('click', () => open(order, withdrawal));
+  return [button];
+}
+
+function orderRow(order: UserOrder, withdrawal: MyWithdrawal | undefined, open: (order: UserOrder, w: MyWithdrawal) => void): HTMLTableRowElement {
   const row = node('tr');
   const status = node('td', orderStatusText(order));
   // SPEC-004 AC-7: „Faktura: w przygotowaniu” / „Faktura: <numer>” (bez pliku — faktura przez KSeF).
   const invoice = invoiceStatus(order);
   if (invoice) status.append(node('span', t(invoice.key, 'number' in invoice ? { number: invoice.number } : {}), 'invoice-status'));
+  status.append(...withdrawalNodes(order, withdrawal, open));
   // SPEC-006 AC-12: „Nr: SV-2026-000123” przy pozycji.
   const item = node('td', order.item_name);
   item.append(node('span', t('offer.orderNumber', { number: order.order_number }), 'order-number order-ref'));
@@ -405,17 +425,70 @@ function orderRow(order: UserOrder): HTMLTableRowElement {
   return row;
 }
 
+/** SPEC-012 AC-47, AC-48, AC-50: okno oświadczenia o odstąpieniu i `rpc/submit_withdrawal`. */
+function withdrawalDialog(supabase: SupabaseClient, root: HTMLElement, reload: () => Promise<void>) {
+  const dialog = document.querySelector<HTMLDialogElement>('[data-withdraw-dialog]');
+  const announce = el(root, '[data-withdraw-status]');
+  if (!dialog) return () => {};
+  const form = el<HTMLFormElement>(dialog, 'form');
+  const comment = el<HTMLTextAreaElement>(dialog, '[data-withdraw-comment]');
+  const error = el(dialog, '[data-withdraw-error]');
+  const submit = el<HTMLButtonElement>(dialog, '[data-withdraw-submit]');
+  comment.maxLength = COMMENT_MAX;
+  let current: UserOrder | null = null;
+
+  el(dialog, '[data-withdraw-cancel]').addEventListener('click', () => dialog.close());
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!current) return;
+    if (!isCommentValid(comment.value)) {
+      error.textContent = t('offer.withdrawCommentTooLong');
+      error.hidden = false;
+      return;
+    }
+    submit.disabled = true;
+    error.hidden = true;
+    const { data, error: rpcError } = await supabase.rpc('submit_withdrawal', {
+      p_order_id: current.id,
+      p_comment: comment.value.trim() || null,
+    });
+    submit.disabled = false;
+    if (rpcError || typeof data !== 'number') {
+      error.textContent = t(withdrawalErrorKey(rpcError?.message));
+      error.hidden = false;
+      return;
+    }
+    dialog.close();
+    await reload();
+    announce.textContent = t('offer.withdrawSent', { amount: formatPrice(data) });
+  });
+
+  return (order: UserOrder, withdrawal: MyWithdrawal) => {
+    current = order;
+    announce.textContent = '';
+    el(dialog, '[data-withdraw-statement]').textContent = withdrawalStatement(order.item_name, order.order_number, withdrawal.paid_on);
+    el(dialog, '[data-withdraw-quote]').textContent = withdrawalQuote(withdrawal);
+    comment.value = '';
+    error.hidden = true;
+    submit.disabled = false;
+    dialog.showModal();
+  };
+}
+
+let openWithdrawal: ((order: UserOrder, withdrawal: MyWithdrawal) => void) | undefined;
+
 /** AC-12…AC-15: „Twoje karnety”, „Historia karnetów” (zwinięta), „Historia płatności”; SPEC-005 AC-24 „Historia wejść”. RLS: tylko własne. */
 export async function renderPassesAndPayments(supabase: SupabaseClient, userId: string): Promise<void> {
   const root = document.querySelector<HTMLElement>('[data-passes-root]');
   if (!root) return;
-  const [passes, orders, entries, extensions] = await Promise.all([
+  const [passes, orders, entries, extensions, withdrawals] = await Promise.all([
     supabase.from('user_passes').select(PASS_COLUMNS).eq('user_id', userId),
     supabase.from('orders').select(ORDER_COLUMNS).eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.rpc('my_range_entries'),
     supabase.rpc('my_pass_extensions'),
+    supabase.rpc('my_withdrawals'),
   ]);
-  if (passes.error || orders.error || entries.error || extensions.error) {
+  if (passes.error || orders.error || entries.error || extensions.error || withdrawals.error) {
     el(root, '[data-passes-error]').hidden = false;
     return;
   }
@@ -428,7 +501,10 @@ export async function renderPassesAndPayments(supabase: SupabaseClient, userId: 
   el(root, '[data-pass-history-empty]').hidden = history.length > 0;
 
   const sorted = sortOrders((orders.data ?? []) as UserOrder[]);
-  el(root, '[data-orders]').replaceChildren(...sorted.map(orderRow));
+  const byOrder = new Map(((withdrawals.data ?? []) as MyWithdrawal[]).map((w) => [w.order_id, w]));
+  openWithdrawal ??= withdrawalDialog(supabase, root, () => renderPassesAndPayments(supabase, userId));
+  const open = openWithdrawal;
+  el(root, '[data-orders]').replaceChildren(...sorted.map((order) => orderRow(order, byOrder.get(order.id), open)));
   el(root, '[data-orders-table]').hidden = sorted.length === 0;
   el(root, '[data-orders-empty]').hidden = sorted.length > 0;
 
