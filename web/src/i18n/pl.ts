@@ -405,7 +405,7 @@ Gdy zmienimy sposób przetwarzania danych (np. dostawców usług), zaktualizujem
    2. wybiera Produkt w zakładce „Oferta” albo przycisk „Kup wejściówkę” na karcie wydarzenia;
    3. w podsumowaniu sprawdza nazwę Produktu, cenę i ważność, opcjonalnie zaznacza „Potrzebuję faktury” i podaje dane do faktury;
    4. akceptuje Regulamin;
-   5. klika przycisk „Zapłać” z podaną kwotą, co oznacza złożenie zamówienia z obowiązkiem zapłaty, i zostaje przekierowany do serwisu płatności Tpay.
+   5. klika przycisk „Zamawiam i płacę” z podaną kwotą, co oznacza złożenie zamówienia z obowiązkiem zapłaty, i zostaje przekierowany do serwisu płatności Tpay.
 2. Jedno zamówienie obejmuje jeden Produkt w ilości 1.
 3. Umowa sprzedaży zostaje zawarta z chwilą złożenia zamówienia w sposób opisany w ust. 1 pkt 5.
 4. Klient powinien opłacić zamówienie w ciągu 24 godzin od jego złożenia. Po tym terminie nieopłacone zamówienie jest anulowane, a umowa wygasa. W przypadku Wejściówki miejsce jest rezerwowane dla Klienta przez 30 minut od rozpoczęcia płatności.

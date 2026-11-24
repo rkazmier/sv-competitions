@@ -9,6 +9,7 @@ import {
   salesTermsPdfPath,
   spansText,
   type LinkedSpan,
+  type Span,
 } from './sales-terms';
 
 describe('regulamin sprzedaży — format treści (#154)', () => {
@@ -91,5 +92,21 @@ describe('regulamin sprzedaży — treść od właściciela (#154)', () => {
   it('obowiązuje od 1 stycznia 2027 r. i nie zawiera tekstu zastępczego', () => {
     expect(salesTermsEffectiveFrom(t('salesTerms.body')).iso).toBe('2027-01-01');
     expect(t('salesTerms.body')).not.toMatch(/wkrótce|DO UZUPEŁNIENIA|karnet czasow/i);
+  });
+
+  it('AC-2 (SPEC-012): § 5 ust. 1 pkt 5 nazywa przycisk „Zamawiam i płacę”, jak widzi go klient — bez „Zapłać”', () => {
+    const index = blocks.findIndex((b) => b.kind === 'h2' && spansText(b.spans).startsWith('§ 5.'));
+    const list = blocks[index + 1];
+    if (list.kind !== 'ol') throw new Error('lista');
+    const steps = list.items[0].children.map((i) => spansText(i.spans));
+    expect(steps[4]).toMatch(/^klika przycisk „Zamawiam i płacę” z podaną kwotą/);
+    const section = blocks.slice(index, blocks.findIndex((b, i) => i > index && b.kind === 'h2'));
+    const text = section
+      .flatMap((b): { spans: Span[] }[] => ('items' in b ? b.items.flatMap((i) => [i, ...i.children]) : [b]))
+      .map((b) => spansText(b.spans))
+      .join('\n');
+    expect(text).toContain('Zamawiam i płacę');
+    expect(text).not.toContain('Zapłać');
+    expect(t('offer.pay', { amount: '' }).trim()).toBe('Zamawiam i płacę');
   });
 });
