@@ -1,7 +1,7 @@
--- SPEC-012 US-1, US-2, US-10 (AC-1, AC-3…AC-5, AC-7, AC-8, AC-54): wersja regulaminu, zgoda 14 dni, karnety czasowe wycofane.
+-- SPEC-012 US-1, US-2, US-10 (AC-1, AC-3…AC-5, AC-7, AC-8, AC-53): wersja regulaminu, zgoda 14 dni, karnety czasowe usunięte.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(16);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000034a1', 'admin34@example.test'),
@@ -12,12 +12,7 @@ update public.profiles set role = 'staff' where id = '00000000-0000-0000-0000-00
 
 insert into public.products (id, kind, name, price, entries) values
   ('00000000-0000-0000-0000-0000000034f1', 'entries', 'Karnet 3 wejść', 10000, 3);
--- Karnet czasowy sprzedawany przed 7-A — wiersz z pominięciem wyzwalacza AC-53.
-alter table public.products disable trigger products_before_write;
-insert into public.products (id, kind, name, price, days) values
-  ('00000000-0000-0000-0000-0000000034f2', 'days', 'Karnet 30 dni', 30000, 30);
-alter table public.products enable trigger products_before_write;
-update public.products set is_active = true where id in ('00000000-0000-0000-0000-0000000034f1', '00000000-0000-0000-0000-0000000034f2');
+update public.products set is_active = true where id = '00000000-0000-0000-0000-0000000034f1';
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-0000000034e0', 'Szkolenia 34');
 insert into public.calendar_events
   (id, name, category_id, starts_on, ends_on, status, external_url, access_mode, ticket_price) values
@@ -31,7 +26,6 @@ $$;
 
 -- ===== Wersje regulaminu (AC-4, §5 RLS) =====
 
-select is(public.days_pass_sales_end(), '2027-01-01'::date, 'AC-54: DAYS_PASS_SALES_END = 2027-01-01 (jak w products.ts)');
 set local role anon;
 select ok(exists (select 1 from public.sales_terms_versions where effective_from = '2027-01-01'),
   'AC-4: wersja 2027-01-01 (#154) widoczna publicznie');
@@ -112,48 +106,11 @@ reset role;
 select is((select row(terms_version, early_performance_consent_at)::text from public.orders where id = (select id from t where name = 'on_site')),
   row(null::date, null::timestamptz)::text, 'AC-8: sprzedaż na miejscu — bez wersji i zgody');
 
--- ===== Karnety czasowe od DAYS_PASS_SALES_END (AC-54) =====
+-- ===== Karnety czasowe usunięte z Oferty (decyzja 2026-11-24, US-10) =====
 
 set local role service_role;
-insert into t values ('days_before', pg_temp.buy('00000000-0000-0000-0000-0000000034f2', null, public.range_today() - 1, true));
-reset role;
-select ok((select id from t where name = 'days_before') is not null, 'AC-54: przed datą końca karnet czasowy w sprzedaży');
-
--- „Dziś” = pierwszy dzień bez sprzedaży.
-create or replace function public.days_pass_sales_end() returns date language sql stable set search_path = ''
-as $$ select public.range_today() $$;
-
-set local role service_role;
-select throws_ok($$select pg_temp.buy('00000000-0000-0000-0000-0000000034f2', null, public.range_today() - 1, true)$$,
-  'P0001', 'product_discontinued', 'AC-54: create_tpay_order odrzuca karnet czasowy');
-select lives_ok($$select pg_temp.buy('00000000-0000-0000-0000-0000000034f1', null, public.range_today() - 1, true)$$,
-  'AC-54: inne produkty bez zmian');
-reset role;
-
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000034b1","role":"authenticated"}', true);
-set local role authenticated;
-select throws_ok($$select public.create_on_site_order('00000000-0000-0000-0000-0000000034c1',
-  '00000000-0000-0000-0000-0000000034f2', 'cash')$$, 'P0001', 'product_discontinued',
-  'AC-54: create_on_site_order odrzuca karnet czasowy');
-reset role;
-
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000034a1","role":"authenticated"}', true);
-set local role authenticated;
-select throws_ok($$select public.grant_pass('00000000-0000-0000-0000-0000000034c1', '00000000-0000-0000-0000-0000000034f2',
-  null, 'Nagroda w zawodach', public.range_today() + 30, gen_random_uuid())$$, 'P0001', 'product_discontinued',
-  'AC-54: grant_pass odrzuca karnet czasowy');
-reset role;
-
-select lives_ok($$select public.fulfil_order((select id from t where name = 'days_before'))$$,
-  'AC-54: zamówienie pending sprzed daty końca, opłacone później — realizowane normalnie');
-select is((select kind from public.user_passes where order_id = (select id from t where name = 'days_before')), 'days',
-  'AC-54: uprawnienie karnetu czasowego wydane');
-select lives_ok($$update public.products set name = 'Karnet 30 dni (wycofany)' where id = '00000000-0000-0000-0000-0000000034f2'$$,
-  'AC-53: edycja istniejącego produktu czasowego bez zmian');
-select set_config('request.jwt.claims', '{"role":"service_role"}', true);
-set local role service_role;
-select lives_ok($$insert into public.products (kind, name, price, days) values ('days', 'Dane testowe', 100, 1)$$,
-  'AC-53: wyjątek — klucz secret (serwer, dane testowe E2E) dodaje karnet czasowy');
+select throws_ok($$insert into public.products (kind, name, price, entries) values ('days', 'Karnet 30 dni', 30000, 30)$$,
+  '23514', null, 'US-10: rodzaju days nie ma — także dla klucza secret');
 reset role;
 
 select * from finish();

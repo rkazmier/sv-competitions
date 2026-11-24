@@ -46,7 +46,7 @@ export interface GrantItem {
 export type GrantGroup = { kind: ProductKind | 'ticket'; items: GrantItem[] };
 
 /**
- * AC-3: grupy „Karnety ilościowe”, „Karnety czasowe”, „Wejścia jednorazowe” (wszystkie produkty, także ukryte)
+ * AC-3: grupy „Karnety ilościowe”, „Wejścia jednorazowe” (wszystkie produkty, także ukryte)
  * i „Wejściówki” — wydarzenia, których ostatni dzień jeszcze nie minął. Puste grupy pomijane.
  * Wydarzenia muszą być już przefiltrowane do opublikowanych płatnych (zapytanie); ostateczna kontrola — `grant_pass`.
  */

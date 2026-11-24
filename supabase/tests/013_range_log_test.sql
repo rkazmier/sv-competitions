@@ -20,16 +20,10 @@ insert into public.range_officers (id, full_name) values
 update public.range_officers set is_active = false where id = '00000000-0000-0000-0000-0000000000d2';
 
 -- Produkty i uprawnienia; wejście jednorazowe pasujące do dzisiejszego dnia tygodnia.
--- SPEC-012 AC-53, AC-54: karnet czasowy sprzedawany przed 7-A — wiersz z pominięciem wyzwalacza, sprzedaż bez końca.
-alter table public.products disable trigger products_before_write;
-create or replace function public.days_pass_sales_end() returns date language sql stable set search_path = ''
-as $$ select date '9999-12-31' $$;
-insert into public.products (id, kind, name, price, entries, days, day_type) values
-  ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null, null),
-  ('00000000-0000-0000-0000-00000000f002', 'days', 'Karnet 3 dni', 30000, null, 3, null),
-  ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście jednorazowe', 5000, null, null,
+insert into public.products (id, kind, name, price, entries, day_type) values
+  ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null),
+  ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście jednorazowe', 5000, null,
    case when extract(isodow from public.range_today()) in (6, 7) then 'weekend' else 'weekday' end);
-alter table public.products enable trigger products_before_write;
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-00000000f0e0', 'Zawody SV');
 -- Bez blokady karnetów (SPEC-012 AC-40) — tu testujemy kolejność uprawnień; blokada: 037_pass_blocking_test.sql.
 insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, external_url, blocks_passes) values
@@ -47,8 +41,6 @@ create function pg_temp.buy(p_name text, p_user uuid, p_product uuid) returns vo
 $$;
 select pg_temp.buy('entries_late', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f001');
 select pg_temp.buy('entries', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f001');
-select pg_temp.buy('days_new', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f002');
-select pg_temp.buy('days_active', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f002');
 select pg_temp.buy('single', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f003');
 select pg_temp.buy('other', '00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-00000000f001');
 insert into public.orders (id, user_id, calendar_event_id, item_name, amount, payment_method) values
@@ -56,7 +48,6 @@ insert into public.orders (id, user_id, calendar_event_id, item_name, amount, pa
    '00000000-0000-0000-0000-00000000f0e1', 'Wejściówka: Dzisiejsze zawody', 5000, 'tpay');
 insert into t values ('ticket', public.fulfil_order('00000000-0000-0000-0000-00000000f0d1'));
 update public.user_passes set expires_on = expires_on + 30 where id = (select id from t where name = 'entries_late');
-update public.user_passes set first_used_on = public.range_today() - 1 where id = (select id from t where name = 'days_active');
 
 -- Plik podpisu w buckecie (jak po wysłaniu z urządzenia); zwraca ścieżkę dla wpisu p_id.
 -- Bez `returning`: obsługa nie ma prawa odczytu podpisów (jak upload przez Storage API).
@@ -103,13 +94,13 @@ select is((select count(*)::int from public.staff_search_people('example')), 4, 
 
 select is(
   (select array_agg(priority::text || ':' || kind order by ord)
-   from public.passes_for_range_entry('00000000-0000-0000-0000-0000000000c1') with ordinality as x(priority, id, kind, item_name, entries_left, days_total, first_used_on, valid_until, expires_on, ord)),
-  array['0:event_ticket', '1:days', '2:days', '3:entries', '3:entries', '4:single_entry'],
-  'AC-10: wejściówka, aktywny czasowy, nieaktywowany czasowy, ilościowy, jednorazowe'
+   from public.passes_for_range_entry('00000000-0000-0000-0000-0000000000c1') with ordinality as x(priority, id, kind, item_name, entries_left, valid_until, expires_on, ord)),
+  array['0:event_ticket', '1:entries', '1:entries', '2:single_entry'],
+  'AC-10: wejściówka, ilościowy, jednorazowe'
 );
 select is(
   (select array_agg(id order by ord) from public.passes_for_range_entry('00000000-0000-0000-0000-0000000000c1')
-     with ordinality as x(priority, id, kind, item_name, entries_left, days_total, first_used_on, valid_until, expires_on, ord)
+     with ordinality as x(priority, id, kind, item_name, entries_left, valid_until, expires_on, ord)
    where kind = 'entries'),
   array[pg_temp.pass('entries'), pg_temp.pass('entries_late')],
   'AC-10: w grupie wg najwcześniejszego expires_on'
@@ -138,8 +129,8 @@ select is(
 );
 
 set local role authenticated;
-select pg_temp.entry('10000000-0000-0000-0000-000000000002', 'days_new');
-select pg_temp.entry('10000000-0000-0000-0000-000000000003', 'days_new');
+select pg_temp.entry('10000000-0000-0000-0000-000000000002', 'entries_late');
+select pg_temp.entry('10000000-0000-0000-0000-000000000003', 'entries_late');
 select pg_temp.entry('10000000-0000-0000-0000-000000000004', 'single');
 select pg_temp.entry('10000000-0000-0000-0000-000000000005', 'ticket');
 reset role;
@@ -147,12 +138,10 @@ select is(
   (select array_agg(effect order by range_log_entry_id) from public.pass_usages where range_log_entry_id in (
      '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003',
      '10000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000005')),
-  array['activated', 'covered', 'consumed', 'covered'], 'AC-15: aktywacja / w ważności / jednorazowe / wejściówka'
+  array['decremented', 'decremented', 'consumed', 'covered'], 'AC-15: ilościowy / ilościowy / jednorazowe / wejściówka'
 );
-select is(
-  (select row(first_used_on, valid_until)::text from public.user_passes where id = pg_temp.pass('days_new')),
-  row(public.range_today(), public.range_today() + 2)::text, 'AC-15: aktywacja karnetu czasowego: first_used_on dziś, valid_until +2'
-);
+select is((select entries_left from public.user_passes where id = pg_temp.pass('entries_late')), 8,
+  'AC-15: każdy wpis zmniejsza licznik karnetu ilościowego');
 select is((select status from public.user_passes where id = pg_temp.pass('single')), 'used_up', 'AC-15: wejście jednorazowe → used_up');
 select ok(public.pass_has_usage(pg_temp.pass('ticket')), 'SPEC-003 AC-25: pass_has_usage widzi pass_usages');
 
@@ -256,7 +245,7 @@ select throws_ok($$select * from public.staff_search_people('kowal')$$, '42501',
 select is((select count(*)::int from public.range_log), 0, '§5: użytkownik nie czyta range_log bezpośrednio');
 select is(
   (select array_agg(pass_name order by pass_name) from public.my_range_entries()),
-  array['Karnet 10 wejść', 'Karnet 10 wejść', 'Karnet 3 dni', 'Karnet 3 dni', 'Wejście jednorazowe', 'Wejściówka: Dzisiejsze zawody'],
+  array['Karnet 10 wejść', 'Karnet 10 wejść', 'Karnet 10 wejść', 'Karnet 10 wejść', 'Wejście jednorazowe', 'Wejściówka: Dzisiejsze zawody'],
   '§5: my_range_entries — własne wpisy z nazwą uprawnienia'
 );
 select is((select count(*)::int from public.pass_usages), 6, '§5: pass_usages — własne zużycia');

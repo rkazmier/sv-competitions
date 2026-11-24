@@ -3,22 +3,8 @@
  * (te same limity co `check` w tabeli `products`), ceny w groszach, grupy i kolejność.
  */
 
-export const PRODUCT_KINDS = ['entries', 'days', 'single_entry'] as const;
+export const PRODUCT_KINDS = ['entries', 'single_entry'] as const;
 export type ProductKind = (typeof PRODUCT_KINDS)[number];
-
-/**
- * SPEC-012 AC-53, AC-54 (decyzja 7-A): karnety czasowe wycofane z Oferty — bez nowych produktów, sprzedaż do dnia
- * poprzedzającego tę datę (Europe/Warsaw). Ta sama stała w bazie: `public.days_pass_sales_end()`.
- */
-export const DAYS_PASS_SALES_END = '2027-01-01';
-
-/** AC-53: rodzaje do wyboru przy dodawaniu produktu („Karnet czasowy” tylko przy edycji istniejących). */
-export const isKindDiscontinued = (kind: string) => kind === 'days';
-
-/** AC-54: produkt wycofany dnia `today` (RRRR-MM-DD, Europe/Warsaw) — znika z `/oferta/`, „Wycofany” w panelu. */
-export function isProductDiscontinued(product: Pick<Product, 'kind'>, today: string): boolean {
-  return product.kind === 'days' && today >= DAYS_PASS_SALES_END;
-}
 
 export const DAY_TYPES = ['weekend', 'weekday'] as const;
 export type DayType = (typeof DAY_TYPES)[number];
@@ -28,10 +14,9 @@ export const PRODUCT_DESCRIPTION_MAX = 500;
 export const PRODUCT_PRICE_MIN = 1;
 export const PRODUCT_PRICE_MAX = 1_000_000;
 export const PRODUCT_ENTRIES_MAX = 100;
-export const PRODUCT_DAYS_MAX = 366;
 
 /** Kolumny pobierane w panelu (wymienione jawnie). */
-export const PRODUCT_COLUMNS = 'id, kind, name, description, price, entries, days, day_type, is_active, position';
+export const PRODUCT_COLUMNS = 'id, kind, name, description, price, entries, day_type, is_active, position';
 
 export interface Product {
   id: string;
@@ -40,7 +25,6 @@ export interface Product {
   description: string | null;
   price: number;
   entries: number | null;
-  days: number | null;
   day_type: DayType | null;
   is_active: boolean;
   position: number;
@@ -52,13 +36,12 @@ export interface ProductForm {
   name: string;
   price: string;
   entries: string;
-  days: string;
   day_type: string;
   description: string;
 }
 
 /** Wiersz do zapisu: pola szczegółu innych rodzajów to `null` (`products_kind_details`). */
-export type ProductRow = Pick<Product, 'kind' | 'name' | 'description' | 'price' | 'entries' | 'days' | 'day_type'>;
+export type ProductRow = Pick<Product, 'kind' | 'name' | 'description' | 'price' | 'entries' | 'day_type'>;
 
 export type ProductField = keyof ProductForm;
 export type ProductError =
@@ -67,7 +50,6 @@ export type ProductError =
   | 'nameTooLong'
   | 'priceInvalid'
   | 'entriesInvalid'
-  | 'daysInvalid'
   | 'dayTypeRequired'
   | 'descriptionTooLong';
 
@@ -129,16 +111,14 @@ export function validateProduct(form: ProductForm): ProductValidation {
   if (length(description) > PRODUCT_DESCRIPTION_MAX) errors.description = 'descriptionTooLong';
 
   const entries = form.kind === 'entries' ? parseCount(form.entries, PRODUCT_ENTRIES_MAX) : null;
-  const days = form.kind === 'days' ? parseCount(form.days, PRODUCT_DAYS_MAX) : null;
   const dayType = form.kind === 'single_entry' && isDayType(form.day_type) ? form.day_type : null;
   if (form.kind === 'entries' && entries === null) errors.entries = 'entriesInvalid';
-  if (form.kind === 'days' && days === null) errors.days = 'daysInvalid';
   if (form.kind === 'single_entry' && dayType === null) errors.day_type = 'dayTypeRequired';
 
   if (Object.keys(errors).length > 0 || !isKind(form.kind) || price === null) return { ok: false, errors };
   return {
     ok: true,
-    row: { kind: form.kind, name, description: description || null, price, entries, days, day_type: dayType },
+    row: { kind: form.kind, name, description: description || null, price, entries, day_type: dayType },
   };
 }
 
@@ -149,7 +129,6 @@ export function productForm(product: Product): ProductForm {
     name: product.name,
     price: priceInputValue(product.price),
     entries: product.entries?.toString() ?? '',
-    days: product.days?.toString() ?? '',
     day_type: product.day_type ?? '',
     description: product.description ?? '',
   };
@@ -157,7 +136,7 @@ export function productForm(product: Product): ProductForm {
 
 /** Produkty w grupach rodzaju, w grupie wg `position` (AC-4) — ta sama kolejność co w `/oferta/`. */
 export function groupProducts(products: readonly Product[]): Record<ProductKind, Product[]> {
-  const groups = { entries: [], days: [], single_entry: [] } as Record<ProductKind, Product[]>;
+  const groups = { entries: [], single_entry: [] } as Record<ProductKind, Product[]>;
   for (const product of products) groups[product.kind].push(product);
   for (const kind of PRODUCT_KINDS) {
     groups[kind].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : 1));
@@ -165,12 +144,11 @@ export function groupProducts(products: readonly Product[]): Record<ProductKind,
   return groups;
 }
 
-/** Czy zmiana dotyczy pól zamrożonych przy zamówieniach (AC-3): rodzaj, liczba wejść/dni, dzień. */
+/** Czy zmiana dotyczy pól zamrożonych przy zamówieniach (AC-3): rodzaj, liczba wejść, dzień. */
 export function changesFrozenFields(product: Product, row: ProductRow): boolean {
   return (
     product.kind !== row.kind ||
     product.entries !== row.entries ||
-    product.days !== row.days ||
     product.day_type !== row.day_type
   );
 }
@@ -178,9 +156,4 @@ export function changesFrozenFields(product: Product, row: ProductRow): boolean 
 /** Błąd wyzwalacza `products_before_write` (AC-3). */
 export function isProductHasOrdersError(error: { code?: string; message?: string } | null | undefined): boolean {
   return error?.code === '23514' && error.message === 'product_has_orders';
-}
-
-/** SPEC-012 AC-53: błąd wyzwalacza `products_before_write` — nowy karnet czasowy. */
-export function isProductKindDiscontinuedError(error: { code?: string; message?: string } | null | undefined): boolean {
-  return error?.code === '23514' && error.message === 'product_kind_discontinued';
 }

@@ -43,10 +43,10 @@ const CORS = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * Odmowy `create_tpay_order` → 409 z tym samym kodem (komunikaty w UI, #50/#51); SPEC-012: `terms_changed` (AC-3),
- * `product_discontinued` (AC-54), `event_cancelled` (AC-25).
+ * `event_cancelled` (AC-25).
  */
 const REFUSALS = new Set(['product_unavailable', 'event_unavailable', 'sales_closed', 'sold_out', 'terms_changed',
-  'product_discontinued', 'event_cancelled']);
+  'event_cancelled']);
 /** SPEC-012 AC-7: brak zgody na korzystanie przed upływem 14 dni → 400. */
 const BAD_REQUESTS = new Set(['consent_required']);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;

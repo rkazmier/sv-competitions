@@ -6,10 +6,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { requireAdmin, showLoadError } from './panel';
-import { todayInWarsaw } from './calendar';
 import {
   PRODUCT_COLUMNS,
-  PRODUCT_DAYS_MAX,
   PRODUCT_DESCRIPTION_MAX,
   PRODUCT_ENTRIES_MAX,
   PRODUCT_KINDS,
@@ -17,9 +15,7 @@ import {
   changesFrozenFields,
   formatPrice,
   groupProducts,
-  isProductDiscontinued,
   isProductHasOrdersError,
-  isProductKindDiscontinuedError,
   productForm,
   validateProduct,
   type Product,
@@ -28,9 +24,9 @@ import {
   type ProductForm,
 } from './products';
 
-const FIELDS: ProductField[] = ['kind', 'name', 'price', 'entries', 'days', 'day_type', 'description'];
+const FIELDS: ProductField[] = ['kind', 'name', 'price', 'entries', 'day_type', 'description'];
 /** Pola zamrożone, gdy produkt ma zamówienia (AC-3). */
-const FROZEN_FIELDS: ProductField[] = ['kind', 'entries', 'days', 'day_type'];
+const FROZEN_FIELDS: ProductField[] = ['kind', 'entries', 'day_type'];
 
 const ERROR_TEXT: Record<ProductError, string> = {
   kindRequired: t('products.kindRequired'),
@@ -38,7 +34,6 @@ const ERROR_TEXT: Record<ProductError, string> = {
   nameTooLong: t('products.nameTooLong', { max: PRODUCT_NAME_MAX }),
   priceInvalid: t('products.priceInvalid'),
   entriesInvalid: t('products.entriesInvalid', { max: PRODUCT_ENTRIES_MAX }),
-  daysInvalid: t('products.daysInvalid', { max: PRODUCT_DAYS_MAX }),
   dayTypeRequired: t('products.dayTypeRequired'),
   descriptionTooLong: t('products.descriptionTooLong', { max: PRODUCT_DESCRIPTION_MAX }),
 };
@@ -51,7 +46,6 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
 
 function details(product: Product): string {
   if (product.kind === 'entries') return t('products.details.entries', { count: product.entries ?? 0 });
-  if (product.kind === 'days') return t('products.details.days', { count: product.days ?? 0 });
   return t('products.details.single_entry', { day: product.day_type ? t(`products.dayTypes.${product.day_type}`) : '' });
 }
 
@@ -175,13 +169,10 @@ export async function mountProducts(root: HTMLElement): Promise<void> {
     query<HTMLElement>(li, '[data-details]').textContent = details(product);
     for (const span of li.querySelectorAll<HTMLElement>('[data-sr-name]')) span.textContent = `: ${product.name}`;
     const state = query<HTMLElement>(li, '[data-state]');
-    // SPEC-012 AC-54: karnet czasowy od DAYS_PASS_SALES_END — „Wycofany”, bez „Pokaż w ofercie”.
-    const discontinued = isProductDiscontinued(product, todayInWarsaw());
-    state.dataset.state = discontinued ? 'discontinued' : product.is_active ? 'active' : 'hidden';
-    state.textContent = discontinued ? t('products.discontinued') : product.is_active ? t('products.active') : t('products.hidden');
+    state.dataset.state = product.is_active ? 'active' : 'hidden';
+    state.textContent = product.is_active ? t('products.active') : t('products.hidden');
 
     const toggle = query<HTMLButtonElement>(li, '[data-toggle]');
-    toggle.hidden = discontinued && !product.is_active;
     query<HTMLElement>(toggle, '[data-toggle-text]').textContent = product.is_active
       ? t('products.hide')
       : t('products.show');
@@ -253,7 +244,6 @@ export async function mountProducts(root: HTMLElement): Promise<void> {
       setFrozen(true);
       return setFormError(t('products.hasOrders'));
     }
-    if (isProductKindDiscontinuedError(error)) return setFormError(t('products.kindDiscontinued'));
     if (error) return setFormError(t('panel.saveError'));
     resetForm();
     if (!(await load())) return showLoadError();

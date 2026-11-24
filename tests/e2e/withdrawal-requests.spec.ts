@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { admin, hasLocalSupabase, signIn, signInAs, unique } from './support/supabase';
 
-// SPEC-012 US-9 (AC-46…AC-50, AC-55): „Odstąp od umowy” w `/konto/` i zgłoszenia w `/panel/zamowienia/`.
+// SPEC-012 US-9 (AC-46…AC-50): „Odstąp od umowy” w `/konto/` i zgłoszenia w `/panel/zamowienia/`.
 // Reguły bazy (okno, kwota, błędy, AC-52) sprawdza pgTAP: supabase/tests/041_withdrawal_requests_test.sql.
 test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supabase start + zmienne środowiskowe)');
 
@@ -16,9 +16,9 @@ interface Seeded {
 }
 
 /** Klient z hasłem i opłaconym online zamówieniem na produkt (`fulfil_order` kluczem secret). */
-async function seedClient(kind: 'entries' | 'days', amount: number): Promise<Seeded> {
+async function seedClient(amount: number): Promise<Seeded> {
   const db = admin();
-  const item = unique(kind === 'entries' ? 'Karnet odstąpienie E2E' : 'Karnet czasowy odstąpienie E2E');
+  const item = unique('Karnet odstąpienie E2E');
   const email = `${unique('odstapienie').replace(/\s/g, '-')}@example.test`;
   const { data: user, error: userError } = await db.auth.admin.createUser({
     email,
@@ -28,7 +28,7 @@ async function seedClient(kind: 'entries' | 'days', amount: number): Promise<See
   });
   expect(userError).toBeNull();
   const { data: product, error: productError } = await db.from('products')
-    .insert(kind === 'entries' ? { kind, name: item, price: amount, entries: 3 } : { kind, name: item, price: amount, days: 30 })
+    .insert({ kind: 'entries', name: item, price: amount, entries: 3 })
     .select('id').single();
   expect(productError).toBeNull();
   const { data: order, error } = await db.from('orders').insert({
@@ -47,7 +47,7 @@ async function seedClient(kind: 'entries' | 'days', amount: number): Promise<See
 const rowOf = (page: Page, item: string) => page.getByRole('row').filter({ hasText: item });
 
 test('SPEC-012 AC-46…AC-48: klient wysyła oświadczenie, karnet przestaje działać', async ({ page }) => {
-  const sale = await seedClient('entries', 10000);
+  const sale = await seedClient(10000);
   expect((await admin().from('user_passes').update({ entries_left: 2 }).eq('order_id', sale.orderId)).error).toBeNull();
   await signInAs(page, sale.email, PASSWORD);
   await page.goto('/konto/');
@@ -68,17 +68,8 @@ test('SPEC-012 AC-46…AC-48: klient wysyła oświadczenie, karnet przestaje dzi
   expect(pass!.status).toBe('cancelled');
 });
 
-test('SPEC-012 AC-55: karnet czasowy — bez „Odstąp od umowy”', async ({ page }) => {
-  // Karnet czasowy sprzedany przed wycofaniem (AC-53: produkt `days` tylko kluczem secret).
-  const sale = await seedClient('days', 30000);
-  await signInAs(page, sale.email, PASSWORD);
-  await page.goto('/konto/');
-  await expect(rowOf(page, sale.item)).toBeVisible();
-  await expect(rowOf(page, sale.item).getByRole('button', { name: /Odstąp od umowy/ })).toHaveCount(0);
-});
-
 test('SPEC-012 AC-49: panel — filtr „Zgłoszone odstąpienia” i „Zleć zwrot” kwoty ze zgłoszenia', async ({ page }) => {
-  const sale = await seedClient('entries', 10000);
+  const sale = await seedClient(10000);
   // Zgłoszenie jak z /konto/: `submit_withdrawal` z sesją klienta.
   const db = createClient(process.env.PUBLIC_SUPABASE_URL!, process.env.PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { persistSession: false },

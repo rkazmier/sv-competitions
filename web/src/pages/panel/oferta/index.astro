@@ -8,12 +8,10 @@ import PanelLayout from '../../../layouts/PanelLayout.astro';
 import { t } from '../../../i18n';
 import {
   DAY_TYPES,
-  PRODUCT_DAYS_MAX,
   PRODUCT_DESCRIPTION_MAX,
   PRODUCT_ENTRIES_MAX,
   PRODUCT_KINDS,
   PRODUCT_NAME_MAX,
-  isKindDiscontinued,
 } from '../../../lib/products';
 ---
 <PanelLayout title={t('products.title')}>
@@ -29,16 +27,7 @@ import {
       <label class="field-label" for="p-kind">{t('products.kindLabel')}</label>
       <select class="input" id="p-kind" name="kind" required aria-describedby="p-kind-error">
         <option value="">{t('products.choose')}</option>
-        {
-          /* SPEC-012 AC-53: „Karnet czasowy” niewybieralny — opcja tylko do pokazania rodzaju przy edycji istniejącego produktu. */
-          PRODUCT_KINDS.map((kind) =>
-            isKindDiscontinued(kind) ? (
-              <option value={kind} hidden disabled>{t(`products.kinds.${kind}`)}</option>
-            ) : (
-              <option value={kind}>{t(`products.kinds.${kind}`)}</option>
-            ),
-          )
-        }
+        {PRODUCT_KINDS.map((kind) => <option value={kind}>{t(`products.kinds.${kind}`)}</option>)}
       </select>
       <p class="message-error field-error" id="p-kind-error" data-error-for="kind" hidden></p>
 
@@ -56,13 +45,6 @@ import {
         <input class="input" id="p-entries" name="entries" type="number" min="1" max={PRODUCT_ENTRIES_MAX} step="1" inputmode="numeric" aria-describedby="p-entries-hint p-entries-error" />
         <p class="hint" id="p-entries-hint">{t('products.entriesHint', { max: PRODUCT_ENTRIES_MAX })}</p>
         <p class="message-error field-error" id="p-entries-error" data-error-for="entries" hidden></p>
-      </div>
-
-      <div data-kind-field="days" hidden>
-        <label class="field-label" for="p-days">{t('products.daysLabel')}</label>
-        <input class="input" id="p-days" name="days" type="number" min="1" max={PRODUCT_DAYS_MAX} step="1" inputmode="numeric" aria-describedby="p-days-hint p-days-error" />
-        <p class="hint" id="p-days-hint">{t('products.daysHint', { max: PRODUCT_DAYS_MAX })}</p>
-        <p class="message-error field-error" id="p-days-error" data-error-for="days" hidden></p>
       </div>
 
       <div data-kind-field="single_entry" hidden>

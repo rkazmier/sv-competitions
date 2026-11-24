@@ -251,7 +251,7 @@
 - Błędy z wyzwalaczy mają kod `23514` i stały komunikat do mapowania w UI na tekst i18n:
   `schedule_item_day_out_of_range` (AC-22), `rulebook_file_immutable` (AC-16), `product_has_orders` (SPEC-003 AC-3).
 - `products` (SPEC-003 §5): wyzwalacz `products_before_write` — trim nazwy i opisu, nowy produkt zawsze ukryty
-  i na końcu swojej grupy (`position`), blokada zmiany `kind`, `entries`, `days`, `day_type`, gdy produkt ma zamówienia.
+  i na końcu swojej grupy (`position`), blokada zmiany `kind`, `entries`, `day_type`, gdy produkt ma zamówienia.
   Sprawdzenie zamówień w `product_order_exists()` (wewnętrzna, zapytanie do `orders`).
   Bez `delete` dla klientów (ukrycie zamiast usunięcia). `move_product(id, 'up'|'down')` — zamiana z sąsiadem w grupie (RLS: admin).
 - `orders`, `user_passes` (SPEC-003 §5): klient ma tylko `select` (własne; obsługa — wszystkie); `payment_notifications` bez dostępu.
@@ -273,8 +273,8 @@
   - `revert_order_refund(order_id, actor_id)` — tylko `service_role` (`payments-refund`): Tpay odrzucił zwrot →
     `refund_pending` → `paid`, uprawnienie znów `active`, wpis `order_refund` (`reason: tpay_refund_failed`).
     Od SPEC-012 (AC-51, AC-52): po odstąpieniu (`withdrawal_on` ustawione) i dla wejściówki odwołanego wydarzenia uprawnienie zostaje `cancelled`.
-  - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write` liczy
-    `valid_until` karnetu czasowego z `first_used_on` i ustawia `used_up` przy `entries_left = 0`.
+  - `passes_valid_on(user_id, date)` — invoker (RLS), reguły ważności z §5; wyzwalacz `user_passes_before_write`
+    ustawia `used_up` przy `entries_left = 0`.
   - `cancel_unpaid_orders()` — `pg_cron` `cancel-unpaid-orders` (`5 * * * *` UTC): `pending` starsze niż 24 h → `cancelled` (AC-11).
   - Płatności Tpay (tylko `service_role`, ADR-0002): `create_tpay_order(user_id, product_id | event_id, request_key, terms_version, consent)` — `pending`
     z ceną z bazy, wynik z `order_number`; ten sam `request_key` konta → istniejące zamówienie (`duplicate`, unikalny indeks `(user_id, request_key)`);
@@ -298,10 +298,10 @@
   `current_sales_terms_version()` (najnowsza `effective_from ≤ range_today()`, `null` — brak obowiązującej);
   `orders.terms_version` (FK) i `early_performance_consent_at`. `create_tpay_order(..., terms_version, consent)` — wersja z przeglądarki
   musi równać się bieżącej (`terms_changed`), zgoda wymagana dla produktu (`consent_required`), wejściówka — bez zgody (`null`);
-  `admin_list_orders` zwraca obie kolumny. Karnety czasowe wycofane (7-A): `products_before_write` odrzuca nowe `days` i zmianę rodzaju
-  na `days` (`product_kind_discontinued`; wyjątek — klucz secret, dane testowe E2E); wyzwalacz `orders_before_insert_discontinued`
-  odrzuca nowe zamówienie `days` od `days_pass_sales_end()` = 2027-01-01 (`product_discontinued`; dotyczy `create_tpay_order`,
-  `create_on_site_order`, `grant_pass`; ta sama stała `DAYS_PASS_SALES_END` w `web/src/lib/products.ts` — `/oferta/` i „Wycofany” w panelu).
+  `admin_list_orders` zwraca obie kolumny. Karnety czasowe usunięte (SPEC-012 US-10, migracja `20261201100000_remove_time_passes.sql`):
+  bez rodzaju `days` w `products` / `user_passes`, bez kolumn `products.days`, `user_passes.days_total`, `first_used_on`, bez efektu
+  zużycia `activated`; usunięte `days_pass_sales_end()` i wyzwalacz `orders_before_insert_discontinued`. Migracja przerywa się
+  (`time_passes_sold`), gdy w bazie jest opłacone zamówienie Tpay / na miejscu na karnet czasowy.
   E-maile (SPEC-012 US-3, ADR-0009) — zrobione (#159): `email_outbox` (rodzaj, zamówienie, stan, próby, kod błędu — bez adresu
   i treści; RLS bez dostępu klientów; unikalne `(kind, order_id)`). Wyzwalacz `orders_after_paid_email`: zamówienie `tpay`
   z `terms_version` `pending`/`cancelled` → `paid` (`fulfil_order`) → wpis `order_paid` w tej samej transakcji. `mail_outbox_claim(limit)`
@@ -357,7 +357,7 @@
   Odstąpienie z konta (SPEC-012 US-9) — zrobione (#165): `withdrawal_requests` (`order_id` PK, `user_id` on delete set null,
   `comment` ≤ 500 — tylko admin, `status` `new`/`processed`, `submitted_at`, `processed_at`, `processed_by`; RLS bez dostępu klientów).
   `submit_withdrawal(order_id, comment)` — właściciel, `tpay` `paid` karnet ilościowy / wejście jednorazowe w oknie, zwrot > 0
-  (`withdrawal_exists`, `withdrawal_window_closed`, `withdrawal_nothing_to_refund`, `withdrawal_not_available` — także karnet czasowy):
+  (`withdrawal_exists`, `withdrawal_window_closed`, `withdrawal_nothing_to_refund`, `withdrawal_not_available`):
   wpis, uprawnienie → `cancelled`, `withdrawal_on` = dziś, `refund_amount` na dziś, `email_outbox` `withdrawal_received`
   i `withdrawal_admin` (na `MAIL_FROM`, bez danych osoby; nie jest pomijany po usunięciu konta), `invoke_mail_send()`.
   `my_withdrawals()` — własne zamówienia z odstąpieniem możliwym dziś (wyliczenie) albo zgłoszonym. Zamówienie pozostaje `paid`
@@ -365,7 +365,6 @@
   (`processed_at` zostaje — panel pokazuje „Zwrot nieudany”). `admin_list_orders` + `withdrawal_submitted_at`, `withdrawal_processed_at`,
   `withdrawal_comment` (zgłoszenie `new`); `p_status = 'withdrawal_requested'` — filtr „Zgłoszone odstąpienia” bez dat i innych filtrów.
   `mail_outbox_claim` + `withdrawal_on`, `withdrawal_submitted_at`, `withdrawal_comment` (tylko `withdrawal_received`).
-  Typ `days` w `products`, `user_passes` i książce zostaje dla sprzedanych karnetów.
 - Faktury (SPEC-004 §5, ADR-0005 — wystawia admin ręcznie w e-mikrofirmie): `billing_details` (jeden wiersz na konto,
   kaskada z `profiles`; RLS: własny wiersz — odczyt i zapis, obsługa — odczyt, admin — zapis cudzych). Wyzwalacz
   `billing_details_before_write`: `normalize_nip` (spacje, myślniki, prefiks `PL`), trim, `updated_at`.
@@ -453,11 +452,11 @@
   - `create_range_log_entry(id, signature_path, range_officer_id, profile_id?, user_pass_id?, is_companion?, full_name?,
     permit_number?, permit_authority?, address?)` — obsługa; w jednej transakcji: plik podpisu istnieje, prowadzący „na liście”,
     dane osoby (kopia z profilu albo podane dla osoby bez konta), uprawnienie `for update` + `pass_valid_on(dziś)`, wpis
-    i zużycie (`activated` / `covered` / `decremented` / `consumed`). Uprawnienie bez właściciela — jednym wpisem.
+    i zużycie (`covered` / `decremented` / `consumed`). Uprawnienie bez właściciela — jednym wpisem.
     Ponowienie z tym samym `id` przez tę samą osobę zwraca istniejący wpis. Błędy: `forbidden`, `invalid_signature_path`,
     `signature_missing`, `range_officer_inactive`, `person_not_found`, `person_data_incomplete`, `pass_required`,
     `pass_not_allowed`, `pass_not_valid` (AC-16: „Uprawnienie zostało właśnie wykorzystane”), `entry_exists`.
-  - `passes_for_range_entry(user_id)` — `security definer`, `can_keep_range_log()` (SPEC-008), uprawnienia ważne dziś z `priority` 0–4 (AC-10) i nazwą z zamówienia.
+  - `passes_for_range_entry(user_id)` — `security definer`, `can_keep_range_log()` (SPEC-008), uprawnienia ważne dziś z `priority` 0–2 (AC-10: wejściówka, ilościowy, jednorazowe) i nazwą z zamówienia.
     `pass_valid_on(pass, date)` — reguły ważności jednego uprawnienia (używa jej też `passes_valid_on`); od SPEC-012 AC-41
     poza wejściówką dzień z `range_blocked_on(date)` jest nieważny.
   - `staff_find_by_qr(token)`, `staff_search_people(query)` (od 3 znaków, maks. 10, e-mail częściowo) — obsługa; minimum danych:
@@ -470,8 +469,7 @@
   - `staff_person_entry_data(id)` — obsługa; imię i nazwisko, decyzja z organem, adres — dane, które wpis skopiuje (AC-13).
   - `my_range_entries()` — własne wpisy bez podpisu i kolumn technicznych, z nazwą wykorzystanego uprawnienia.
   - `revert_pass_usage(usage_id)` — admin (AC-23); blokada uprawnienia `for update`, `reverted_at`/`reverted_by`; skutek:
-    `decremented` — licznik +1 (`used_up` → `active`), `consumed` — `used_up` → `active`, karnet czasowy bez innych niecofniętych
-    zużyć — `first_used_on = null` (zdjęcie aktywacji). Anulowane uprawnienie zostaje anulowane. Adnotacja „Cofnięto zużycie
+    `decremented` — licznik +1 (`used_up` → `active`), `consumed` — `used_up` → `active`. Anulowane uprawnienie zostaje anulowane. Adnotacja „Cofnięto zużycie
     karnetu” do wpisu (jeśli nie usunięty retencją) i `audit_log` `pass_usage_revert` (`changes`: zużycie, karnet, `used_on`,
     `effect`, wpis). Błędy: `forbidden`, `usage_not_found`, `usage_already_reverted`.
   - `admin_range_log(format, from?, to?, person?, officer_id?)` — admin (AC-26, AC-29); `volatile`, filtry: dzień od–do

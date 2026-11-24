@@ -37,7 +37,7 @@ import {
   type UserOrder,
   type UserPass,
 } from './offer';
-import { PRODUCT_KINDS, formatPrice, groupProducts, isProductDiscontinued, type Product } from './products';
+import { PRODUCT_KINDS, formatPrice, groupProducts, type Product } from './products';
 import { extensionsByPass, extensionText, type PassExtension } from './range-closures';
 import { entryPassText, usageHistory, type MyRangeEntry } from './range-history';
 import { BILLING_COLUMNS, invoiceStatus, type InvoiceDetails } from './invoice';
@@ -83,12 +83,9 @@ export async function mountOffer(root: HTMLElement): Promise<void> {
   ]);
   if (error || !data) return fail();
   const signedIn = Boolean(session.session);
-  // SPEC-012 AC-54: od DAYS_PASS_SALES_END bez karnetów czasowych i bez ich grupy.
-  const today = todayInWarsaw();
-  const groups = groupProducts((data as Product[]).filter((product) => !isProductDiscontinued(product, today)));
+  const groups = groupProducts(data as Product[]);
   for (const kind of PRODUCT_KINDS) {
     const list = el(root, `[data-group="${kind}"]`);
-    list.closest('section')!.hidden = isProductDiscontinued({ kind }, today);
     el(root, `[data-empty="${kind}"]`).hidden = groups[kind].length > 0;
     list.replaceChildren(
       ...groups[kind].map((product) => {
@@ -156,7 +153,6 @@ const PAY_ERRORS: Record<string, MessageKey> = {
   invalid_invoice: 'invoice.invalidDetails',
   terms_changed: 'offer.termsChanged',
   consent_required: 'offer.consentRequired',
-  product_discontinued: 'offer.discontinued',
   event_cancelled: 'eventCancel.eventCancelled',
 };
 
@@ -186,9 +182,7 @@ export async function mountOrder(root: HTMLElement): Promise<void> {
       ? t('offer.loadError')
       : !data
         ? t('offer.unavailable')
-        : isProductDiscontinued(data, todayInWarsaw())
-          ? t('offer.discontinued')
-          : { name: data.name, price: data.price, notes: notes(data) };
+        : { name: data.name, price: data.price, notes: notes(data) };
   } else {
     item = await loadTicket(supabase, eventId!);
   }
@@ -334,11 +328,7 @@ function passItem(pass: UserPass, active: boolean, extensions: readonly PassExte
     lines.push(t('offer.entriesLeft', { left: pass.entries_left ?? 0, total: pass.entries_total ?? 0 }));
   }
   const first = firstUsedOn(pass);
-  if (pass.kind === 'days' && !pass.first_used_on) {
-    lines.push(t('offer.notActivated'));
-  } else {
-    lines.push(first ? t('offer.firstUsed', { date: formatDate(first) }) : t('offer.notUsedYet'));
-  }
+  lines.push(first ? t('offer.firstUsed', { date: formatDate(first) }) : t('offer.notUsedYet'));
   lines.push(t('offer.validTo', { date: formatDate(passValidTo(pass)) }));
   // SPEC-012 AC-33: „Przedłużono o 10 dni (zamknięcie strzelnicy 3–12.02.2027).” — pod „Ważny do”.
   lines.push(...extensions.map(extensionText));
@@ -387,8 +377,8 @@ export function orderTermsNodes(order: OrderTerms): HTMLElement[] {
 }
 
 /**
- * SPEC-012 AC-46, AC-48: przy zamówieniu z odstąpieniem możliwym dziś — „Odstąp od umowy” (karnet czasowy, wejściówka,
- * na miejscu, po oknie i zwrot 0 zł — bez przycisku, AC-55); po oświadczeniu — „Odstąpienie zgłoszone…”.
+ * SPEC-012 AC-46, AC-48: przy zamówieniu z odstąpieniem możliwym dziś — „Odstąp od umowy” (wejściówka,
+ * na miejscu, po oknie i zwrot 0 zł — bez przycisku); po oświadczeniu — „Odstąpienie zgłoszone…”.
  */
 function withdrawalNodes(order: UserOrder, withdrawal: MyWithdrawal | undefined, open: (order: UserOrder, w: MyWithdrawal) => void): HTMLElement[] {
   if (!withdrawal) return [];

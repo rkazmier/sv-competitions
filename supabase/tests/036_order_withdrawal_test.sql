@@ -1,7 +1,7 @@
--- SPEC-012 US-4 (AC-15…AC-22, AC-52, AC-55): odstąpienie od umowy w panelu, zwrot proporcjonalny, ostrzeżenie po 14 dniach.
+-- SPEC-012 US-4 (AC-15…AC-22, AC-52): odstąpienie od umowy w panelu, zwrot proporcjonalny, ostrzeżenie po 14 dniach.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000036a1', 'withdrawal-admin@example.test'),
@@ -11,14 +11,9 @@ update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00
 insert into public.products (id, kind, name, price, entries, day_type) values
   ('00000000-0000-0000-0000-0000000036f1', 'entries', 'Karnet 3 wejść W', 10000, 3, null),
   ('00000000-0000-0000-0000-0000000036f2', 'single_entry', 'Wejście weekendowe W', 5000, null, 'weekend');
--- Karnet czasowy sprzedany przed 7-A — wiersz z pominięciem wyzwalacza AC-53.
-alter table public.products disable trigger products_before_write;
-insert into public.products (id, kind, name, price, days) values
-  ('00000000-0000-0000-0000-0000000036f3', 'days', 'Karnet 30 dni W', 30000, 30);
-alter table public.products enable trigger products_before_write;
 
 -- w1: ilościowy, 1 z 3 użyte, 3 dni temu; w2: wejście jednorazowe nieużyte, 14 dni temu (ostatni dzień okna);
--- w3: ilościowy w całości użyty; w4: ilościowy nieużyty, 15 dni temu (po oknie); w5: karnet czasowy w oknie;
+-- w3: ilościowy w całości użyty; w4: ilościowy nieużyty, 15 dni temu (po oknie);
 -- w6: ilościowy na miejscu; w7: ilościowy, 2 z 3 użyte (zaokrąglenie).
 create temp table w (name text primary key, id uuid, product uuid, method text, days_ago integer);
 insert into w values
@@ -26,7 +21,6 @@ insert into w values
   ('w2', '00000000-0000-0000-0000-0000000036d2', '00000000-0000-0000-0000-0000000036f2', 'tpay', 14),
   ('w3', '00000000-0000-0000-0000-0000000036d3', '00000000-0000-0000-0000-0000000036f1', 'tpay', 1),
   ('w4', '00000000-0000-0000-0000-0000000036d4', '00000000-0000-0000-0000-0000000036f1', 'tpay', 15),
-  ('w5', '00000000-0000-0000-0000-0000000036d5', '00000000-0000-0000-0000-0000000036f3', 'tpay', 2),
   ('w6', '00000000-0000-0000-0000-0000000036d6', '00000000-0000-0000-0000-0000000036f1', 'on_site', 2),
   ('w7', '00000000-0000-0000-0000-0000000036d7', '00000000-0000-0000-0000-0000000036f1', 'tpay', 0);
 insert into public.orders (id, user_id, product_id, item_name, amount, payment_method, on_site_method, tpay_title)
@@ -76,8 +70,6 @@ select throws_ok($$select * from public.withdrawal_quote('00000000-0000-0000-000
   'P0001', 'withdrawal_invalid_day', 'AC-16: dzień odstąpienia nie później niż dziś');
 select throws_ok($$select * from public.withdrawal_quote('00000000-0000-0000-0000-0000000036d4', public.range_today())$$,
   'P0001', 'withdrawal_window_closed', 'AC-21: 15 dni po opłaceniu — okno zamknięte');
-select throws_ok($$select * from public.withdrawal_quote('00000000-0000-0000-0000-0000000036d5', public.range_today())$$,
-  'P0001', 'withdrawal_not_available', 'AC-55: karnet czasowy bez odstąpienia');
 select throws_ok($$select * from public.withdrawal_quote('00000000-0000-0000-0000-0000000036d6', public.range_today())$$,
   'P0001', 'withdrawal_not_available', 'AC-22: sprzedaż na miejscu bez odstąpienia');
 
@@ -89,8 +81,6 @@ select is((select row(withdrawal_refund, refund_window_until, pass_kind)::text f
 select is((select withdrawal_refund from r where id = '00000000-0000-0000-0000-0000000036d3'), 0, 'AC-18: zwrot 0 w liście');
 select is((select row(withdrawal_refund, refund_window_until)::text from r where id = '00000000-0000-0000-0000-0000000036d4'),
   row(null::integer, public.range_today() - 1)::text, 'AC-21: po oknie — bez odstąpienia, koniec okna minął');
-select is((select row(withdrawal_refund, pass_kind)::text from r where id = '00000000-0000-0000-0000-0000000036d5'),
-  row(null::integer, 'days')::text, 'AC-55: karnet czasowy — bez odstąpienia');
 
 -- ===== AC-19: odstąpienie =====
 
@@ -150,19 +140,15 @@ select is(
      and changes ->> 'order_id' = '00000000-0000-0000-0000-0000000036d2' order by id desc limit 1),
   true, 'AC-52: ponowienie w audit_log');
 
--- ===== AC-21, AC-22, AC-55: „Anuluj i zwróć” =====
+-- ===== AC-21, AC-22: „Anuluj i zwróć” =====
 
 set local role authenticated;
-select throws_ok($$select public.withdraw_order('00000000-0000-0000-0000-0000000036d5', public.range_today())$$,
-  'P0001', 'withdrawal_not_available', 'AC-55: karnet czasowy — withdraw_order odrzuca');
 select throws_ok($$select public.cancel_order('00000000-0000-0000-0000-0000000036d4')$$,
   'P0001', 'refund_note_required', 'AC-21: po 14 dniach notatka wymagana');
 select throws_ok($$select public.cancel_order('00000000-0000-0000-0000-0000000036d4', ' ab ')$$,
   'P0001', 'refund_note_required', 'AC-21: notatka co najmniej 3 znaki');
 select is(public.cancel_order('00000000-0000-0000-0000-0000000036d4', 'Reklamacja'), 'refund_pending',
   'AC-21: po 14 dniach z notatką — zwrot');
-select is(public.cancel_order('00000000-0000-0000-0000-0000000036d5'), 'refund_pending',
-  'AC-55: nieaktywowany karnet czasowy w oknie — zwrot bez notatki');
 reset role;
 select is((select row(refund_amount, refund_requested_at is not null)::text from public.orders where id = '00000000-0000-0000-0000-0000000036d4'),
   row(10000, true)::text, 'AC-21: cancel_order ustawia refund_amount = amount');

@@ -65,8 +65,8 @@ test.describe('admin', () => {
     await signIn(page, 'admin');
   });
 
-  test('AC-1…AC-4, AC-6…AC-8: przyznanie ukrytego karnetu czasowego z „Zamówienia”', async ({ page }) => {
-    const product = await seedHiddenProduct({ kind: 'days', name: 'Karnet prezent E2E', days: 30 });
+  test('AC-1…AC-4, AC-6…AC-8: przyznanie ukrytego karnetu ilościowego z „Zamówienia”', async ({ page }) => {
+    const product = await seedHiddenProduct({ kind: 'entries', name: 'Karnet prezent E2E', entries: 10 });
     const person = await seedPerson();
 
     await page.goto('/panel/zamowienia/');
@@ -76,7 +76,7 @@ test.describe('admin', () => {
     await expect(page.getByLabel('Osoba bez konta')).toHaveCount(0);
 
     await choosePerson(page, person.fullName);
-    await expect(itemSelect(page).locator('optgroup[label="Karnety czasowe"] option', { hasText: product }))
+    await expect(itemSelect(page).locator('optgroup[label="Karnety ilościowe"] option', { hasText: product }))
       .toHaveText(`${product} (ukryty w Ofercie)`);
     await itemSelect(page).selectOption({ label: `${product} (ukryty w Ofercie)` });
     await expect(page.getByText('Cena w Ofercie: 120,00 zł')).toBeVisible();
@@ -85,7 +85,6 @@ test.describe('admin', () => {
     const today = warsawToday();
     await expect(expires).toHaveValue(plusYear(today));
     await expect(expires).toHaveAttribute('min', today);
-    await expect(page.getByText('Do tego dnia trzeba zacząć korzystać z karnetu — dni liczą się od pierwszego wejścia.')).toBeVisible();
 
     const reason = page.getByLabel('Powód *');
     await reason.fill('ab');
@@ -109,7 +108,7 @@ test.describe('admin', () => {
       payment_method: 'gift',
       status: 'paid',
       order_grants: { reason: 'Nagroda — zawody X' },
-      user_passes: { expires_on: day(60), kind: 'days' },
+      user_passes: { expires_on: day(60), kind: 'entries' },
     });
 
     const showOrder = page.getByRole('link', { name: 'Pokaż zamówienie' });

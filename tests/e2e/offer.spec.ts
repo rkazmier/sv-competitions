@@ -8,12 +8,12 @@ test.skip(!hasLocalSupabase && !process.env.CI, 'Brak lokalnego Supabase (supaba
 
 const PASSWORD = 'haslo-e2e-123';
 
-type Kind = 'entries' | 'days' | 'single_entry';
+type Kind = 'entries' | 'single_entry';
 
 /** Aktywny produkt (jak po „Pokaż w ofercie” w panelu). */
 async function product(kind: Kind, price: number, extra: Record<string, unknown> = {}): Promise<{ id: string; name: string }> {
   const name = unique(`Oferta E2E ${kind}`);
-  const details = { entries: { entries: 10 }, days: { days: 30 }, single_entry: { day_type: 'weekend' } }[kind];
+  const details = { entries: { entries: 10 }, single_entry: { day_type: 'weekend' } }[kind];
   const db = admin();
   const { data, error } = await db.from('products').insert({ kind, name, price, ...details, ...extra }).select('id').single();
   if (error) throw error;
@@ -59,10 +59,7 @@ const offerItem = (page: Page, name: string) =>
 
 test('AC-5: grupy produktów z ceną, opisem i informacjami o ważności', async ({ page }) => {
   const entries = await product('entries', 12000, { description: 'Wejścia na dowolną oś.' });
-  const days = await product('days', 25000);
   const weekend = await product('single_entry', 4000);
-  // SPEC-012 AC-54: karnety czasowe w Ofercie tylko do 31.12.2026.
-  await page.clock.setFixedTime(new Date('2026-12-31T12:00:00+01:00'));
   await page.goto('/oferta/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Oferta');
 
@@ -71,22 +68,12 @@ test('AC-5: grupy produktów z ceną, opisem i informacjami o ważności', async
   await expect(entriesItem).toContainText('Wejścia na dowolną oś.');
   await expect(entriesItem).toContainText('Ważny 1 rok od zakupu.');
 
-  const daysItem = page.getByRole('region', { name: 'Karnety czasowe' }).getByRole('listitem').filter({ hasText: days.name });
-  await expect(daysItem).toContainText('Odliczanie dni zaczyna się od pierwszego wejścia.');
+  // Karnety czasowe usunięte z Oferty — bez ich grupy.
+  await expect(page.getByRole('region', { name: 'Karnety czasowe' })).toHaveCount(0);
 
   const singleItem = page.getByRole('region', { name: 'Wejścia jednorazowe' }).getByRole('listitem').filter({ hasText: weekend.name });
   await expect(singleItem).toContainText('Tylko w soboty i niedziele.');
   await expect(page.getByRole('banner').getByRole('link', { name: 'Oferta' })).toHaveAttribute('href', '/oferta/');
-});
-
-test('SPEC-012 AC-54: od 1.01.2027 bez karnetów czasowych i bez grupy „Karnety czasowe”', async ({ page }) => {
-  const entries = await product('entries', 12000);
-  const days = await product('days', 25000);
-  await page.clock.setFixedTime(new Date('2027-01-01T00:30:00+01:00'));
-  await page.goto('/oferta/');
-  await expect(page.getByRole('region', { name: 'Karnety ilościowe' })).toContainText(entries.name);
-  await expect(page.getByRole('region', { name: 'Karnety czasowe' })).toBeHidden();
-  await expect(page.getByText(days.name)).toHaveCount(0);
 });
 
 test('AC-6: „Kup” bez logowania → logowanie z powrotem do podsumowania', async ({ page }) => {
@@ -214,12 +201,12 @@ test.describe('zalogowany', () => {
 
   test('AC-12, AC-13, AC-15, SPEC-006 AC-12: „Twoje karnety”, „Historia karnetów”, „Historia płatności”', async ({ page }) => {
     const entries = await product('entries', 12000);
-    const days = await product('days', 25000);
+    const weekday = await product('single_entry', 2500, { day_type: 'weekday' });
     const cancelledItem = await product('single_entry', 4000);
     const pendingItem = await product('single_entry', 3500);
     const userId = await newAccount(page);
     const entriesOrder = await order(userId, entries, 12000, true);
-    await order(userId, days, 25000, true);
+    await order(userId, weekday, 2500, true);
     const cancelledOrder = await order(userId, cancelledItem, 4000, true);
     await order(userId, pendingItem, 3500, false);
     const db = admin();
@@ -231,9 +218,7 @@ test.describe('zalogowany', () => {
     const entriesPass = passes.getByRole('listitem').filter({ hasText: entries.name });
     await expect(entriesPass).toContainText('Pozostałe wejścia: 7 z 10');
     await expect(entriesPass).toContainText('Ważny do:');
-    await expect(passes.getByRole('listitem').filter({ hasText: days.name })).toContainText(
-      'Nieaktywny — dni liczą się od pierwszego wejścia',
-    );
+    await expect(passes.getByRole('listitem').filter({ hasText: weekday.name })).toContainText('Jeszcze nieużywany');
     // AC-15: anulowane tylko w zwiniętej historii
     await expect(passes.locator('[data-passes]').getByText(cancelledItem.name)).toHaveCount(0);
     const history = passes.locator('details');

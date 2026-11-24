@@ -120,7 +120,6 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
   }
 
   function renderPasses(): void {
-    const today = todayInWarsaw();
     passList.replaceChildren(
       ...passes.map((pass, index) => {
         const label = document.createElement('label');
@@ -131,7 +130,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
         input.value = pass.id;
         input.checked = index === 0; // AC-10: domyślnie pierwsza pozycja
         input.addEventListener('change', updateNext);
-        const { key, params } = passEffect(pass, today);
+        const { key, params } = passEffect(pass);
         label.append(input, document.createTextNode(` ${t(key, params)}`));
         return label;
       }),
@@ -406,7 +405,7 @@ export async function mountRangeEntry(root: HTMLElement): Promise<void> {
     if (await lostDuty(error)) return;
     entryData = ((data ?? []) as EntryPerson[])[0] ?? { full_name: person!.full_name, permit_number: null, permit_authority: null, address: null };
     entryPassId = pass?.id ?? null;
-    const effect = pass && passEffect(pass, todayInWarsaw());
+    const effect = pass && passEffect(pass);
     await openSign(effect ? t(effect.key, effect.params) : t('rangeSign.companionPass'));
   }
   next.addEventListener('click', () => void goNext(false));

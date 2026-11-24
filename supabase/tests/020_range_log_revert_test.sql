@@ -13,16 +13,10 @@ update public.profiles set full_name = 'Jan Kowalski', address = 'ul. Polna 1, G
   where id = '00000000-0000-0000-0000-0000000000c1';
 insert into public.range_officers (id, full_name) values ('00000000-0000-0000-0000-0000000000d1', 'Piotr Prowadzący');
 
--- SPEC-012 AC-53, AC-54: karnet czasowy sprzedawany przed 7-A — wiersz z pominięciem wyzwalacza, sprzedaż bez końca.
-alter table public.products disable trigger products_before_write;
-create or replace function public.days_pass_sales_end() returns date language sql stable set search_path = ''
-as $$ select date '9999-12-31' $$;
-insert into public.products (id, kind, name, price, entries, days, day_type) values
-  ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null, null),
-  ('00000000-0000-0000-0000-00000000f002', 'days', 'Karnet 3 dni', 30000, null, 3, null),
-  ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście jednorazowe', 5000, null, null,
+insert into public.products (id, kind, name, price, entries, day_type) values
+  ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null),
+  ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście jednorazowe', 5000, null,
    case when extract(isodow from public.range_today()) in (6, 7) then 'weekend' else 'weekday' end);
-alter table public.products enable trigger products_before_write;
 
 create temp table t (name text primary key, id uuid);
 grant all on t to public;
@@ -34,7 +28,7 @@ create function pg_temp.buy(p_name text, p_product uuid) returns void language s
   insert into t select p_name, public.fulfil_order(o.id) from o;
 $$;
 select pg_temp.buy('entries', '00000000-0000-0000-0000-00000000f001');
-select pg_temp.buy('days', '00000000-0000-0000-0000-00000000f002');
+select pg_temp.buy('entries2', '00000000-0000-0000-0000-00000000f001');
 select pg_temp.buy('single', '00000000-0000-0000-0000-00000000f003');
 
 create function pg_temp.pass(p_name text) returns uuid language sql as $$ select id from t where name = p_name; $$;
@@ -55,8 +49,8 @@ grant execute on all functions in schema pg_temp to public;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
 set local role authenticated;
 select pg_temp.entry('40000000-0000-0000-0000-000000000001', 'entries');
-select pg_temp.entry('40000000-0000-0000-0000-000000000002', 'days');
-select pg_temp.entry('40000000-0000-0000-0000-000000000003', 'days');
+select pg_temp.entry('40000000-0000-0000-0000-000000000002', 'entries2');
+select pg_temp.entry('40000000-0000-0000-0000-000000000003', 'entries2');
 select pg_temp.entry('40000000-0000-0000-0000-000000000004', 'single');
 
 -- ===== Tylko admin =====
@@ -82,24 +76,24 @@ select throws_ok($$select public.revert_pass_usage(pg_temp.usage('40000000-0000-
   'P0001', 'usage_already_reverted', 'AC-23: drugie cofnięcie tego samego zużycia odrzucone');
 select throws_ok($$select public.revert_pass_usage('00000000-0000-0000-0000-000000000000')$$,
   'P0002', 'usage_not_found', 'AC-23: nieznane zużycie');
--- Karnet czasowy: dwa zużycia (aktywacja + dzień w ważności) — cofnięcie jednego nie zdejmuje aktywacji.
+-- Karnet ilościowy z dwoma zużyciami — cofnięcie jednego oddaje jedno wejście.
 select lives_ok($$select public.revert_pass_usage(pg_temp.usage('40000000-0000-0000-0000-000000000003'))$$,
-  'AC-23: cofnięcie dnia w ważności karnetu czasowego');
+  'AC-23: cofnięcie jednego z dwóch zużyć karnetu ilościowego');
 reset role;
-select is((select first_used_on from public.user_passes where id = pg_temp.pass('days')), public.range_today(),
-  'AC-23: karnet czasowy z innym zużyciem zachowuje aktywację');
+select is((select entries_left from public.user_passes where id = pg_temp.pass('entries2')), 9,
+  'AC-23: drugie zużycie zostaje');
 
 set local role authenticated;
 select lives_ok($$select public.revert_pass_usage(pg_temp.usage('40000000-0000-0000-0000-000000000002'))$$,
-  'AC-23: cofnięcie ostatniego zużycia karnetu czasowego');
+  'AC-23: cofnięcie drugiego zużycia karnetu ilościowego');
 select lives_ok($$select public.revert_pass_usage(pg_temp.usage('40000000-0000-0000-0000-000000000004'))$$,
   'AC-23: cofnięcie wejścia jednorazowego');
 reset role;
 
 select is((select row(entries_left, status)::text from public.user_passes where id = pg_temp.pass('entries')),
   row(10, 'active')::text, 'AC-23: licznik +1');
-select is((select row(first_used_on, valid_until)::text from public.user_passes where id = pg_temp.pass('days')),
-  row(null::date, null::date)::text, 'AC-23: zdjęcie aktywacji, gdy to było jedyne zużycie karnetu czasowego');
+select is((select row(entries_left, status)::text from public.user_passes where id = pg_temp.pass('entries2')),
+  row(10, 'active')::text, 'AC-23: po cofnięciu obu zużyć licznik pełny');
 select is((select status from public.user_passes where id = pg_temp.pass('single')), 'active',
   'AC-23: wejście jednorazowe znów aktywne');
 select is((select row(count(*), count(reverted_by))::text from public.pass_usages where reverted_at is not null),

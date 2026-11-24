@@ -4,7 +4,7 @@
 - Issue z pomysłem: #38 (etap 2 z 4; wymaga SPEC-002)
 - Zadania: #47, #48, #49, #50, #51, #52, #53 (kolejność w sekcji 11); dla właściciela: #39 (regulamin sprzedaży) (`owner-task`)
 - Decyzje: ADR-0002 (Tpay), ADR-0006 (zadania cykliczne)
-- Zmiany: SPEC-012 (#152) — regulamin sprzedaży: e-maile, zgoda 14 dni, odstąpienie i zwrot częściowy, odwołanie wydarzenia, przedłużenie ważności, blokada karnetów w dniach wydarzeń, wycofanie karnetów czasowych
+- Zmiany: SPEC-012 (#152) — regulamin sprzedaży: e-maile, zgoda 14 dni, odstąpienie i zwrot częściowy, odwołanie wydarzenia, przedłużenie ważności, blokada karnetów w dniach wydarzeń; 2026-11-24 — karnety czasowe usunięte z Oferty, bazy i kodu (SPEC-012 US-10)
 
 ## 1. Cel
 
@@ -15,10 +15,10 @@ które zużywa wpis do książki rejestru pobytu (SPEC-005).
 ## 2. Zakres
 
 **W zakresie:**
-- Produkty i ceny prowadzone przez admina: karnet ilościowy, karnet czasowy, wejście jednorazowe (weekend / dzień powszedni).
+- Produkty i ceny prowadzone przez admina: karnet ilościowy, wejście jednorazowe (weekend / dzień powszedni).
 - Wejściówki na wydarzenia: tryb wydarzenia (płatne / bezpłatne / zewnętrzne), cena, limit miejsc.
 - Zamówienie = jeden produkt, ilość 1 (decyzja 9-A). Płatność Tpay albo „na miejscu”.
-- Uprawnienia użytkownika: ważność 1 rok od zakupu, aktywacja karnetu czasowego, licznik wejść.
+- Uprawnienia użytkownika: ważność 1 rok od zakupu, licznik wejść.
 - Panel użytkownika: aktywne karnety, historia płatności, „Przedłuż karnet”.
 - Panel: produkty, sprzedaż na miejscu (także osobie bez konta — decyzja 10-A), zamówienia, anulowanie i zwrot (decyzja 6-A).
 - Regulamin sprzedaży: tekst zastępczy do czasu dostarczenia przez właściciela (12-A).
@@ -44,16 +44,16 @@ Status zamówienia Tpay zmienia wyłącznie `payments-notify` (CLAUDE.md, ADR-00
 ## 4. Historyjki i kryteria akceptacji
 
 ### US-1: Jako admin chcę prowadzić produkty i ceny
-> Od SPEC-012 (7-A): karnety czasowe wycofane — nie można dodać nowego produktu `days`, sprzedaż istniejących kończy się 1.01.2027; sprzedane karnety działają według tej specyfikacji (SPEC-012 AC-53…AC-55).
+> Karnety czasowe usunięte (decyzja 2026-11-24, SPEC-012 US-10): rodzaju `days` nie ma w Ofercie, bazie ani kodzie.
 
-- **AC-1**: Given `/panel/oferta/` When dodaję produkt: Rodzaj* (Karnet ilościowy / Karnet czasowy / Wejście jednorazowe), Nazwa*, Cena* (zł, do grosza),
-  Liczba wejść* (ilościowy, 1–100) albo Liczba dni* (czasowy, 1–366) albo Dzień* (Weekend / Dzień powszedni — jednorazowe), Opis (maks. 500 znaków) Then produkt pojawia się na liście jako ukryty.
+- **AC-1**: Given `/panel/oferta/` When dodaję produkt: Rodzaj* (Karnet ilościowy / Wejście jednorazowe), Nazwa*, Cena* (zł, do grosza),
+  Liczba wejść* (ilościowy, 1–100) albo Dzień* (Weekend / Dzień powszedni — jednorazowe), Opis (maks. 500 znaków) Then produkt pojawia się na liście jako ukryty.
 - **AC-2**: Given produkt When klikam „Pokaż w ofercie” / „Ukryj” Then pojawia się / znika z `/oferta/`; produktów nie da się usunąć.
-- **AC-3**: Given produkt z zamówieniami When zmieniam cenę lub nazwę Then istniejące zamówienia i uprawnienia zachowują swoje wartości (kopie w zamówieniu); rodzaju, liczby wejść/dni i dnia nie da się zmienić, gdy istnieje zamówienie („Utwórz nowy produkt i ukryj ten.”).
+- **AC-3**: Given produkt z zamówieniami When zmieniam cenę lub nazwę Then istniejące zamówienia i uprawnienia zachowują swoje wartości (kopie w zamówieniu); rodzaju, liczby wejść i dnia nie da się zmienić, gdy istnieje zamówienie („Utwórz nowy produkt i ukryj ten.”).
 - **AC-4**: Given lista produktów When ustawiam kolejność (strzałki góra/dół) Then w tej kolejności produkty są wyświetlane w swojej grupie w `/oferta/`.
 
 ### US-2: Jako klient chcę kupić karnet lub wejście online
-- **AC-5**: Given `/oferta/` When otwieram stronę Then widzę grupy „Karnety ilościowe”, „Karnety czasowe”, „Wejścia jednorazowe” z nazwą, ceną (`120,00 zł`), opisem i informacją „Ważny 1 rok od zakupu.”; karnet czasowy dodatkowo „Odliczanie dni zaczyna się od pierwszego wejścia.”; wejście jednorazowe „Tylko w soboty i niedziele.” / „Tylko od poniedziałku do piątku.”.
+- **AC-5**: Given `/oferta/` When otwieram stronę Then widzę grupy „Karnety ilościowe”, „Wejścia jednorazowe” z nazwą, ceną (`120,00 zł`), opisem i informacją „Ważny 1 rok od zakupu.”; wejście jednorazowe dodatkowo „Tylko w soboty i niedziele.” / „Tylko od poniedziałku do piątku.”.
 - **AC-6**: Given jestem niezalogowany When klikam „Kup” Then trafiam do `/logowanie/?next=/oferta/zamowienie/?product=<id>`.
 > Od SPEC-012: checkbox z datą wersji regulaminu, zgoda na korzystanie przed upływem 14 dni, przycisk „Zamawiam i płacę 120,00 zł” (SPEC-012 AC-1…AC-8).
 
@@ -64,7 +64,7 @@ Status zamówienia Tpay zmienia wyłącznie `payments-notify` (CLAUDE.md, ADR-00
 - **AC-11**: Given zamówienie `pending` bez płatności When minie 24 h Then zadanie cykliczne zmienia je na `cancelled` (ADR-0006); w historii widać „Nieopłacone — anulowane”.
 
 ### US-3: Jako klient chcę widzieć swoje karnety i płatności
-- **AC-12**: Given `/konto/` When mam uprawnienia Then sekcja „Twoje karnety” pokazuje aktywne: nazwę, pozostałe wejścia (`7 z 10`), datę pierwszego użycia, „Ważny do” (czasowy aktywowany: ostatni dzień ważności; pozostałe: `expires_on`); nieaktywowany czasowy — „Nieaktywny — dni liczą się od pierwszego wejścia”.
+- **AC-12**: Given `/konto/` When mam uprawnienia Then sekcja „Twoje karnety” pokazuje aktywne: nazwę, pozostałe wejścia (`7 z 10`), datę pierwszego użycia, „Ważny do” (wejściówka: ostatni dzień wydarzenia; pozostałe: `expires_on`).
 - **AC-13**: Given `/konto/` When patrzę na „Historia płatności” Then widzę zamówienia (data, produkt, kwota, metoda „Online” / „Na miejscu”, status „Opłacone” / „Oczekuje” / „Anulowane” / „Zwrot w toku” / „Zwrócone”), od najnowszych.
 - **AC-14**: Given `/konto/` When klikam „Przedłuż karnet” Then trafiam do `/oferta/`.
 - **AC-15**: Given uprawnienie wykorzystane, wygasłe albo anulowane When otwieram `/konto/` Then nie ma go w „Twoje karnety”, jest w „Historia karnetów” (zwinięta lista).
@@ -98,12 +98,11 @@ Okres ważności uprawnienia: stała `public.pass_validity()` = `interval '1 yea
 | Tabela | Kolumna | Typ | Wymagane | Dane osobowe | Uwagi |
 | --- | --- | --- | --- | --- | --- |
 | `products` | `id` | `uuid` PK | tak | nie | |
-| | `kind` | `text` check in (`entries`, `days`, `single_entry`) | tak | nie | karnet ilościowy / czasowy / wejście jednorazowe |
+| | `kind` | `text` check in (`entries`, `single_entry`) | tak | nie | karnet ilościowy / wejście jednorazowe |
 | | `name` | `text` | tak | nie | 1–100 znaków |
 | | `description` | `text` | nie | nie | maks. 500 znaków |
 | | `price` | `integer` | tak | nie | grosze, 1–1 000 000 |
 | | `entries` | `integer` | dla `entries` | nie | 1–100 |
-| | `days` | `integer` | dla `days` | nie | 1–366 |
 | | `day_type` | `text` check in (`weekend`, `weekday`) | dla `single_entry` | nie | |
 | | `is_active` | `boolean` | tak | nie | domyślnie `false` |
 | | `position` | `integer` | tak | nie | kolejność w grupie |
@@ -132,13 +131,11 @@ Okres ważności uprawnienia: stała `public.pass_validity()` = `interval '1 yea
 | `user_passes` | `id` | `uuid` PK | tak | nie | uprawnienie |
 | | `user_id` | `uuid` FK → `profiles.id` on delete cascade | nie | tak | `null` tylko dla sprzedaży osobie bez konta (AC-22) |
 | | `order_id` | `uuid` FK → `orders.id` unikalny | tak | nie | 1 zamówienie = 1 uprawnienie |
-| | `kind` | `text` check in (`entries`, `days`, `single_entry`, `event_ticket`) | tak | nie | kopia z produktu |
+| | `kind` | `text` check in (`entries`, `single_entry`, `event_ticket`) | tak | nie | kopia z produktu |
 | | `entries_total`, `entries_left` | `integer` | dla `entries` | nie | `entries_left` 0…`entries_total` |
-| | `days_total` | `integer` | dla `days` | nie | |
 | | `day_type` | `text` | dla `single_entry` | nie | |
 | | `calendar_event_id` | `uuid` FK | dla `event_ticket` | nie | |
-| | `first_used_on` | `date` | nie | nie | aktywacja karnetu czasowego |
-| | `valid_until` | `date` | nie | nie | czasowy: `first_used_on + days_total − 1`; wejściówka: ostatni dzień wydarzenia |
+| | `valid_until` | `date` | nie | nie | wejściówka: ostatni dzień wydarzenia |
 | | `expires_on` | `date` | tak | nie | data zakupu + `pass_validity()`; bez konta: dzień zakupu |
 | | `status` | `text` check in (`active`, `used_up`, `cancelled`) | tak | nie | wygaśnięcie liczone z dat (widok), nie stanem |
 | | `created_at` | `timestamptz` | tak | nie | |
@@ -149,7 +146,7 @@ Stany zamówienia: `pending → paid` (powiadomienie Tpay), `pending → cancell
 Zamówienie anulowane, za które Tpay mimo to przyśle wpłatę → `paid` i uprawnienie powstaje (wejściówka ponad limit: także, z oznaczeniem do decyzji admina).
 
 Stany uprawnienia: `active → used_up` (ostatnie wejście karnetu ilościowego / wejście jednorazowe), `active → cancelled` (zwrot).
-Uprawnienie jest **ważne dnia D**, gdy `status = 'active'` i `D ≤ expires_on` oraz: czasowy aktywowany — `first_used_on ≤ D ≤ valid_until`;
+Uprawnienie jest **ważne dnia D**, gdy `status = 'active'` i `D ≤ expires_on` oraz:
 jednorazowe — dzień tygodnia D pasuje do `day_type` (sob.–niedz. = `weekend`, pn–pt = `weekday`, także w święta); wejściówka — D w dniach wydarzenia.
 Funkcja `public.passes_valid_on(user_id, date)` zwraca listę uprawnień ważnych danego dnia (używa jej SPEC-005).
 
@@ -183,7 +180,6 @@ Skan kodu QR — ten sam komponent co w SPEC-005 (kamera w przeglądarce); do cz
 - Admin ukrywa produkt w trakcie płatności → zamówienie `pending` zostaje zrealizowane po wpłacie.
 - Zmiana ceny między wyświetleniem a „Zapłać” → obowiązuje cena z bazy w chwili zamówienia, podsumowanie pokazuje ją po ponownym pobraniu.
 - Karnet kupiony 29.02 → `expires_on` = 28.02 następnego roku (arytmetyka `date + interval '1 year'` w PostgreSQL).
-- Karnet czasowy aktywowany 11 miesięcy po zakupie, N dni wykracza poza `expires_on` → ważny do `valid_until` (liczy się aktywacja; `expires_on` ogranicza tylko aktywację).
 - Wejściówka na wydarzenie wielodniowe → obejmuje każdy dzień wydarzenia (każdy dzień = osobne zużycie w historii, wejściówka nie przechodzi w `used_up`, wygasa po ostatnim dniu).
 - Usunięcie konta → uprawnienia usuwane (kaskada, przepadają — SPEC-002 AC-23), zamówienia zostają z `user_id = null`.
 - Tpay niedostępny → `payments-create` zwraca 502, zamówienie nie powstaje.
@@ -207,7 +203,7 @@ Skan kodu QR — ten sam komponent co w SPEC-005 (kamera w przeglądarce); do cz
 
 | Pytanie | Decyzja właściciela | Data |
 | --- | --- | --- |
-| Rodzaje produktów, ważność 1 rok, aktywacja karnetu czasowego | Z issue #38 — **zmienione w SPEC-012** (7-A): karnety czasowe wycofane z Oferty od 1.01.2027 | 2026-11-17 |
+| Rodzaje produktów, ważność 1 rok | Z issue #38 — **zmienione**: karnety czasowe wycofane (SPEC-012, 7-A), a 2026-11-24 usunięte całkowicie (nic nie sprzedano) | 2026-11-17, 2026-11-24 |
 | Zwroty | 6-A: admin anuluje niewykorzystany karnet i zleca zwrot (Tpay) lub oznacza zwrot gotówki; częściowo wykorzystanych nie zwracamy — **zmienione w SPEC-012**: zwrot proporcjonalny w oknie 14 dni; po oknie brak zwrotu (zwrot tylko jako decyzja admina) | 2026-11-17 |
 | Wejściówki | 7-A: cena i opcjonalny limit miejsc przy wydarzeniu; zużywana przy wpisie w dniu wydarzenia; płatne i bezpłatne bez wymaganego linku | 2026-11-17 |
 | Karnet imienny | 8-A: tylko dla właściciela konta | 2026-11-17 |

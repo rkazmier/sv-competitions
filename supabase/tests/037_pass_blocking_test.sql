@@ -1,23 +1,17 @@
 -- SPEC-012 US-8 (AC-40, AC-41, AC-43, AC-45): karnety i wejścia jednorazowe nie obowiązują w dniach wydarzeń i zawodów.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(16);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000370b1', 'block-staff@example.test'),
   ('00000000-0000-0000-0000-0000000370c1', 'block-user@example.test');
 update public.profiles set role = 'staff' where id = '00000000-0000-0000-0000-0000000370b1';
 
--- Karnet czasowy sprzedany przed 7-A — wiersz z pominięciem wyzwalacza (jak w 013_range_log_test.sql).
-alter table public.products disable trigger products_before_write;
-create or replace function public.days_pass_sales_end() returns date language sql stable set search_path = ''
-as $$ select date '9999-12-31' $$;
-insert into public.products (id, kind, name, price, entries, days, day_type) values
-  ('00000000-0000-0000-0000-0000000370f1', 'entries', 'Karnet 10 wejść B', 120000, 10, null, null),
-  ('00000000-0000-0000-0000-0000000370f2', 'days', 'Karnet 3 dni B', 30000, null, 3, null),
-  ('00000000-0000-0000-0000-0000000370f3', 'single_entry', 'Wejście dziś B', 5000, null, null,
+insert into public.products (id, kind, name, price, entries, day_type) values
+  ('00000000-0000-0000-0000-0000000370f1', 'entries', 'Karnet 10 wejść B', 120000, 10, null),
+  ('00000000-0000-0000-0000-0000000370f3', 'single_entry', 'Wejście dziś B', 5000, null,
    case when extract(isodow from public.range_today()) in (6, 7) then 'weekend' else 'weekday' end);
-alter table public.products enable trigger products_before_write;
 
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-0000000370e0', 'Blokady');
 insert into public.disciplines (id, name) values ('00000000-0000-0000-0000-0000000370d0', 'Blokady D');
@@ -45,9 +39,7 @@ create function pg_temp.buy(p_name text, p_product uuid) returns void language s
   insert into t select p_name, public.fulfil_order(o.id) from o;
 $$;
 select pg_temp.buy('entries', '00000000-0000-0000-0000-0000000370f1');
-select pg_temp.buy('days', '00000000-0000-0000-0000-0000000370f2');
 select pg_temp.buy('single', '00000000-0000-0000-0000-0000000370f3');
-update public.user_passes set first_used_on = public.range_today() - 1 where id = (select id from t where name = 'days');
 -- Wejście jednorazowe zależy od dnia tygodnia — liczone tylko dziś (dzień pasuje do produktu).
 create function pg_temp.valid_kinds(p_date date) returns text[] language sql as $$
   select coalesce(array_agg(kind order by kind), '{}')
@@ -78,14 +70,12 @@ reset role;
 -- ===== AC-41: ważność uprawnień w dzień blokady =====
 
 select is(pg_temp.valid_kinds(public.range_today() + 1), '{}'::text[],
-  'AC-41: w dzień zawodów karnet ilościowy i czasowy nieważne');
+  'AC-41: w dzień zawodów karnet ilościowy nieważny');
 select is(pg_temp.valid_kinds(public.range_today() + 3), array['entries'],
   'AC-41: dzień wpisu bez flagi — karnet ważny');
-select is((select valid_until from public.user_passes where id = (select id from t where name = 'days')),
-  public.range_today() + 1, 'AC-41: blokada nie przesuwa valid_until karnetu czasowego');
 
 -- Dziś bez blokady: wszystkie uprawnienia ważne.
-select is(pg_temp.valid_kinds(public.range_today()), array['days', 'entries', 'single_entry'],
+select is(pg_temp.valid_kinds(public.range_today()), array['entries', 'single_entry'],
   'AC-45: dziś bez blokady — karnety i wejście jednorazowe ważne');
 
 -- ===== AC-45: publikacja dzisiejszego wydarzenia działa od razu; wejściówka bez zmian =====
@@ -116,10 +106,10 @@ reset role;
 -- ===== AC-45: zmiana flagi działa od razu =====
 
 update public.calendar_events set blocks_passes = false where id = '00000000-0000-0000-0000-0000000370e1';
-select is(pg_temp.valid_kinds(public.range_today()), array['days', 'entries', 'entries', 'event_ticket', 'single_entry'],
+select is(pg_temp.valid_kinds(public.range_today()), array['entries', 'entries', 'event_ticket', 'single_entry'],
   'AC-45: odznaczenie flagi — karnety znów ważne dziś');
 update public.competitions set status = 'draft' where id = '00000000-0000-0000-0000-0000000370c9';
-select is(pg_temp.valid_kinds(public.range_today() + 1), array['days', 'entries', 'entries'],
+select is(pg_temp.valid_kinds(public.range_today() + 1), array['entries', 'entries'],
   'AC-45: cofnięcie publikacji zawodów zdejmuje blokadę');
 
 select * from finish();

@@ -23,16 +23,14 @@ function pass(fields: Partial<EntryPass>): EntryPass {
     kind: 'entries',
     item_name: 'Karnet',
     entries_left: null,
-    days_total: null,
-    first_used_on: null,
     valid_until: null,
     expires_on: '2027-12-31',
     ...fields,
   };
 }
 
-const effectText = (p: EntryPass, today = '2027-03-10') => {
-  const { key, params } = passEffect(p, today);
+const effectText = (p: EntryPass) => {
+  const { key, params } = passEffect(p);
   return t(key, params);
 };
 
@@ -75,17 +73,6 @@ describe('AC-9: dzisiejszy wpis', () => {
 });
 
 describe('AC-11: opis skutku wyboru', () => {
-  it('aktywny karnet czasowy — bez zmian', () => {
-    const p = pass({ kind: 'days', item_name: 'Karnet 3 dni', days_total: 3, first_used_on: '2027-03-10', valid_until: '2027-03-12' });
-    expect(effectText(p, '2027-03-11')).toBe('Karnet 3 dni — ważny do 12.03 (bez zmian)');
-  });
-
-  it('nieaktywowany karnet czasowy — aktywacja dziś, ważny do dziś + dni − 1', () => {
-    const p = pass({ kind: 'days', item_name: 'Karnet 3 dni', days_total: 3 });
-    expect(effectText(p)).toBe('Karnet 3 dni — aktywacja dziś, ważny do 12.03');
-    expect(effectText(p, '2027-12-30')).toBe('Karnet 3 dni — aktywacja dziś, ważny do 01.01');
-  });
-
   it('karnet ilościowy — zostanie o jedno wejście mniej', () => {
     expect(effectText(pass({ item_name: 'Karnet 10 wejść', entries_left: 7 }))).toBe('Karnet 10 wejść — zostanie 6');
   });

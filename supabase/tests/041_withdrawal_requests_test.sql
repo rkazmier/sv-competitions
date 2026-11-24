@@ -1,8 +1,8 @@
--- SPEC-012 US-9 (AC-46…AC-50, AC-52, AC-55): „Odstąp od umowy” w /konto/ — submit_withdrawal, my_withdrawals,
+-- SPEC-012 US-9 (AC-46…AC-50, AC-52): „Odstąp od umowy” w /konto/ — submit_withdrawal, my_withdrawals,
 -- filtr „Zgłoszone odstąpienia”, „Zleć zwrot”, nieudany zwrot → zgłoszenie `new`.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(28);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000041a1', 'request-admin@example.test'),
@@ -13,20 +13,15 @@ update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00
 insert into public.products (id, kind, name, price, entries, day_type) values
   ('00000000-0000-0000-0000-0000000041f1', 'entries', 'Karnet 3 wejść R', 10000, 3, null),
   ('00000000-0000-0000-0000-0000000041f2', 'single_entry', 'Wejście weekendowe R', 5000, null, 'weekend');
-alter table public.products disable trigger products_before_write;
-insert into public.products (id, kind, name, price, days) values
-  ('00000000-0000-0000-0000-0000000041f3', 'days', 'Karnet 30 dni R', 30000, 30);
-alter table public.products enable trigger products_before_write;
 
 -- r1: ilościowy, 1 z 3 użyte, 3 dni temu; r2: wejście jednorazowe nieużyte, 14 dni temu; r3: ilościowy w całości użyty;
--- r4: ilościowy nieużyty, 15 dni temu (po oknie); r5: karnet czasowy w oknie; r6: ilościowy na miejscu.
+-- r4: ilościowy nieużyty, 15 dni temu (po oknie); r6: ilościowy na miejscu.
 create temp table r (name text primary key, id uuid, product uuid, method text, days_ago integer);
 insert into r values
   ('r1', '00000000-0000-0000-0000-0000000041d1', '00000000-0000-0000-0000-0000000041f1', 'tpay', 3),
   ('r2', '00000000-0000-0000-0000-0000000041d2', '00000000-0000-0000-0000-0000000041f2', 'tpay', 14),
   ('r3', '00000000-0000-0000-0000-0000000041d3', '00000000-0000-0000-0000-0000000041f1', 'tpay', 1),
   ('r4', '00000000-0000-0000-0000-0000000041d4', '00000000-0000-0000-0000-0000000041f1', 'tpay', 15),
-  ('r5', '00000000-0000-0000-0000-0000000041d5', '00000000-0000-0000-0000-0000000041f3', 'tpay', 2),
   ('r6', '00000000-0000-0000-0000-0000000041d6', '00000000-0000-0000-0000-0000000041f1', 'on_site', 2);
 insert into public.orders (id, user_id, product_id, item_name, amount, payment_method, on_site_method, tpay_title, created_at)
   select r.id, '00000000-0000-0000-0000-0000000041c1', r.product, p.name, p.price, r.method,
@@ -47,22 +42,20 @@ set local role authenticated;
 select throws_ok($$select * from public.withdrawal_requests$$, '42501', null,
   '§5 RLS: klient nie czyta withdrawal_requests bezpośrednio');
 
--- ===== AC-46, AC-55: my_withdrawals — dostępne odstąpienia =====
+-- ===== AC-46: my_withdrawals — dostępne odstąpienia =====
 
 select is(
   (select array_agg(row(order_id, refund_amount, last_day, submitted_at)::text order by order_id) from public.my_withdrawals()),
   array[row('00000000-0000-0000-0000-0000000041d1'::uuid, 6667, public.range_today() + 11, null::timestamptz)::text,
         row('00000000-0000-0000-0000-0000000041d2'::uuid, 5000, public.range_today(), null::timestamptz)::text],
-  'AC-46, AC-55: tylko karnet ilościowy / wejście online w oknie ze zwrotem > 0 (bez czasowego, na miejscu, po oknie, 0 zł)');
+  'AC-46: tylko karnet ilościowy / wejście online w oknie ze zwrotem > 0 (bez sprzedaży na miejscu, po oknie, 0 zł)');
 
--- ===== AC-50, AC-55: odrzucenia =====
+-- ===== AC-50: odrzucenia =====
 
 select throws_ok($$select public.submit_withdrawal('00000000-0000-0000-0000-0000000041d4')$$,
   'P0001', 'withdrawal_window_closed', 'AC-50: po oknie — withdrawal_window_closed');
 select throws_ok($$select public.submit_withdrawal('00000000-0000-0000-0000-0000000041d3')$$,
   'P0001', 'withdrawal_nothing_to_refund', 'AC-18: usługa wykonana w całości');
-select throws_ok($$select public.submit_withdrawal('00000000-0000-0000-0000-0000000041d5')$$,
-  'P0001', 'withdrawal_not_available', 'AC-55: karnet czasowy odrzucany');
 select throws_ok($$select public.submit_withdrawal('00000000-0000-0000-0000-0000000041d6')$$,
   'P0001', 'withdrawal_not_available', 'AC-46: sprzedaż na miejscu odrzucana');
 select throws_ok($$select public.submit_withdrawal('00000000-0000-0000-0000-0000000041d1', repeat('x', 501))$$,

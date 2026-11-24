@@ -1,7 +1,7 @@
 -- SPEC-003 §5 (AC-9, AC-11, AC-21, AC-22, AC-25…AC-27): zamówienia, uprawnienia, reguły ważności.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(50);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'admin@example.test'),
@@ -11,16 +11,11 @@ insert into auth.users (id, email) values
 update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-0000000000a1';
 update public.profiles set role = 'staff' where id = '00000000-0000-0000-0000-0000000000b1';
 
--- SPEC-012 AC-53, AC-54: karnet czasowy sprzedawany przed 7-A — wiersz z pominięciem wyzwalacza, sprzedaż bez końca.
-alter table public.products disable trigger products_before_write;
-create or replace function public.days_pass_sales_end() returns date language sql stable set search_path = ''
-as $$ select date '9999-12-31' $$;
-insert into public.products (id, kind, name, price, entries, days, day_type) values
-  ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null, null),
-  ('00000000-0000-0000-0000-00000000f002', 'days', 'Karnet 30 dni', 30000, null, 30, null),
-  ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście weekendowe', 5000, null, null, 'weekend'),
-  ('00000000-0000-0000-0000-00000000f004', 'single_entry', 'Wejście w tygodniu', 4000, null, null, 'weekday');
-alter table public.products enable trigger products_before_write;
+insert into public.products (id, kind, name, price, entries, day_type) values
+  ('00000000-0000-0000-0000-00000000f001', 'entries', 'Karnet 10 wejść', 120000, 10, null),
+  ('00000000-0000-0000-0000-00000000f002', 'entries', 'Karnet 5 wejść', 65000, 5, null),
+  ('00000000-0000-0000-0000-00000000f003', 'single_entry', 'Wejście weekendowe', 5000, null, 'weekend'),
+  ('00000000-0000-0000-0000-00000000f004', 'single_entry', 'Wejście w tygodniu', 4000, null, 'weekday');
 -- Seed ma blokujące zawody/wydarzenia względem `current_date` (np. +30/+31 dni) — testy ważności używają stałych dat,
 -- więc wyłączamy blokady z seeda, żeby wynik nie zależał od dnia uruchomienia CI (np. 24.11 → zawody 24–25.12).
 update public.competitions set blocks_passes = false;
@@ -54,7 +49,7 @@ create temp table t (name text primary key, id uuid);
 grant all on t to public;
 insert into t values
   ('o_entries', pg_temp.tpay_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f001')),
-  ('o_days', pg_temp.tpay_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f002')),
+  ('o_five', pg_temp.tpay_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f002')),
   ('o_weekend', pg_temp.tpay_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f003')),
   ('o_weekday', pg_temp.tpay_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000f004')),
   ('o_other', pg_temp.tpay_order('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-00000000f001'));
@@ -113,19 +108,10 @@ select ok(not pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_w
 select ok(pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_weekday'))).id, '2026-12-25'), '§5: święto w dzień powszedni = dzień powszedni');
 select ok(not pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_weekday'))).id, '2027-01-04'), '§5: po expires_on nieważne');
 
--- Karnet czasowy: przed aktywacją ważny do expires_on; po aktywacji first_used_on…valid_until (także po expires_on, §7).
-update public.user_passes set expires_on = '2027-11-17' where order_id = (select id from t where name = 'o_days');
-select ok(pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_days'))).id, '2027-11-17'), '§5: nieaktywowany czasowy ważny do expires_on');
-select ok(not pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_days'))).id, '2027-11-18'), '§5: nieaktywowany czasowy nieważny po expires_on');
-select throws_ok(
-  $$update public.user_passes set first_used_on = '2027-11-18' where order_id = (select id from t where name = 'o_days')$$,
-  '23514', null, '§7: aktywacja czasowego po expires_on niemożliwa'
-);
-update public.user_passes set first_used_on = '2027-11-07' where order_id = (select id from t where name = 'o_days');
-select is((pg_temp.pass_of((select id from t where name = 'o_days'))).valid_until, date '2027-12-06', '§5: aktywacja: valid_until = first_used_on + 30 − 1');
-select ok(pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_days'))).id, '2027-12-06'), '§7: aktywowany czasowy ważny do valid_until mimo expires_on');
-select ok(not pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_days'))).id, '2027-12-07'), '§5: aktywowany czasowy nieważny po valid_until');
-select ok(not pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_days'))).id, '2027-11-06'), '§5: aktywowany czasowy nieważny przed pierwszym użyciem');
+-- Karnet ilościowy z zużytym wejściem: ważny do expires_on włącznie.
+update public.user_passes set expires_on = '2027-11-17', entries_left = 4 where order_id = (select id from t where name = 'o_five');
+select ok(pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_five'))).id, '2027-11-17'), '§5: karnet ilościowy ważny do expires_on');
+select ok(not pg_temp.valid((pg_temp.pass_of((select id from t where name = 'o_five'))).id, '2027-11-18'), '§5: karnet ilościowy nieważny po expires_on');
 
 -- Wejściówka: tylko w dniach wydarzenia.
 select ok(pg_temp.valid((pg_temp.pass_of('00000000-0000-0000-0000-00000000f0d1')).id, '2026-12-06'), '§5: wejściówka ważna w dniu wydarzenia');
@@ -164,8 +150,8 @@ insert into t values ('o_site', public.create_on_site_order('00000000-0000-0000-
 select is(
   (select row(o.payment_method, o.on_site_method, o.status, o.created_by, o.amount, p.user_id, p.kind)::text
    from public.orders o join public.user_passes p on p.order_id = o.id where o.id = (select id from t where name = 'o_site')),
-  row('on_site', 'terminal', 'paid', '00000000-0000-0000-0000-0000000000b1'::uuid, 30000,
-      '00000000-0000-0000-0000-0000000000c2'::uuid, 'days')::text,
+  row('on_site', 'terminal', 'paid', '00000000-0000-0000-0000-0000000000b1'::uuid, 65000,
+      '00000000-0000-0000-0000-0000000000c2'::uuid, 'entries')::text,
   'AC-21: zamówienie on_site opłacone, created_by = obsługa, uprawnienie dla osoby'
 );
 insert into t values ('o_guest', public.create_on_site_order(null,
@@ -201,7 +187,7 @@ select is(
   row('Zwrot gotówki / na terminal', true, 'cancelled')::text, 'AC-25: adnotacja zwrotu i uprawnienie cancelled'
 );
 select is(public.cancel_order((select id from t where name = 'o_other'), 'Na prośbę klienta'), 'refund_pending', 'AC-25: Tpay → refund_pending');
-select throws_ok($$select public.cancel_order((select id from t where name = 'o_days'))$$,
+select throws_ok($$select public.cancel_order((select id from t where name = 'o_five'))$$,
   'P0001', 'pass_used', 'AC-26: uprawnienie używane — bez zwrotu w systemie');
 select throws_ok($$select public.cancel_order((select id from t where name = 'o_other'))$$,
   'P0001', 'order_not_paid', 'AC-25: anulować można tylko opłacone zamówienie');

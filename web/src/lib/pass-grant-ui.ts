@@ -38,7 +38,6 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
 
 const GROUP_LABEL = {
   entries: 'products.groups.entries',
-  days: 'products.groups.days',
   single_entry: 'products.groups.single_entry',
   ticket: 'grant.ticketGroup',
 } as const;
@@ -67,7 +66,6 @@ export async function mountPassGrant(root: HTMLElement): Promise<void> {
   const price = query<HTMLElement>(form, '[data-price]');
   const expiresBox = query<HTMLElement>(form, '[data-expires-box]');
   const expiresInput = query<HTMLInputElement>(form, '[data-expires]');
-  const expiresHint = query<HTMLElement>(form, '[data-expires-hint]');
   const ticketValidity = query<HTMLElement>(form, '[data-ticket-validity]');
   const reasonInput = query<HTMLTextAreaElement>(form, '[data-reason]');
   const reasonCount = query<HTMLElement>(form, '[data-reason-count]');
@@ -97,14 +95,13 @@ export async function mountPassGrant(root: HTMLElement): Promise<void> {
     selectedName.textContent = person ? t('sales.selected', { name: person.full_name ?? t('sales.noName') }) : '';
   }
 
-  // AC-4, AC-5: „Ważny do” tylko dla produktu; podpowiedź dla karnetu czasowego; wejściówka — tekst o ważności.
+  // AC-4, AC-5: „Ważny do” tylko dla produktu; wejściówka — tekst o ważności.
   function renderItem(): void {
     const item = items.find((i) => i.value === itemSelect.value);
     price.textContent = item ? t('grant.price', { price: formatPrice(item.price) }) : '';
     const isProduct = item !== undefined && item.kind !== 'ticket';
     expiresBox.hidden = !isProduct;
     ticketValidity.hidden = item?.kind !== 'ticket';
-    expiresHint.textContent = item?.kind === 'days' ? t('grant.expiresDaysHint') : '';
     if (!isProduct) setError('expiresOn', null);
   }
 

@@ -299,12 +299,6 @@ describe('SPEC-012 US-4: odstąpienie od umowy w panelu', () => {
       .toEqual({ kind: 'refund', warning: false, noteRequired: true });
   });
 
-  it('AC-55: karnet czasowy w oknie — „Anuluj i zwróć” bez ostrzeżenia; aktywowany — zwrot poza systemem', () => {
-    const days: Partial<AdminOrder> = { pass_kind: 'days', refund_window_until: '2027-01-16', withdrawal_refund: null };
-    expect(orderAction(order(days), TODAY)).toEqual({ kind: 'refund', warning: false, noteRequired: false });
-    expect(orderAction(order({ ...days, pass_used: true }), TODAY)).toEqual({ kind: 'used' });
-  });
-
   it('AC-52: zwrot po odstąpieniu odrzucony — „Ponów zwrot” tej samej kwoty', () => {
     const failed = order({ withdrawal_on: '2027-01-04', refund_amount: 6667, pass_used: true });
     expect(orderAction(failed, '2027-02-01')).toEqual({ kind: 'retry', refund: 6667 });
