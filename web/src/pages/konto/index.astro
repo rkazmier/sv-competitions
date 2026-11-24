@@ -69,6 +69,7 @@ const fields = [
 
           <section class="card account-wide" aria-labelledby="payments-heading">
             <h2 id="payments-heading">{t('offer.paymentsTitle')}</h2>
+            <p role="status" data-withdraw-status></p>
             <p class="hint" data-orders-empty hidden>{t('offer.paymentsEmpty')}</p>
             <div class="table-scroll" data-orders-table hidden>
               <table class="orders-table">
@@ -187,6 +188,23 @@ const fields = [
       <div class="button-row">
         <button type="submit" class="button button-primary" data-submit>{t('rangeOfficerAccount.submit')}</button>
         <button type="button" class="button" data-cancel>{t('rangeOfficerAccount.cancel')}</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- SPEC-012 AC-47: oświadczenie o odstąpieniu od umowy (poza .auth, jak okno prowadzącego) -->
+  <dialog class="card officer-dialog" aria-labelledby="withdraw-heading" data-withdraw-dialog>
+    <form class="auth-form" novalidate>
+      <h2 id="withdraw-heading">{t('offer.withdrawTitle')}</h2>
+      <p data-withdraw-statement></p>
+      <p data-withdraw-quote></p>
+      <p><strong>{t('offer.withdrawEffect')}</strong></p>
+      <label for="withdraw-comment">{t('offer.withdrawComment')}</label>
+      <textarea class="input" id="withdraw-comment" name="comment" rows="3" maxlength="500" data-withdraw-comment></textarea>
+      <p class="message-error" role="alert" data-withdraw-error hidden></p>
+      <div class="button-row">
+        <button type="submit" class="button button-primary" data-withdraw-submit>{t('offer.withdrawSubmit')}</button>
+        <button type="button" class="button" data-withdraw-cancel>{t('offer.withdrawBack')}</button>
       </div>
     </form>
   </dialog>
@@ -405,6 +423,11 @@ const fields = [
 
   .account-officer-state {
     font-weight: var(--font-weight-strong);
+  }
+
+  .withdraw-button {
+    display: block;
+    margin-top: var(--space-2);
   }
 
   .officer-dialog {

@@ -289,3 +289,52 @@ Deno.test('AC-27: e-mail event_cancelled — na miejscu i prezent', async () => 
   );
   assert(mailer.sent[1].text.includes('Wejściówka została anulowana.') && !mailer.sent[1].text.includes('Zwrot'), 'prezent');
 });
+
+const WITHDRAWAL: OutboxRow = {
+  ...ROW,
+  id: '11111111-0000-0000-0000-000000000048',
+  kind: 'withdrawal_received',
+  amount: 10000,
+  refund_amount: 6667,
+  item_name: 'Karnet 3 wejść <A>',
+  paid_at: '2027-01-02T23:30:00Z',
+  withdrawal_on: '2027-01-05',
+  withdrawal_submitted_at: '2027-01-05T09:15:00Z',
+  withdrawal_comment: 'Przeprowadzka',
+};
+
+Deno.test('AC-48: withdrawal_received — treść oświadczenia, uwagi i kwota zwrotu, do klienta, bez załącznika', async () => {
+  const { urls, results, fetch } = mockFetch({ batches: [[WITHDRAWAL]] });
+  const mailer = mockMailer();
+  const response = await handle(post(), { fetch, config: CONFIG, createMailer: mailer.createMailer, log: () => {} });
+  assert(response.status === 200, `status ${response.status}`);
+  assert(results.length === 1 && results[0].p_error === null, 'wysłany');
+  assert(!urls.some((url) => url.includes('/regulamin-sprzedazy/')), 'bez pobierania PDF');
+  const mail = mailer.sent[0];
+  const text = mail.text.replaceAll('\u00a0', ' ');
+  assert(mail.to === 'klient@example.test' && mail.attachments.length === 0, 'do klienta, bez załącznika');
+  // Opłacone 2.01 o 23:30 UTC = 3.01 w Europe/Warsaw.
+  assert(
+    text.includes('„Odstępuję od umowy zakupu Karnet 3 wejść <A> (zamówienie SV-2027-000123, opłacone 3.01.2027).”'),
+    'treść oświadczenia',
+  );
+  assert(text.includes('Data złożenia oświadczenia: 5.01.2027 10:15'), 'data oświadczenia');
+  assert(text.includes('Uwagi: Przeprowadzka'), 'uwagi');
+  assert(text.includes('Zwrot 66,67 zł otrzymasz w ciągu 14 dni'), 'kwota zwrotu');
+  assert(mail.html.includes('&lt;A&gt;') && !mail.html.includes('<A>'), 'HTML escapowany');
+});
+
+Deno.test('AC-48, §9: withdrawal_admin — na MAIL_FROM, numer, termin i link do panelu, bez danych osoby', async () => {
+  const row: OutboxRow = { ...WITHDRAWAL, kind: 'withdrawal_admin', email: null, withdrawal_comment: null };
+  const { results, fetch } = mockFetch({ batches: [[row]] });
+  const mailer = mockMailer();
+  await handle(post(), { fetch, config: CONFIG, createMailer: mailer.createMailer, log: () => {} });
+  assert(results[0].p_error === null, 'wysłany mimo braku adresu klienta');
+  const mail = mailer.sent[0];
+  const text = mail.text.replaceAll('\u00a0', ' ');
+  assert(mail.to === CONFIG.mailFrom, 'na skrzynkę sprzedawcy');
+  assert(mail.subject.includes('SV-2027-000123'), 'numer w temacie');
+  assert(text.includes('Kwota do zwrotu: 66,67 zł. Zleć zwrot w ciągu 14 dni (do 19.01.2027).'), 'kwota i termin');
+  assert(text.includes('https://events.steel-valley.pl/panel/zamowienia/?numer=SV-2027-000123'), 'link do panelu');
+  assert(!text.includes('klient@example.test') && !text.includes('Karnet'), 'bez danych osoby i produktu');
+});

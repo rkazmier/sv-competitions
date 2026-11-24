@@ -11,7 +11,7 @@ import InvoiceFields from '../../../components/InvoiceFields.astro';
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import { t } from '../../../i18n';
 import { ORDER_STATUS_TEXT, PAYMENT_METHOD_TEXT } from '../../../lib/offer';
-import { ORDER_STATUSES, PAYMENT_METHODS } from '../../../lib/orders-admin';
+import { ORDER_STATUSES, PAYMENT_METHODS, WITHDRAWAL_REQUESTED } from '../../../lib/orders-admin';
 import { GRANT_URL } from '../../../lib/pass-grant';
 ---
 <PanelLayout title={t('orders.title')}>
@@ -36,6 +36,7 @@ import { GRANT_URL } from '../../../lib/pass-grant';
           <select class="input" id="o-status" name="status">
             <option value="">{t('orders.any')}</option>
             {ORDER_STATUSES.map((status) => <option value={status}>{t(ORDER_STATUS_TEXT[status])}</option>)}
+            <option value={WITHDRAWAL_REQUESTED}>{t('orders.statusWithdrawalRequested')}</option>
           </select>
         </div>
         <div>

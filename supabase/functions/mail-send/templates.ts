@@ -1,5 +1,5 @@
 /**
- * Szablony e-maili `order_paid` (SPEC-012 AC-10) i `event_cancelled` (AC-27): HTML + wersja tekstowa, kwoty „120,00 zł”, daty „2.01.2027”,
+ * Szablony e-maili `order_paid` (SPEC-012 AC-10), `event_cancelled` (AC-27), `withdrawal_received` i `withdrawal_admin` (AC-48): HTML + wersja tekstowa, kwoty „120,00 zł”, daty „2.01.2027”,
  * godziny w Europe/Warsaw. Wartości z bazy w HTML zawsze escapowane.
  */
 import { t } from './i18n.ts';
@@ -26,6 +26,10 @@ export interface OutboxRow {
   refund_amount?: number | null;
   event_name?: string | null;
   cancel_reason?: string | null;
+  /** SPEC-012 AC-48 (`withdrawal_*`): dzień odstąpienia, data oświadczenia, uwagi klienta (tylko `withdrawal_received`). */
+  withdrawal_on?: string | null;
+  withdrawal_submitted_at?: string | null;
+  withdrawal_comment?: string | null;
 }
 
 export interface Content {
@@ -178,4 +182,69 @@ export function eventCancelledEmail(row: OutboxRow): Content {
   ].join('\r\n');
 
   return { subject: t('email.eventCancelled.subject', { name }), text, html };
+}
+
+function simpleHtml(heading: string, paragraphs: readonly string[], footer: string, link?: { before: string; url: string }): string {
+  const e = escapeHtml;
+  return [
+    '<!doctype html>',
+    '<html lang="pl"><head><meta charset="utf-8"><title>' + e(heading) + '</title></head>',
+    '<body style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5">',
+    `<h1 style="font-size:20px">${e(heading)}</h1>`,
+    ...paragraphs.map((p) => `<p>${e(p)}</p>`),
+    ...(link ? [`<p>${e(link.before)}<a href="${e(link.url)}">${e(link.url)}</a></p>`] : []),
+    `<p style="color:#555">${e(footer)}</p>`,
+    '</body></html>',
+  ].join('\r\n');
+}
+
+/** Dzień w Europe/Warsaw z `timestamptz` (`2027-01-05`). */
+function warsawDay(value: string): string {
+  const part = Object.fromEntries(warsawParts.formatToParts(new Date(value)).map((p) => [p.type, p.value]));
+  return `${part.year}-${part.month}-${part.day}`;
+}
+
+/** `2027-01-05` + n dni → `2027-01-19`. */
+function addDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** AC-48: potwierdzenie dla klienta — treść oświadczenia, data, uwagi i kwota zwrotu. */
+export function withdrawalReceivedEmail(row: OutboxRow): Content {
+  const number = row.order_number;
+  const lines = [
+    `„${t('email.withdrawalReceived.statement', {
+      item: row.item_name,
+      number,
+      date: row.paid_at ? formatDay(warsawDay(row.paid_at)) : '',
+    })}”`,
+    ...(row.withdrawal_submitted_at ? [t('email.withdrawalReceived.submittedAt', { date: formatDateTime(row.withdrawal_submitted_at) })] : []),
+    ...(row.withdrawal_comment ? [t('email.withdrawalReceived.comment', { comment: row.withdrawal_comment })] : []),
+    t('email.withdrawalReceived.passCancelled'),
+    t('email.withdrawalReceived.refund', { amount: formatPrice(row.refund_amount ?? row.amount) }),
+  ];
+  const heading = t('email.withdrawalReceived.heading');
+  const footer = t('email.withdrawalReceived.footer', { number });
+  const text = [heading, '', ...lines.flatMap((line) => [line, '']), '-- ', footer, ''].join('\r\n');
+  return { subject: t('email.withdrawalReceived.subject', { number }), text, html: simpleHtml(heading, lines, footer) };
+}
+
+/** AC-48, §9: powiadomienie sprzedawcy — numer zamówienia, kwota, termin zwrotu i link do panelu, bez danych osoby. */
+export function withdrawalAdminEmail(row: OutboxRow, siteUrl: string): Content {
+  const number = row.order_number;
+  const submitted = row.withdrawal_submitted_at ? warsawDay(row.withdrawal_submitted_at) : row.withdrawal_on;
+  const url = `${siteUrl}/panel/zamowienia/?numer=${encodeURIComponent(number)}`;
+  const lines = [
+    t('email.withdrawalAdmin.intro', { number }),
+    t('email.withdrawalAdmin.refund', {
+      amount: formatPrice(row.refund_amount ?? row.amount),
+      date: submitted ? formatDay(addDays(submitted, 14)) : '',
+    }),
+  ];
+  const subject = t('email.withdrawalAdmin.subject', { number });
+  const footer = t('email.senderName');
+  const text = [...lines.flatMap((line) => [line, '']), t('email.withdrawalAdmin.link', { url }), '', '-- ', footer, ''].join('\r\n');
+  return { subject, text, html: simpleHtml(subject, lines, footer, { before: t('email.withdrawalAdmin.link', { url: '' }), url }) };
 }

@@ -184,6 +184,13 @@ export async function mountOrdersAdmin(root: HTMLElement): Promise<void> {
           button.disabled = true;
           actionNote(t('orders.withdrawalDone'));
         }
+      } else if (action?.kind === 'request') {
+        // SPEC-012 AC-49: zgłoszenie z konta — kwota z oświadczenia, bez edycji i ponownego anulowania.
+        actionNote(t('orders.requestNote', { date: shortDay(action.submitted), until: shortDay(action.until) }));
+        if (order.withdrawal_comment) actionNote(t('orders.requestComment', { comment: order.withdrawal_comment }));
+        const amount = formatPrice(action.refund);
+        const button = actionButton(t('orders.requestRefund'), t('orders.requestRefundLabel', { amount, number: order.order_number }),
+          () => void withdraw(order, null, '', button));
       } else if (action?.kind === 'retry') {
         // SPEC-012 AC-52: Tpay odrzucił zwrot po odstąpieniu — ta sama kwota, bez ponownego wyliczenia.
         actionNote(t('orders.retryFailed'));
