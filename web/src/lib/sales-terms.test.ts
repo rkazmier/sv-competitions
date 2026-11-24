@@ -9,6 +9,7 @@ import {
   salesTermsPdfPath,
   spansText,
   type LinkedSpan,
+  type Span,
 } from './sales-terms';
 
 describe('regulamin sprzedaży — format treści (#154)', () => {
@@ -101,7 +102,7 @@ describe('regulamin sprzedaży — treść od właściciela (#154)', () => {
     expect(steps[4]).toMatch(/^klika przycisk „Zamawiam i płacę” z podaną kwotą/);
     const section = blocks.slice(index, blocks.findIndex((b, i) => i > index && b.kind === 'h2'));
     const text = section
-      .flatMap((b) => ('items' in b ? b.items.flatMap((i) => [i, ...i.children]) : [b]))
+      .flatMap((b): { spans: Span[] }[] => ('items' in b ? b.items.flatMap((i) => [i, ...i.children]) : [b]))
       .map((b) => spansText(b.spans))
       .join('\n');
     expect(text).toContain('Zamawiam i płacę');
