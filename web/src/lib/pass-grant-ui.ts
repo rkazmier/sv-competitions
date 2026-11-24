@@ -38,7 +38,6 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
 
 const GROUP_LABEL = {
   entries: 'products.groups.entries',
-  days: 'products.groups.days',
   single_entry: 'products.groups.single_entry',
   ticket: 'grant.ticketGroup',
 } as const;
