@@ -8,12 +8,9 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000039c1', 'closure-client@example.test');
 update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-0000000039a1';
 
--- Karnet czasowy sprzedany przed 7-A — wiersz z pominięciem wyzwalacza (jak w 037_pass_blocking_test.sql).
-alter table public.products disable trigger products_before_write;
-insert into public.products (id, kind, name, price, entries, days, day_type) values
-  ('00000000-0000-0000-0000-0000000039f1', 'entries', 'Karnet 10 wejść Z', 120000, 10, null, null),
-  ('00000000-0000-0000-0000-0000000039f2', 'days', 'Karnet 3 dni Z', 30000, null, 3, null);
-alter table public.products enable trigger products_before_write;
+insert into public.products (id, kind, name, price, entries, day_type) values
+  ('00000000-0000-0000-0000-0000000039f1', 'entries', 'Karnet 10 wejść Z', 120000, 10, null),
+  ('00000000-0000-0000-0000-0000000039f2', 'single_entry', 'Wejście weekendowe Z', 5000, null, 'weekend');
 insert into public.event_categories (id, name) values ('00000000-0000-0000-0000-0000000039e0', 'Zamknięcia');
 insert into public.calendar_events (id, name, category_id, starts_on, ends_on, status, access_mode, ticket_price) values
   ('00000000-0000-0000-0000-0000000039e1', 'Piknik Z', '00000000-0000-0000-0000-0000000039e0', public.range_today() + 5,
@@ -32,7 +29,7 @@ create function pg_temp.buy(p_name text, p_user uuid, p_product uuid, p_event uu
 $$;
 -- Zamknięcie testowe: od dziś−20 do dziś−11 (10 dni).
 select pg_temp.buy('extended', '00000000-0000-0000-0000-0000000039c1', '00000000-0000-0000-0000-0000000039f1', null);
-select pg_temp.buy('days', '00000000-0000-0000-0000-0000000039c1', '00000000-0000-0000-0000-0000000039f2', null);
+select pg_temp.buy('single', '00000000-0000-0000-0000-0000000039c1', '00000000-0000-0000-0000-0000000039f2', null);
 select pg_temp.buy('during', '00000000-0000-0000-0000-0000000039c1', '00000000-0000-0000-0000-0000000039f1', null);
 select pg_temp.buy('expired', '00000000-0000-0000-0000-0000000039c1', '00000000-0000-0000-0000-0000000039f1', null);
 select pg_temp.buy('after', '00000000-0000-0000-0000-0000000039c1', '00000000-0000-0000-0000-0000000039f1', null);
@@ -43,8 +40,6 @@ select pg_temp.buy('ticket', '00000000-0000-0000-0000-0000000039c1', null, '0000
 update public.user_passes set created_at = now() - interval '100 days'
   where id in (select id from t where name not in ('after', 'during'));
 update public.user_passes set created_at = now() - interval '15 days' where id = (select id from t where name = 'during');
--- Karnet czasowy aktywowany przed zamknięciem: `valid_until` = dziś−28; `expires_on` w przyszłości.
-update public.user_passes set first_used_on = public.range_today() - 30 where id = (select id from t where name = 'days');
 -- Wygasł dzień przed „Od”.
 update public.user_passes set expires_on = public.range_today() - 21 where id = (select id from t where name = 'expired');
 update public.user_passes set entries_left = 0 where id = (select id from t where name = 'used_up');
@@ -89,9 +84,8 @@ select is((select p.expires_on - b.expires_on from public.user_passes p join bef
             where p.id = (select id from t where name = 'extended')), 10, 'AC-32: karnet ilościowy — expires_on += 10');
 select is((select p.expires_on - b.expires_on from public.user_passes p join before b using (id)
             where p.id = (select id from t where name = 'during')), 10, 'AC-32: kupiony w trakcie zamknięcia — pełne N dni (§7)');
-select is((select row(p.expires_on - b.expires_on, p.valid_until = b.valid_until)::text from public.user_passes p
-            join before b using (id) where p.id = (select id from t where name = 'days')),
-  row(10, true)::text, 'AC-32: karnet czasowy — expires_on += 10, valid_until bez zmian (7-A)');
+select is((select p.expires_on - b.expires_on from public.user_passes p join before b using (id)
+            where p.id = (select id from t where name = 'single')), 10, 'AC-32: wejście jednorazowe — expires_on += 10');
 select is((select count(*)::int from public.user_passes p join before b using (id) where p.expires_on <> b.expires_on
             and p.id in (select id from t where name in ('expired', 'after', 'used_up', 'cancelled', 'no_account', 'ticket'))),
   0, 'AC-32: bez zmian — wygasłe przed „Od”, kupione po „Do”, used_up, cancelled, bez konta, wejściówka');

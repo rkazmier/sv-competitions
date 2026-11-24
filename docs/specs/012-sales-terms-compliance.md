@@ -12,7 +12,7 @@ Aplikacja robi to, co regulamin sprzedaży (#39, #154) obiecuje klientom, i spe�
 potwierdzenie zamówienia e-mailem z regulaminem (trwały nośnik), zgoda na korzystanie przed upływem 14 dni,
 odstąpienie od umowy ze zwrotem proporcjonalnym, odwołanie wydarzenia ze zwrotem, przedłużenie ważności przy
 zamknięciu strzelnicy, godziny otwarcia i zasada „karnety nie działają w czasie wydarzeń i zawodów”.
-Od 1.01.2027 Oferta to karnety ilościowe, wejścia jednorazowe i wejściówki — karnety czasowe są wycofane (decyzja 7-A, US-10).
+Oferta to karnety ilościowe, wejścia jednorazowe i wejściówki — karnety czasowe są usunięte (decyzja 7-A zmieniona 2026-11-24, US-10).
 
 ## 2. Zakres
 
@@ -30,7 +30,7 @@ Od 1.01.2027 Oferta to karnety ilościowe, wejścia jednorazowe i wejściówki �
 8. Godziny otwarcia prowadzone przez admina i pokazywane publicznie (§ 4 ust. 11).
 9. Karnety i wejścia jednorazowe nie obowiązują w dniach wydarzeń i zawodów z kalendarza (§ 4 ust. 11).
 10. „Odstąp od umowy” w `/konto/` (5-A; dyrektywa 2023/2673; § 8 ust. 6) — ostatnie zadanie w kolejce.
-11. Wycofanie karnetów czasowych (`days`) z Oferty (7-A): bez nowych produktów i bez sprzedaży od 1.01.2027; kod typu `days` zostaje dla sprzedanych karnetów (US-10).
+11. Usunięcie karnetów czasowych (`days`) z Oferty, bazy i kodu (7-A, zmienione 2026-11-24; US-10).
 
 **Poza zakresem:**
 - Prawo odstąpienia dla wejściówek (art. 38 ust. 1 pkt 12), sprzedaży na miejscu i prezentów (SPEC-010) — bez zmian.
@@ -38,8 +38,7 @@ Od 1.01.2027 Oferta to karnety ilościowe, wejścia jednorazowe i wejściówki �
 - Automatyczny zwrot przy zmianie terminu wydarzenia — admin robi to akcją „Anuluj i zwróć” (wejściówka nieużyta), bez e-maila.
 - Odwoływanie zawodów (`competitions`) — zawody nie mają jeszcze sprzedaży; cofnięcie odwołania; usuwanie zamknięcia strzelnicy.
 - Godziny blokady karnetów (wydarzenia i zawody mają tylko daty — blokada obejmuje cały dzień).
-- Karnety czasowe (7-A): zwrot proporcjonalny za dni, przedłużanie okresu aktywnego karnetu (`valid_until`) przy zamknięciu strzelnicy,
-  osobne zasady liczenia dni blokady. Usuwanie typu `days` z bazy i kodu (SPEC-003, SPEC-005) — zostaje dla karnetów sprzedanych do 31.12.2026.
+- Karnety czasowe — usunięte (US-10); brak zasad zwrotu za dni czy przedłużania okresu aktywnego karnetu.
 - Wpis do książki bez uprawnienia na bezpłatnym / zewnętrznym wydarzeniu (jak w SPEC-005 — poza zakresem).
 - Inne e-maile (przypomnienia, faktury, newsletter), szablony e-maili edytowane w panelu, e-maile w języku angielskim
   (teksty w i18n, gotowe pod tłumaczenie).
@@ -94,7 +93,7 @@ Status płatności i zwrotu zmienia nadal tylko `payments-notify` / `payments-re
 - **AC-14**: Given zamówienie w panelu (`/panel/zamowienia/`) When je otwieram Then widzę stan e-maili („Wysłano 2.01.2027 14:06” / „W kolejce” / „Nie wysłano”).
 
 ### US-4: Jako admin chcę obsłużyć odstąpienie od umowy w ciągu 14 dni (pkt 3, decyzja 4-A)
-Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) + 14 dni włącznie. Dotyczy zamówień `tpay` `paid` na karnet ilościowy lub wejście jednorazowe (nie wejściówkę ani karnet czasowy — AC-55).
+Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) + 14 dni włącznie. Dotyczy zamówień `tpay` `paid` na karnet ilościowy lub wejście jednorazowe (nie wejściówkę — AC-22).
 - **AC-15**: Given zamówienie online karnetu ilościowego / wejścia jednorazowego w oknie odstąpienia When otwieram je w panelu Then widzę przycisk „Odstąpienie od umowy” (także gdy karnet był używany)
   i informację „Odstąpienie możliwe do 16.01.2027”.
 - **AC-16**: Given klikam „Odstąpienie od umowy” When otwiera się okno Then wpisuję „Dzień odstąpienia”* (domyślnie dziś; od dnia opłacenia do dziś, nie później niż koniec okna)
@@ -147,7 +146,7 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
   nakładające się na inne zamknięcie → „Ten okres nakłada się na zapisane zamknięcie.” (`closure_overlap`).
 - **AC-32**: Given potwierdzam When `rpc/add_range_closure(from, to, reason)` się wykona Then w jednej transakcji dla każdego uprawnienia aktywnego w tym okresie
   (`status = 'active'`, kupione nie później niż „Do”, `expires_on ≥ Od`; bez wejściówek i uprawnień osoby bez konta):
-  `expires_on += N` (N = liczba dni zamknięcia), także dla karnetów czasowych sprzedanych do 31.12.2026 (`valid_until` aktywowanego karnetu się nie zmienia — 7-A); każde przedłużenie w `range_closure_passes`; jeden wpis `audit_log` `range_closure` (okres, N, liczba uprawnień).
+  `expires_on += N` (N = liczba dni zamknięcia); każde przedłużenie w `range_closure_passes`; jeden wpis `audit_log` `range_closure` (okres, N, liczba uprawnień).
   Uprawnienie `used_up` i `cancelled` — bez zmian.
 - **AC-33**: Given moje uprawnienie przedłużono When otwieram `/konto/` Then przy karnecie widzę nową datę „Ważny do” i „Przedłużono o 10 dni (zamknięcie strzelnicy 3–12.02.2027).”.
 - **AC-34**: Given lista w `/panel/zamkniecia/` When ją oglądam Then widzę zamknięcia (od–do, dni, przyczyna, liczba uprawnień, kto, kiedy), od najnowszych; bez edycji i usuwania.
@@ -164,13 +163,13 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 - **AC-40**: Given formularz zawodów (SPEC-001) albo wydarzenia When go wypełniam Then widzę checkbox „Karnety i wejścia jednorazowe nie obowiązują w dniach tego wpisu” (domyślnie zaznaczony);
   odznaczam go tylko, gdy wpis nie zajmuje strzelnicy (np. wydarzenie poza strzelnicą).
 - **AC-41**: Given dzień D należy do opublikowanego, nieodwołanego wpisu z zaznaczoną flagą (`starts_on ≤ D ≤ coalesce(ends_on, starts_on)`) When liczona jest ważność uprawnienia
-  (`pass_valid_on`, `passes_valid_on`, `passes_for_range_entry`) Then karnety ilościowe i wejścia jednorazowe (także karnety czasowe sprzedane do 31.12.2026) **nie są ważne dnia D**; wejściówki bez zmian.
+  (`pass_valid_on`, `passes_valid_on`, `passes_for_range_entry`) Then karnety ilościowe i wejścia jednorazowe **nie są ważne dnia D**; wejściówki bez zmian.
   Funkcja `range_blocked_on(date)` zwraca listę blokujących wpisów (nazwa, rodzaj) — publiczna.
 - **AC-42**: Given D zablokowany When obsługa wybiera osobę w `/panel/ksiazka/` Then widzi „Dziś: <nazwa> — karnety i wejścia jednorazowe nie obowiązują. Wejście na zasadach wydarzenia (wejściówka).”
   i tylko wejściówki; „Sprzedaj na miejscu” proponuje wejściówkę (jeśli wydarzenie płatne).
 - **AC-43**: Given D zablokowany When obsługa sprzedaje na miejscu osobie bez konta wejście jednorazowe Then `create_on_site_order` odrzuca (`range_blocked`): „Dziś karnety i wejścia jednorazowe nie obowiązują.”;
   sprzedaż karnetu osobie z kontem jest dozwolona z ostrzeżeniem „Karnet nie obowiązuje dziś (<nazwa>).”.
-- **AC-44**: (usunięte — karnety czasowe wycofane z Oferty, 7-A; patrz US-10).
+- **AC-44**: (usunięte — karnety czasowe usunięte, US-10).
 - **AC-45**: Given admin zmienia flagę, daty, publikację lub odwołuje wpis When dzień jest dziś lub w przyszłości Then nowa reguła działa od razu (ważność liczona w chwili sprawdzenia; zużycia z przeszłości bez zmian).
 
 ### US-9: Jako klient chcę odstąpić od umowy z konta (pkt 6, decyzja 5-A)
@@ -193,19 +192,16 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
   admin widzi „Zwrot nieudany — Ponów zwrot”, a ponowienie wysyła tę samą kwotę `refund_amount` (bez ponownego wyliczenia i anulowania).
   `revert_order_refund` przywraca `active` tylko dla zwrotu z „Anuluj i zwróć” (SPEC-003 AC-25, AC-21) — `withdrawal_on is null` i wydarzenie nieodwołane.
 
-### US-10: Jako sprzedawca chcę wycofać karnety czasowe z Oferty (decyzja 7-A)
-Typ `days` zostaje w bazie i kodzie (SPEC-003, SPEC-005) — obsługuje karnety sprzedane do 31.12.2026 aż do ich `expires_on` / `valid_until`.
-- **AC-53**: Given `/panel/oferta/` When dodaję produkt Then „Rodzaj” nie ma opcji „Karnet czasowy”; nowy produkt `kind = 'days'` (żądanie z pominięciem przeglądarki)
-  odrzuca wyzwalacz `products_before_write` (`product_kind_discontinued`: „Karnety czasowe zostały wycofane z Oferty.”) — z panelu i z API z JWT użytkownika (także admina).
-  Wyjątek: klucz secret (`service_role`, tylko serwer) — dane testowe E2E dla karnetów sprzedanych przed wycofaniem (decyzja właściciela, PR #174). Edycja istniejących produktów czasowych — bez zmian (SPEC-003 AC-3).
-- **AC-54**: Given produkt `days` When jest 1.01.2027 lub później (Europe/Warsaw) Then `/oferta/` go nie pokazuje (grupy „Karnety czasowe” nie ma); `create_tpay_order`,
-  `create_on_site_order` i `grant_pass` go odrzucają (`product_discontinued`: „Ten produkt nie jest już w ofercie.”); w `/panel/oferta/` ma plakietkę „Wycofany”
-  i nie ma „Pokaż w ofercie”. Data w jednej stałej `DAYS_PASS_SALES_END = 2027-01-01` (funkcja SQL i `web/src/lib/products.ts`), bez zadania cyklicznego.
-  Zamówienie `pending` utworzone przed tą datą i opłacone później jest realizowane normalnie (ADR-0002).
-- **AC-55**: Given karnet czasowy sprzedany do 31.12.2026 When admin otwiera zamówienie Then akcji „Odstąpienie od umowy” nie ma (bez zwrotu proporcjonalnego za dni);
-  działa „Anuluj i zwróć” dla nieaktywowanego karnetu (SPEC-003 AC-25; w oknie 14 dni bez ostrzeżenia, po oknie jak AC-21), a dla aktywowanego —
-  „Karnet był używany — zwrot poza systemem.” (SPEC-003 AC-26). W `/konto/` nie ma „Odstąp od umowy” dla karnetu czasowego.
-  Pozostałe zasady (ważność, aktywacja, książka, blokada AC-41, przedłużenie `expires_on` AC-32) — jak dla innych uprawnień, bez osobnych tekstów.
+### US-10: Jako sprzedawca chcę usunąć karnety czasowe z Oferty (decyzja 7-A, zmieniona 2026-11-24)
+Pierwotnie (7-A) typ `days` miał zostać dla karnetów sprzedanych do 31.12.2026. Decyzja właściciela z 2026-11-24: żaden karnet czasowy
+nie został sprzedany, więc typ `days` usuwamy całkowicie — z Oferty, bazy i kodu (SPEC-003, SPEC-005, SPEC-010).
+- **AC-53**: Given `/panel/oferta/` When dodaję produkt Then „Rodzaj” ma tylko „Karnet ilościowy” i „Wejście jednorazowe”; produkt `kind = 'days'`
+  (także kluczem secret) odrzuca `check` tabeli `products` (23514). `user_passes.kind` i `pass_usages.effect` nie mają wartości `days` / `activated`;
+  kolumn `products.days`, `user_passes.days_total`, `user_passes.first_used_on` nie ma.
+- **AC-54**: Given migracja `remove_time_passes` When w bazie jest opłacone zamówienie (Tpay lub na miejscu) na produkt `days` Then migracja się przerywa
+  (`time_passes_sold`) — trzeba je najpierw rozliczyć ręcznie; inaczej usuwa produkty `days` z ich nieopłaconymi / anulowanymi zamówieniami
+  i prezentami (z uprawnieniami i zużyciami). Wpisy książki rejestru pobytu zostają.
+- **AC-55**: (usunięte — karnetów czasowych nie ma; odstąpienie dotyczy karnetów ilościowych i wejść jednorazowych, AC-15, AC-46).
 
 ## 5. Model danych
 
@@ -240,7 +236,7 @@ Typ `days` zostaje w bazie i kodzie (SPEC-003, SPEC-005) — obsługuje karnety 
 | | `user_id` | `uuid` FK → `profiles.id` on delete set null | nie | tak | |
 | | `comment` | `text` | nie | możliwe | do 500 znaków |
 | | `submitted_at`, `processed_at`, `processed_by` | | | `processed_by` | `status` `new` / `processed` |
-| `products` (bez zmian schematu) | `kind` | jak SPEC-003 (`entries`, `days`, `single_entry`) | | nie | nowe `days` odrzucane (AC-53); sprzedaż `days` do 31.12.2026 (AC-54) |
+| `products`, `user_passes` (zmiana) | `kind` | bez `days` (SPEC-003) | | nie | kolumny `days`, `days_total`, `first_used_on` usunięte (AC-53) |
 | `audit_log` (zmiana) | `action` | + `event_cancel`, `range_closure`, `email_resend` | | | `order_refund` z `reason: withdrawal` / `event_cancel` |
 
 Stany zamówienia (zmiana): `paid → refund_pending → refunded` z `refund_amount` (pełnym lub częściowym); reszta jak SPEC-003 / SPEC-010.
@@ -261,7 +257,7 @@ Ważność dnia D (zmiana SPEC-003 §5): dodatkowo dla wszystkich rodzajów poza
 | Adres | Zmiana |
 | --- | --- |
 | `/oferta/zamowienie/` | Wersja regulaminu w checkboxie, zgoda (AC-6), „Zamawiam i płacę” |
-| `/oferta/` | Sekcja „Godziny otwarcia” `#godziny` + dni blokady (AC-37); bez grupy „Karnety czasowe” od 1.01.2027 (AC-54) |
+| `/oferta/` | Sekcja „Godziny otwarcia” `#godziny` + dni blokady (AC-37); bez grupy „Karnety czasowe” (AC-53) |
 | `/regulamin-sprzedazy/` | „Wersje regulaminu” (AC-4) |
 | `/konto/` | Regulamin i zgoda przy zamówieniu, kwota zwrotu, „Przedłużono o…”, „Odstąp od umowy” |
 | Kalendarz, karta wydarzenia | Plakietka „Odwołane” + powód |
@@ -270,12 +266,12 @@ Ważność dnia D (zmiana SPEC-003 §5): dodatkowo dla wszystkich rodzajów poza
 | `/panel/zamkniecia/` (nowa) | Zamknięcia strzelnicy (admin); link w menu panelu „Zamknięcia” |
 | `/panel/godziny/` (nowa) | Godziny otwarcia i wyjątki (admin); link „Godziny otwarcia” |
 | `/panel/ksiazka/` | Komunikat blokady (AC-42) |
-| `/panel/oferta/` | Bez rodzaju „Karnet czasowy”, plakietka „Wycofany” (AC-53, AC-54) |
+| `/panel/oferta/` | Bez rodzaju „Karnet czasowy” (AC-53) |
 | Stopka | „Godziny otwarcia” |
 
 E-maile: HTML + wersja tekstowa, nadawca `MAIL_FROM` (nazwa „Steel Valley”), `Reply-To` = `MAIL_FROM`, teksty w i18n (`email.*`), kwoty `120,00 zł`, daty `2.01.2027`.
 Komunikaty błędów: `consent_required` — „Zaznacz zgodę na korzystanie przed upływem 14 dni.”, `terms_changed` (AC-3), `event_cancelled` — „Wydarzenie zostało odwołane.”,
-`withdrawal_window_closed`, `withdrawal_nothing_to_refund` — tekst AC-18, `range_blocked` (AC-43), `product_kind_discontinued` (AC-53), `product_discontinued` (AC-54).
+`withdrawal_window_closed`, `withdrawal_nothing_to_refund` — tekst AC-18, `range_blocked` (AC-43), `time_passes_sold` (migracja, AC-54).
 
 ## 7. Przypadki brzegowe
 
@@ -288,8 +284,7 @@ Komunikaty błędów: `consent_required` — „Zaznacz zgodę na korzystanie pr
 - Odwołanie wydarzenia z setkami zamówień Tpay → `event-cancel` zleca zwroty partiami po 20 (limit czasu Edge Function); niewysłane zostają w `refund_pending` z flagą `refund_requested_at is null`,
   a zadanie co 10 min (to samo co e-maile) je dokańcza.
 - Odwołanie wydarzenia trwającego (dzień 2 z 3) → zwrot pełnej kwoty także za wejściówki użyte dnia 1 (decyzja admina — odwołanie obejmuje całe wydarzenie).
-- Karnet czasowy sprzedany 31.12.2026, aktywowany w 2027 → działa do `valid_until` według SPEC-003; dni blokady i zamknięcia nie zmieniają `valid_until` (AC-55).
-- Produkt czasowy pokazany w `/oferta/` w sylwestra, „Kup” po północy → `product_discontinued` (AC-54).
+- Opłacony karnet czasowy w bazie produkcyjnej przy wdrożeniu → migracja przerwana (`time_passes_sold`, AC-54).
 - Zamknięcie strzelnicy zachodzące na dni blokady → bez znaczenia (przedłużenie o pełne N dni).
 - Uprawnienie wygasłe przed „Od” albo kupione po „Do” → bez przedłużenia; kupione w trakcie zamknięcia → przedłużenie o pełne N dni (prostota; zamknięcia > 7 dni są rzadkie).
 - Wejście jednorazowe weekendowe a zablokowana sobota → nieważne tego dnia, ważne w inny weekend do `expires_on`.
@@ -329,13 +324,12 @@ Komunikaty błędów: `consent_required` — „Zaznacz zgodę na korzystanie pr
 | Zamknięcie strzelnicy | Ponad 7 kolejnych dni z przyczyn po stronie Sprzedawcy → przedłużenie `expires_on` o czas zamknięcia | 2026-11-23 |
 | Godziny otwarcia, blokada karnetów | Admin prowadzi godziny; karnety nie działają w czasie wydarzeń i zawodów | 2026-11-23 |
 | Termin | Regulamin obowiązuje od 1.01.2027 — zmiany na produkcji wcześniej | 2026-11-23 |
-| Karnety czasowe | 7-A: wycofane z Oferty od 1.01.2027 (regulamin #154 zaktualizowany); bez zwrotu proporcjonalnego za dni i bez przedłużania okresu; typ `days` zostaje w kodzie, bez nowych produktów | 2026-11-23 |
+| Karnety czasowe | 7-A: wycofane z Oferty od 1.01.2027 (regulamin #154 zaktualizowany); bez zwrotu proporcjonalnego za dni i bez przedłużania okresu — **zmienione 2026-11-24**: nic nie sprzedano, typ `days` usunięty z bazy i kodu | 2026-11-23, 2026-11-24 |
 
 **Założenia analityka (zatwierdzane razem ze specyfikacją — zmień w PR, jeśli inaczej):**
 1. Okno odstąpienia: do dnia opłacenia + 14 dni włącznie (Europe/Warsaw); dzień odstąpienia wpisuje admin (domyślnie dziś) — zapis w zamówieniu; kwotę wyznaczają wykorzystane wejścia.
 2. Blokada karnetów obejmuje **cały dzień** wydarzenia/zawodów (kalendarz nie ma godzin); steruje nią flaga przy wpisie, domyślnie zaznaczona dla zawodów i wszystkich wydarzeń; odwołane wydarzenie nie blokuje.
-3. Karnety czasowe (7-A): sprzedaż kończy się sama 1.01.2027 (stała w kodzie, AC-54) — nie trzeba ich ręcznie ukrywać; do 31.12.2026 sprzedaż bez zmian.
-   Sprzedanych karnetów nie anulujemy — działają do końca ważności; odstąpienie od nich admin obsługuje akcjami SPEC-003 (AC-55).
+3. Karnety czasowe: usunięte 2026-11-24 (US-10) — sprzedaży nie było.
 4. Zamknięcie strzelnicy admin wpisuje **po jego zakończeniu** (znany czas trwania); przedłużenie o pełną liczbę dni zamknięcia dla uprawnień ważnych choćby jednego dnia w tym okresie; bez cofania.
 5. Godziny otwarcia: jeden przedział na dzień + wyjątki dzienne; pokazywane w `/oferta/#godziny` i linkiem w stopce; nie blokują wpisów do książki.
 6. Odwołanie wydarzenia: zwrot pełnej kwoty wszystkich wejściówek (także użytych w trwającym wydarzeniu); prezenty tylko anulowane.
@@ -350,12 +344,12 @@ Otwarte: brak.
 Kolejność = kolejka realizacji (zależności, potem waga prawna). Wszystkie zadania powinny być na produkcji przed 1.01.2027.
 
 1. #158 Wersja regulaminu, zgoda i „Zamawiam i płacę”: `sales_terms_versions`, `orders.terms_version`, `early_performance_consent_at`, `create_tpay_order`, `payments-create`, `/oferta/zamowienie/`, `/regulamin-sprzedazy/` „Wersje”, `/konto/` (AC-1…AC-8);
-   wycofanie karnetów czasowych: `products_before_write`, `DAYS_PASS_SALES_END`, `/oferta/`, `/panel/oferta/`, funkcje sprzedaży (AC-53, AC-54).
+   wycofanie karnetów czasowych (AC-53, AC-54 — zastąpione usunięciem typu `days`, migracja `20261201100000_remove_time_passes.sql`).
 2. #159 E-maile: ADR-0009, `email_outbox`, `mail-send` (SMTP 465, PDF), `pg_cron` ponowień, `payments-notify`, stan w panelu i „Wyślij ponownie” (AC-9…AC-14).
    PDF pobierany z `SITE_URL` — na stagingu bez pliku PDF w `web/public/regulamin-sprzedazy/` e-mail `order_paid` nie wyjdzie (ADR-0009); test na stagingu z przykładowym PDF.
-3. #160 Odstąpienie i zwrot częściowy w panelu: `withdrawal_quote`, `withdraw_order`, `refund_amount`, `payments-refund` z kwotą, powiadomienie o zwrocie częściowym, ostrzeżenie po 14 dniach, `revert_order_refund` bez reaktywacji po odstąpieniu, bez odstąpienia dla karnetu czasowego (AC-15…AC-22, AC-52, AC-55).
+3. #160 Odstąpienie i zwrot częściowy w panelu: `withdrawal_quote`, `withdraw_order`, `refund_amount`, `payments-refund` z kwotą, powiadomienie o zwrocie częściowym, ostrzeżenie po 14 dniach, `revert_order_refund` bez reaktywacji po odstąpieniu (AC-15…AC-22, AC-52).
 4. #161 Blokada karnetów w dniach wydarzeń i zawodów: `blocks_passes`, `range_blocked_on`, `pass_valid_on`, formularze kalendarza, książka, sprzedaż na miejscu, `/oferta/` (AC-40…AC-43, AC-45).
 5. #162 Odwołanie wydarzenia: kolumny, `cancel_calendar_event`, `event-cancel`, kalendarz „Odwołane”, lista zwrotów, e-mail `event_cancelled`, nieudany zwrot bez reaktywacji (AC-23…AC-29, AC-51).
 6. #163 Zamknięcie strzelnicy i przedłużenie ważności: `range_closures`, `range_closure_passes`, `/panel/zamkniecia/`, `/konto/` (AC-30…AC-34).
 7. #164 Godziny otwarcia: tabele, `/panel/godziny/`, `/oferta/#godziny`, stopka (AC-35…AC-39).
-8. #165 „Odstąp od umowy” w `/konto/`: `withdrawal_requests`, `submit_withdrawal`, e-maile, filtr w panelu, nieudany zwrot → zgłoszenie `new`, bez przycisku dla karnetu czasowego (AC-46…AC-50, AC-52, AC-55).
+8. #165 „Odstąp od umowy” w `/konto/`: `withdrawal_requests`, `submit_withdrawal`, e-maile, filtr w panelu, nieudany zwrot → zgłoszenie `new` (AC-46…AC-50, AC-52).

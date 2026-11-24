@@ -30,7 +30,6 @@ const pass = (overrides: Partial<UserPass> = {}): UserPass => ({
   status: 'active',
   entries_total: 10,
   entries_left: 7,
-  first_used_on: null,
   valid_until: null,
   expires_on: '2027-11-17',
   created_at: '2026-11-17T10:00:00Z',
@@ -44,11 +43,10 @@ describe('/oferta/', () => {
     expect(formatPrice(12000)).toBe(`120,00${NBSP}zł`);
   });
 
-  it('AC-5: informacje — ważność, aktywacja karnetu czasowego, dni wejścia jednorazowego', () => {
-    const texts = (kind: 'entries' | 'days' | 'single_entry', day_type: 'weekend' | 'weekday' | null = null) =>
+  it('AC-5: informacje — ważność, dni wejścia jednorazowego', () => {
+    const texts = (kind: 'entries' | 'single_entry', day_type: 'weekend' | 'weekday' | null = null) =>
       productNotes({ kind, day_type }).map((key) => t(key));
     expect(texts('entries')).toEqual(['Ważny 1 rok od zakupu.']);
-    expect(texts('days')).toEqual(['Ważny 1 rok od zakupu.', 'Odliczanie dni zaczyna się od pierwszego wejścia.']);
     expect(texts('single_entry', 'weekend')).toEqual(['Ważny 1 rok od zakupu.', 'Tylko w soboty i niedziele.']);
     expect(texts('single_entry', 'weekday')).toEqual(['Ważny 1 rok od zakupu.', 'Tylko od poniedziałku do piątku.']);
   });
@@ -112,13 +110,13 @@ describe('/konto/platnosc/', () => {
 describe('/konto/ — karnety', () => {
   const today = '2026-12-01';
 
-  it('AC-12: „Ważny do” — czasowy aktywowany: ostatni dzień; pozostałe: expires_on', () => {
+  it('AC-12: „Ważny do” — wejściówka: ostatni dzień wydarzenia; pozostałe: expires_on', () => {
     expect(passValidTo(pass())).toBe('2027-11-17');
-    expect(passValidTo(pass({ kind: 'days', first_used_on: '2026-11-20', valid_until: '2026-12-19' }))).toBe('2026-12-19');
-    expect(passValidTo(pass({ kind: 'days' }))).toBe('2027-11-17');
+    expect(passValidTo(pass({ kind: 'event_ticket', valid_until: '2026-12-19' }))).toBe('2026-12-19');
+    expect(passValidTo(pass({ kind: 'single_entry' }))).toBe('2027-11-17');
   });
 
-  it('AC-12: data pierwszego użycia — aktywacja albo najwcześniejsze niecofnięte zużycie', () => {
+  it('AC-12: data pierwszego użycia — najwcześniejsze niecofnięte zużycie', () => {
     expect(firstUsedOn(pass())).toBeNull();
     expect(
       firstUsedOn(
@@ -131,17 +129,16 @@ describe('/konto/ — karnety', () => {
         }),
       ),
     ).toBe('2026-11-22');
-    expect(firstUsedOn(pass({ kind: 'days', first_used_on: '2026-11-21' }))).toBe('2026-11-21');
   });
 
   it('AC-12, AC-15: aktywne w „Twoje karnety”; wykorzystane, wygasłe i anulowane w „Historia karnetów”', () => {
     const active = pass({ id: 'a' });
-    const notActivated = pass({ id: 'b', kind: 'days', entries_total: null, entries_left: null });
+    const single = pass({ id: 'b', kind: 'single_entry', entries_total: null, entries_left: null });
     const usedUp = pass({ id: 'c', status: 'used_up', entries_left: 0 });
     const cancelled = pass({ id: 'd', status: 'cancelled' });
     const expired = pass({ id: 'e', expires_on: '2026-11-30' });
-    const daysOver = pass({ id: 'f', kind: 'days', first_used_on: '2026-11-01', valid_until: '2026-11-30' });
-    const { active: shown, history } = splitPasses([active, notActivated, usedUp, cancelled, expired, daysOver], today);
+    const ticketOver = pass({ id: 'f', kind: 'event_ticket', valid_until: '2026-11-30' });
+    const { active: shown, history } = splitPasses([active, single, usedUp, cancelled, expired, ticketOver], today);
     expect(shown.map((p) => p.id).sort()).toEqual(['a', 'b']);
     expect(history.map((p) => p.id).sort()).toEqual(['c', 'd', 'e', 'f']);
     expect(t(passHistoryState(usedUp))).toBe('Wykorzystany');
@@ -153,9 +150,8 @@ describe('/konto/ — karnety', () => {
     expect(splitPasses([pass({ expires_on: today })], today).active).toHaveLength(1);
   });
 
-  it('AC-12: teksty — pozostałe wejścia i nieaktywny karnet czasowy', () => {
+  it('AC-12: teksty — pozostałe wejścia', () => {
     expect(t('offer.entriesLeft', { left: 7, total: 10 })).toBe('Pozostałe wejścia: 7 z 10');
-    expect(t('offer.notActivated')).toBe('Nieaktywny — dni liczą się od pierwszego wejścia');
   });
 
   it('AC-14: „Przedłuż karnet” prowadzi do /oferta/', () => {

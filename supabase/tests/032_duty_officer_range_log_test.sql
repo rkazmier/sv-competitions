@@ -102,7 +102,7 @@ set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000c1');
 select is((select array_agg(row(priority, item_name, entries_left)::text)
              from public.passes_for_range_entry('00000000-0000-0000-0000-0000000000c2')),
-  array[row(3, 'Karnet 10 wejść', 10)::text], 'AC-7: dyżurny widzi ważne dziś uprawnienia osoby');
+  array[row(1, 'Karnet 10 wejść', 10)::text], 'AC-7: dyżurny widzi ważne dziś uprawnienia osoby');
 
 -- ===== Prowadzący wpisu, podpis, wpis (AC-2, AC-9, AC-10) =====
 

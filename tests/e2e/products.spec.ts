@@ -66,17 +66,10 @@ test.describe('admin', () => {
     await expect(page.getByRole('alert').filter({ hasText: 'Popraw zaznaczone pola.' })).toBeVisible();
   });
 
-  test('SPEC-012 AC-53: „Rodzaj” bez „Karnet czasowy”; istniejący karnet czasowy można edytować', async ({ page }) => {
-    const name = unique('Karnet czasowy sprzed 7-A');
-    await admin().from('products').insert({ kind: 'days', name, price: 30000, days: 30 });
+  test('AC-1: „Rodzaj” — tylko karnet ilościowy i wejście jednorazowe (bez karnetu czasowego)', async ({ page }) => {
     await page.goto('/panel/oferta/');
-    const kind = page.getByLabel('Rodzaj *');
-    await expect(kind.locator('option:not([disabled])')).toHaveText(['— wybierz —', 'Karnet ilościowy', 'Wejście jednorazowe']);
-    await itemFor(page, name).getByRole('button', { name: action('Edytuj', name) }).click();
-    await expect(kind).toHaveValue('days');
-    await page.getByLabel('Cena (zł) *').fill('310');
-    await page.getByRole('button', { name: 'Zapisz zmiany' }).click();
-    await expect(itemFor(page, name)).toContainText('310,00');
+    await expect(page.getByLabel('Rodzaj *').locator('option')).toHaveText(['— wybierz —', 'Karnet ilościowy', 'Wejście jednorazowe']);
+    await expect(page.getByRole('region', { name: 'Karnety czasowe' })).toHaveCount(0);
   });
   test('AC-2: „Pokaż w ofercie” / „Ukryj” zmienia widoczność dla gościa; brak usuwania', async ({ page }) => {
     const name = unique('Wejście E2E');
@@ -98,7 +91,7 @@ test.describe('admin', () => {
   test('AC-3: edycja nazwy i ceny produktu', async ({ page }) => {
     const name = unique('Karnet do zmiany');
     const renamed = unique('Karnet po zmianie');
-    await admin().from('products').insert({ kind: 'days', name, price: 30000, days: 30 });
+    await admin().from('products').insert({ kind: 'entries', name, price: 30000, entries: 10 });
     await page.goto('/panel/oferta/');
     await itemFor(page, name).getByRole('button', { name: action('Edytuj', name) }).click();
     await expect(page.getByRole('heading', { name: `Edytuj produkt: ${name}` })).toBeVisible();
@@ -116,10 +109,10 @@ test.describe('admin', () => {
     const first = unique('Pierwszy');
     const second = unique('Drugi');
     const db = admin();
-    await db.from('products').insert({ kind: 'days', name: first, price: 100, days: 1 });
-    await db.from('products').insert({ kind: 'days', name: second, price: 100, days: 2 });
+    await db.from('products').insert({ kind: 'single_entry', name: first, price: 100, day_type: 'weekend' });
+    await db.from('products').insert({ kind: 'single_entry', name: second, price: 100, day_type: 'weekday' });
     await page.goto('/panel/oferta/');
-    const group = page.getByRole('region', { name: 'Karnety czasowe' });
+    const group = page.getByRole('region', { name: 'Wejścia jednorazowe' });
     const order = async () => {
       const texts = await group.getByRole('listitem').allTextContents();
       return [first, second].sort((a, b) => texts.findIndex((t) => t.includes(a)) - texts.findIndex((t) => t.includes(b)));

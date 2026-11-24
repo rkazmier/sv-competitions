@@ -88,7 +88,7 @@ test.describe('obsługa — /panel/ksiazka/', () => {
   test('AC-5, AC-10, AC-11: skan QR → osoba gotowa, uprawnienia w kolejności z opisem skutku', async ({ page }) => {
     const person = await seedPerson();
     const entries = await seedPass(person.id, { kind: 'entries', name: 'Karnet 5 wejść', entries: 5 });
-    const days = await seedPass(person.id, { kind: 'days', name: 'Karnet 3 dni', days: 3 });
+    const single = await seedPass(person.id, { kind: 'single_entry', name: 'Wejście jednorazowe', day_type: todayType() });
     await fakeCamera(page, person.qrToken);
     await openRangeLog(page);
 
@@ -97,11 +97,11 @@ test.describe('obsługa — /panel/ksiazka/', () => {
     await expect(card.getByRole('heading', { name: person.fullName })).toBeVisible();
     await expect(card.getByText('Gotowy do wpisu do książki')).toBeVisible();
 
-    // (2) nieaktywowany czasowy przed (3) ilościowym; domyślnie pierwsza pozycja.
+    // (1) ilościowy przed (2) jednorazowym; domyślnie pierwsza pozycja.
     await expect(passOptions(page)).toHaveCount(2);
     await expect(passOptions(page).nth(0)).toBeChecked();
-    await expect(page.getByRole('radio', { name: new RegExp(`^${days} — aktywacja dziś, ważny do \\d{2}\\.\\d{2}$`) })).toBeVisible();
-    await expect(page.getByLabel(`${entries} — zostanie 4`)).toBeVisible();
+    await expect(passOptions(page).nth(0)).toHaveAccessibleName(`${entries} — zostanie 4`);
+    await expect(passOptions(page).nth(1)).toHaveAccessibleName(`${single} — zostanie wykorzystane`);
 
     await page.getByLabel(`${entries} — zostanie 4`).check();
     await page.getByRole('button', { name: 'Dalej' }).click();

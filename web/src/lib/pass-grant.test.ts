@@ -37,7 +37,6 @@ const today = '2026-11-21';
 
 describe('przyznanie karnetu — co przyznać (SPEC-010 AC-3)', () => {
   const products = [
-    P(1, { kind: 'days', name: 'Czasowy' }),
     P(2, { kind: 'entries', name: 'Ukryty', is_active: false }),
     P(3, { kind: 'single_entry', name: 'Wejście' }),
   ];
@@ -49,14 +48,14 @@ describe('przyznanie karnetu — co przyznać (SPEC-010 AC-3)', () => {
   ];
   const groups = grantGroups(products, events, today, ticket);
 
-  it('AC-3: grupy w kolejności ilościowe, czasowe, jednorazowe, wejściówki — także produkty ukryte', () => {
-    expect(groups.map((g) => g.kind)).toEqual(['entries', 'days', 'single_entry', 'ticket']);
+  it('AC-3: grupy w kolejności ilościowe, jednorazowe, wejściówki — także produkty ukryte', () => {
+    expect(groups.map((g) => g.kind)).toEqual(['entries', 'single_entry', 'ticket']);
     expect(groups[0]!.items[0]).toMatchObject({ value: `product:${ID(2)}`, name: 'Ukryty', hidden: true, price: 12000 });
-    expect(groups[1]!.items[0]).toMatchObject({ name: 'Czasowy', hidden: false, disabled: false });
+    expect(groups[1]!.items[0]).toMatchObject({ name: 'Wejście', hidden: false, disabled: false });
   });
 
   it('AC-3: wejściówki tylko na wydarzenia, których ostatni dzień nie minął; wolne miejsca i wyprzedane', () => {
-    const tickets = groups[3]!.items;
+    const tickets = groups[2]!.items;
     expect(tickets.map((i) => i.name)).toEqual(['Wejściówka: Trwa', 'Wejściówka: Z limitem', 'Wejściówka: Pełne']);
     expect(tickets[0]).toMatchObject({ disabled: false, event: { seats_left: null } });
     expect(tickets[1]).toMatchObject({ disabled: false, event: { seats_left: 12 }, price: 5000 });
@@ -64,7 +63,7 @@ describe('przyznanie karnetu — co przyznać (SPEC-010 AC-3)', () => {
   });
 
   it('AC-3: puste grupy pominięte', () => {
-    expect(grantGroups([P(1, { kind: 'days' })], [], today, ticket).map((g) => g.kind)).toEqual(['days']);
+    expect(grantGroups([P(1, { kind: 'single_entry' })], [], today, ticket).map((g) => g.kind)).toEqual(['single_entry']);
   });
 });
 

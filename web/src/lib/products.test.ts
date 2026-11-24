@@ -18,7 +18,6 @@ const form = (overrides: Partial<ProductForm> = {}): ProductForm => ({
   name: 'Karnet 10 wejść',
   price: '120,00',
   entries: '10',
-  days: '',
   day_type: '',
   description: '',
   ...overrides,
@@ -31,7 +30,6 @@ const product = (overrides: Partial<Product> = {}): Product => ({
   description: null,
   price: 12000,
   entries: 10,
-  days: null,
   day_type: null,
   is_active: false,
   position: 1,
@@ -64,21 +62,18 @@ describe('produkty — walidacja formularza', () => {
   it('AC-1: karnet ilościowy → wiersz z liczbą wejść, pozostałe szczegóły null', () => {
     expect(validateProduct(form({ name: '  Karnet 10 wejść ', description: '  ' }))).toEqual({
       ok: true,
-      row: { kind: 'entries', name: 'Karnet 10 wejść', description: null, price: 12000, entries: 10, days: null, day_type: null },
+      row: { kind: 'entries', name: 'Karnet 10 wejść', description: null, price: 12000, entries: 10, day_type: null },
     });
   });
 
-  it('AC-1: karnet czasowy wymaga liczby dni 1–366, pola innych rodzajów są pomijane', () => {
-    const ok = validateProduct(form({ kind: 'days', entries: '10', days: '366' }));
-    expect(ok).toMatchObject({ ok: true, row: { days: 366, entries: null } });
-    expect(validateProduct(form({ kind: 'days', days: '367' }))).toEqual({ ok: false, errors: { days: 'daysInvalid' } });
-    expect(validateProduct(form({ kind: 'days', days: '0' }))).toEqual({ ok: false, errors: { days: 'daysInvalid' } });
+  it('AC-1: rodzaju „Karnet czasowy” nie ma (usunięty z Oferty)', () => {
+    expect(validateProduct(form({ kind: 'days' }))).toEqual({ ok: false, errors: { kind: 'kindRequired' } });
   });
 
   it('AC-1: wejście jednorazowe wymaga dnia (Weekend / Dzień powszedni)', () => {
     expect(validateProduct(form({ kind: 'single_entry', day_type: 'weekday' }))).toMatchObject({
       ok: true,
-      row: { day_type: 'weekday', entries: null, days: null },
+      row: { day_type: 'weekday', entries: null },
     });
     expect(validateProduct(form({ kind: 'single_entry', day_type: '' }))).toEqual({
       ok: false,
@@ -110,19 +105,19 @@ describe('produkty — walidacja formularza', () => {
     const p = product({ price: 12050, description: 'Opis' });
     expect(validateProduct(productForm(p))).toEqual({
       ok: true,
-      row: { kind: 'entries', name: p.name, description: 'Opis', price: 12050, entries: 10, days: null, day_type: null },
+      row: { kind: 'entries', name: p.name, description: 'Opis', price: 12050, entries: 10, day_type: null },
     });
   });
 });
 
 describe('produkty — zamówienia i kolejność', () => {
-  it('AC-3: nazwa i cena nie są zamrożone; rodzaj, liczba wejść/dni i dzień — tak', () => {
+  it('AC-3: nazwa i cena nie są zamrożone; rodzaj, liczba wejść i dzień — tak', () => {
     const p = product();
     const ok = validateProduct(productForm(p));
     if (!ok.ok) throw new Error('nieprawidłowy formularz');
     expect(changesFrozenFields(p, { ...ok.row, name: 'Nowa nazwa', price: 99 })).toBe(false);
     expect(changesFrozenFields(p, { ...ok.row, entries: 12 })).toBe(true);
-    expect(changesFrozenFields(p, { ...ok.row, kind: 'days', entries: null, days: 10 })).toBe(true);
+    expect(changesFrozenFields(p, { ...ok.row, kind: 'single_entry', entries: null, day_type: 'weekend' })).toBe(true);
   });
 
   it('AC-3: błąd bazy `product_has_orders` jest rozpoznawany', () => {
@@ -134,12 +129,12 @@ describe('produkty — zamówienia i kolejność', () => {
   it('AC-4: produkty w grupach rodzaju, w grupie wg pozycji', () => {
     const groups = groupProducts([
       product({ id: 'b', position: 2 }),
-      product({ id: 'd', kind: 'days', entries: null, days: 30, position: 1 }),
+      product({ id: 'd', kind: 'single_entry', entries: null, day_type: 'weekday', position: 1 }),
       product({ id: 'a', position: 1 }),
       product({ id: 'c', position: 3, is_active: true }),
     ]);
     expect(groups.entries.map((p) => p.id)).toEqual(['a', 'b', 'c']);
-    expect(groups.days.map((p) => p.id)).toEqual(['d']);
-    expect(groups.single_entry).toEqual([]);
+    expect(groups.single_entry.map((p) => p.id)).toEqual(['d']);
+    expect(Object.keys(groups)).toEqual(['entries', 'single_entry']);
   });
 });

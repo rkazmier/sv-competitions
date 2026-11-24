@@ -47,7 +47,7 @@ export interface AdminOrder {
   refund_amount: number | null;
   withdrawal_on: string | null;
   /** Rodzaj uprawnienia (`user_passes.kind`); `null` — bez uprawnienia. */
-  pass_kind: 'entries' | 'days' | 'single_entry' | 'event_ticket' | null;
+  pass_kind: 'entries' | 'single_entry' | 'event_ticket' | null;
   /** SPEC-012 AC-15, AC-21: ostatni dzień 14 dni od opłacenia (zamówienia na produkt); `null` — wejściówka / nieopłacone. */
   refund_window_until: string | null;
   /** SPEC-012 AC-16…AC-18: zwrot przy odstąpieniu na dziś; `null` — odstąpienie niedostępne. */

@@ -59,19 +59,19 @@ Podpis zawsze składa osobiście osoba wpisywana.
 - **AC-6**: Given brak kamery lub kod nieczytelny When wpisuję min. 3 znaki imienia i nazwiska lub e-maila Then widzę maks. 10 pasujących osób (imię i nazwisko, część e-maila) do wyboru.
 - **AC-7**: Given osoba ma braki w danych When klikam „Uzupełnij dane” Then w tym samym ekranie wpisuję brakujące pola (walidacja SPEC-002 AC-8, AC-11); zapis aktualizuje profil i `audit_log`; bez kompletu danych przycisk „Dalej” jest nieaktywny.
 - **AC-8**: Given admin w karcie użytkownika (SPEC-002) When klika „Rozpocznij wpis do książki” Then przechodzi ten sam przebieg od kroku wyboru uprawnienia.
-- **AC-9**: Given osoba ma już dziś wpis When ją wybieram Then widzę ostrzeżenie „Ta osoba ma dziś wpis o 10:32. Kontynuować?” (nowy wpis dozwolony, zużywa kolejne uprawnienie — chyba że karnet czasowy lub wejściówka obejmuje dziś).
+- **AC-9**: Given osoba ma już dziś wpis When ją wybieram Then widzę ostrzeżenie „Ta osoba ma dziś wpis o 10:32. Kontynuować?” (nowy wpis dozwolony, zużywa kolejne uprawnienie — chyba że wejściówka obejmuje dziś).
 
 ### US-4: Jako obsługa chcę, żeby system sam wybrał właściwe uprawnienie
 > Od SPEC-012: w dniach zawodów i wydarzeń z blokadą karnetów ważne są tylko wejściówki (SPEC-012 AC-41…AC-44).
 
-- **AC-10**: Given osoba ma uprawnienia ważne dziś (SPEC-003 `passes_valid_on`) When przechodzę do wyboru Then lista jest w kolejności: (0) wejściówka na dzisiejsze wydarzenie, (1) aktywny karnet czasowy obejmujący dziś, (2) nieaktywowany karnet czasowy, (3) karnet ilościowy, (4) wejście jednorazowe pasujące do dnia tygodnia; w każdej grupie wg najwcześniejszego `expires_on`. Domyślnie zaznaczona pierwsza pozycja; mogę wybrać inną.
-- **AC-11**: Given każda pozycja listy When ją widzę Then ma opis skutku: „Karnet 3 dni — ważny do 12.03 (bez zmian)”, „Karnet 3 dni — aktywacja dziś, ważny do 12.03”, „Karnet 10 wejść — zostanie 6”, „Wejście weekendowe — zostanie wykorzystane”.
+- **AC-10**: Given osoba ma uprawnienia ważne dziś (SPEC-003 `passes_valid_on`) When przechodzę do wyboru Then lista jest w kolejności: (0) wejściówka na dzisiejsze wydarzenie, (1) karnet ilościowy, (2) wejście jednorazowe pasujące do dnia tygodnia; w każdej grupie wg najwcześniejszego `expires_on`. Domyślnie zaznaczona pierwsza pozycja; mogę wybrać inną.
+- **AC-11**: Given każda pozycja listy When ją widzę Then ma opis skutku: „Puchar SV — obejmuje dziś (bez zmian)”, „Karnet 10 wejść — zostanie 6”, „Wejście weekendowe — zostanie wykorzystane”.
 - **AC-12**: Given osoba nie ma uprawnienia ważnego dziś When przechodzę do wyboru Then widzę „Brak ważnego karnetu lub wejścia na dziś.” i przycisk „Sprzedaj na miejscu” (SPEC-003 AC-21, po sprzedaży wracam do wpisu z nowym uprawnieniem) oraz „Wpisz jako osobę towarzyszącą”.
 
 ### US-5: Jako osoba wpisywana chcę podpisać się na ekranie
 - **AC-13**: Given wybrane uprawnienie When przechodzę do podpisu Then widzę dane wpisu (data i godzina, imię i nazwisko, decyzja i organ albo adres, prowadzący), regulamin strzelnicy (przewijany; treść od właściciela z #39 — „Regulamin użytkowania strzelnicy w miejscowości Morawy Wielkie”, rozdziały 1–4; ramka na samym dole ekranu, pod przyciskami, żeby pole podpisu i „Zapisz wpis” były widoczne bez przewijania) i pole podpisu z tekstem „Podpisując, potwierdzasz zapoznanie się z regulaminem strzelnicy.”.
 - **AC-14**: Given pole podpisu When podpis jest pusty lub za krótki (< 20 punktów ścieżki) Then „Zapisz wpis” jest nieaktywny; „Wyczyść” czyści pole.
-- **AC-15**: Given podpis When klikam „Zapisz wpis” Then podpis (PNG, białe tło, maks. 200 KB) trafia do prywatnego bucketu `signatures`, a funkcja `create_range_log_entry` w jednej transakcji: tworzy wpis z kopią danych osoby i prowadzącego, zapisuje zużycie w `pass_usages` (zgodnie z wyborem: aktywacja `first_used_on`/`valid_until`, licznik −1, `used_up`), sprawdza ponownie ważność uprawnienia z blokadą wiersza.
+- **AC-15**: Given podpis When klikam „Zapisz wpis” Then podpis (PNG, białe tło, maks. 200 KB) trafia do prywatnego bucketu `signatures`, a funkcja `create_range_log_entry` w jednej transakcji: tworzy wpis z kopią danych osoby i prowadzącego, zapisuje zużycie w `pass_usages` (zgodnie z wyborem: licznik −1, `used_up`), sprawdza ponownie ważność uprawnienia z blokadą wiersza.
 - **AC-16**: Given zapis się nie udał (sieć, uprawnienie zużyte w międzyczasie) When wraca błąd Then wpis i zużycie nie powstają (transakcja), widzę „Nie udało się zapisać wpisu. Spróbuj ponownie.” lub „Uprawnienie zostało właśnie wykorzystane — wybierz inne.”, a podpis pozostaje na ekranie do ponowienia.
 - **AC-17**: Given wpis zapisany When widzę potwierdzenie „Wpisano do książki: <imię i nazwisko>, <godzina>.” Then mam przyciski „Dodaj osobę towarzyszącą” i „Następna osoba”.
 
@@ -83,7 +83,7 @@ Podpis zawsze składa osobiście osoba wpisywana.
 ### US-7: Jako obsługa / admin chcę poprawić błąd we wpisie
 - **AC-21**: Given wpis When klikam „Dodaj adnotację” i wpisuję treść (5–500 znaków) Then pod wpisem widać adnotację (kto, kiedy, treść); wpisu nie da się zmienić ani usunąć (brak `update`/`delete`, test pgTAP dla wszystkich ról).
 - **AC-22**: Given obsługa When próbuje dodać adnotację do wpisu z innego dnia niż dziś Then operacja jest odrzucona (tylko admin).
-- **AC-23**: Given zużycie karnetu wpisane omyłkowo When admin klika „Cofnij zużycie” przy wpisie (w szczegółach karnetu) Then zużycie jest wycofane (licznik +1 / zdjęcie aktywacji, jeśli to było jedyne zużycie karnetu czasowego), powstaje adnotacja do wpisu „Cofnięto zużycie karnetu” i `audit_log` `pass_usage_revert`; sam wpis pozostaje.
+- **AC-23**: Given zużycie karnetu wpisane omyłkowo When admin klika „Cofnij zużycie” przy wpisie (w szczegółach karnetu) Then zużycie jest wycofane (licznik +1 / wejście jednorazowe znów aktywne), powstaje adnotacja do wpisu „Cofnięto zużycie karnetu” i `audit_log` `pass_usage_revert`; sam wpis pozostaje.
 
 ### US-8: Jako użytkownik chcę widzieć swoje wejścia
 - **AC-24**: Given `/konto/` When patrzę na „Historia wejść” Then widzę swoje wpisy (data i godzina, prowadzący, wykorzystane uprawnienie), od najnowszych, bez podpisów; wpisy jako osoba towarzysząca też (bez uprawnienia).
@@ -126,7 +126,7 @@ Podpis zawsze składa osobiście osoba wpisywana.
 | | `user_pass_id` | `uuid` FK → `user_passes.id` on delete cascade | tak | nie | |
 | | `range_log_entry_id` | `uuid` FK → `range_log.id` on delete set null, unikalny | nie | nie | |
 | | `used_on` | `date` | tak | nie | dzień Europe/Warsaw |
-| | `effect` | `text` check in (`activated`, `covered`, `decremented`, `consumed`) | tak | nie | aktywacja czasowego / dzień w ważności czasowego lub wejściówki / licznik −1 / jednorazowe |
+| | `effect` | `text` check in (`covered`, `decremented`, `consumed`) | tak | nie | dzień wejściówki / licznik −1 / jednorazowe (`activated` — usunięte z karnetami czasowymi, SPEC-012 US-10) |
 | | `reverted_at`, `reverted_by` | | nie | | AC-23 |
 | | `created_at` | `timestamptz` | tak | nie | |
 
@@ -160,8 +160,6 @@ Nie zawiera rodzaju osoby, wersji regulaminu ani informacji rozliczeniowych — 
 
 - Dwa urządzenia zużywają jednocześnie ostatnie wejście karnetu → druga transakcja dostaje błąd (AC-16), blokada `for update`.
 - Wpis około północy → dzień zużycia i ważności liczony z `now()` bazy w Europe/Warsaw, nie z zegara urządzenia.
-- Karnet czasowy: pierwszy wpis 10.03 przy 3 dniach → `first_used_on` 10.03, `valid_until` 12.03; kolejne wpisy 10–12.03 bez zmian (`covered`).
-- Nieaktywowany karnet czasowy po `expires_on` → nie pojawia się na liście (wygasł).
 - Zmiana danych w profilu lub usunięcie konta → wpis bez zmian (kopia), `profile_id = null`.
 - Prowadzący ukryty w trakcie zmiany → kolejne wpisy na urządzeniu wymagają ponownego wyboru.
 - Podpis wysłany, wpis nieudany → plik osierocony usuwany po 24 h (AC-31).

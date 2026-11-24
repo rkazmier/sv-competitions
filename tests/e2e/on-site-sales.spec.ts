@@ -93,7 +93,7 @@ test('AC-22: osoba bez konta — tylko wejście na dziś, zamówienie bez danych
     price: 4000,
     day_type: todayType() === 'weekend' ? 'weekday' : 'weekend',
   });
-  const pass = await seedProduct({ kind: 'days', name: 'Karnet czasowy E2E', price: 30000, days: 30 });
+  const pass = await seedProduct({ kind: 'entries', name: 'Karnet ilościowy bez konta E2E', price: 30000, entries: 10 });
 
   await page.goto('/panel/sprzedaz/');
   await page.getByLabel('Osoba bez konta').check();

@@ -32,17 +32,11 @@ select lives_ok(
   'AC-1: drugi karnet ilościowy'
 );
 select throws_ok(
-  $$insert into public.products (id, kind, name, price, days)
-    values ('00000000-0000-0000-0000-00000000e003', 'days', 'Karnet 30 dni', 30000, 30)$$,
-  '23514', 'product_kind_discontinued', 'SPEC-012 AC-53: nowego karnetu czasowego nie da się dodać'
+  $$insert into public.products (kind, name, price, entries) values ('days', 'Karnet 30 dni', 30000, 30)$$,
+  '23514', null, 'AC-1: rodzaju „Karnet czasowy” nie ma (usunięty z Oferty)'
 );
--- Karnet czasowy sprzedawany przed 7-A (SPEC-012): wiersz istniejący przed wyzwalaczem AC-53.
-reset role;
-alter table public.products disable trigger products_before_write;
-insert into public.products (id, kind, name, price, days, position)
-  values ('00000000-0000-0000-0000-00000000e003', 'days', 'Karnet 30 dni', 30000, 30, 1);
-alter table public.products enable trigger products_before_write;
-set local role authenticated;
+insert into public.products (id, kind, name, price, day_type)
+  values ('00000000-0000-0000-0000-00000000e003', 'single_entry', 'Wejście w tygodniu', 3000, 'weekday');
 select lives_ok(
   $$insert into public.products (id, kind, name, price, day_type)
     values ('00000000-0000-0000-0000-00000000e004', 'single_entry', 'Wejście weekendowe', 5001, 'weekend')$$,
@@ -62,12 +56,12 @@ select throws_ok(
   '23514', null, 'AC-1: liczba wejść 1–100'
 );
 select throws_ok(
-  $$insert into public.products (kind, name, price, days) values ('days', 'Za długo', 1000, 367)$$,
-  '23514', null, 'AC-1: liczba dni 1–366'
+  $$insert into public.products (kind, name, price) values ('entries', 'Bez wejść', 1000)$$,
+  '23514', null, 'AC-1: karnet ilościowy wymaga liczby wejść'
 );
 select throws_ok(
-  $$insert into public.products (kind, name, price, entries) values ('days', 'Bez dni', 1000, 10)$$,
-  '23514', null, 'AC-1: karnet czasowy wymaga liczby dni (i nie ma liczby wejść)'
+  $$insert into public.products (kind, name, price, entries, day_type) values ('entries', 'Z dniem', 1000, 10, 'weekend')$$,
+  '23514', null, 'AC-1: karnet ilościowy nie ma dnia'
 );
 select throws_ok(
   $$insert into public.products (kind, name, price) values ('single_entry', 'Bez dnia', 1000)$$,
@@ -112,7 +106,7 @@ select is(
   public.move_product('00000000-0000-0000-0000-00000000e002', 'up'), false, 'AC-4: pierwszy w grupie nie idzie wyżej'
 );
 select is(
-  public.move_product('00000000-0000-0000-0000-00000000e003', 'down'), false,
+  public.move_product('00000000-0000-0000-0000-00000000e004', 'down'), false,
   'AC-4: ostatni w grupie nie idzie niżej (inne grupy się nie liczą)'
 );
 
@@ -127,12 +121,13 @@ select lives_ok(
   'AC-3: bez zamówień rodzaj można zmienić'
 );
 select throws_ok(
-  $$update public.products set kind = 'days', day_type = null, days = 10 where id = '00000000-0000-0000-0000-00000000e002'$$,
-  '23514', 'product_kind_discontinued', 'SPEC-012 AC-53: zmiana rodzaju na karnet czasowy odrzucona'
+  $$update public.products set kind = 'days', day_type = null where id = '00000000-0000-0000-0000-00000000e002'$$,
+  '23514', null, 'AC-3: zmiana rodzaju na nieistniejący (karnet czasowy) odrzucona'
 );
 select lives_ok(
-  $$update public.products set name = 'Karnet 30 dni', price = 31000, days = 31 where id = '00000000-0000-0000-0000-00000000e003'$$,
-  'SPEC-012 AC-53: edycja istniejącego karnetu czasowego bez zmian'
+  $$update public.products set name = 'Wejście w tygodniu', price = 3100, day_type = 'weekend'
+    where id = '00000000-0000-0000-0000-00000000e003'$$,
+  'AC-3: bez zamówień można zmienić dzień wejścia jednorazowego'
 );
 reset role;
 
@@ -155,7 +150,8 @@ select throws_ok(
   '23514', 'product_has_orders', 'AC-3: przy zamówieniach nie można zmienić liczby wejść'
 );
 select throws_ok(
-  $$update public.products set kind = 'days', entries = null, days = 10 where id = '00000000-0000-0000-0000-00000000e001'$$,
+  $$update public.products set kind = 'single_entry', entries = null, day_type = 'weekend'
+    where id = '00000000-0000-0000-0000-00000000e001'$$,
   '23514', 'product_has_orders', 'AC-3: przy zamówieniach nie można zmienić rodzaju'
 );
 reset role;
@@ -175,7 +171,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 set local role authenticated;
 select results_eq(
   $$select name from public.products order by name$$,
-  array['Karnet 10 wejść (nowa cena)', 'Karnet 30 dni'],
+  array['Karnet 10 wejść (nowa cena)', 'Wejście w tygodniu'],
   'użytkownik widzi tylko produkty w ofercie (AC-2)'
 );
 reset role;

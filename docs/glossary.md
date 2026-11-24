@@ -51,7 +51,6 @@ Nazwy w kodzie (EN) i w interfejsie (PL). Analityk uzupełnia słownik przy każ
 | Oferta | `offer` (`/oferta/`) | Sklep strzelnicy: karnety, wejścia, wejściówki |
 | Produkt | `product` | Pozycja Oferty z ceną ustawianą przez admina |
 | Karnet ilościowy | `entries` | Produkt na N wejść; każde wejście zmniejsza licznik o 1 |
-| Karnet czasowy | `days` | Produkt na N kolejnych dni kalendarzowych liczonych od pierwszego wejścia; wycofany z Oferty od 1.01.2027 — działają tylko karnety sprzedane wcześniej (SPEC-012) |
 | Wejście jednorazowe | `single_entry` | Jedno wejście w wariancie weekend (sob.–niedz.) lub dzień powszedni (pn–pt) |
 | Wejściówka | `event_ticket` | Uprawnienie wejścia na płatne wydarzenie Steel Valley w dniach wydarzenia |
 | Tryb wydarzenia | `access_mode` | `external` (zewnętrzne), `free` (otwarte, bezpłatne), `paid` (płatne przez Ofertę) |

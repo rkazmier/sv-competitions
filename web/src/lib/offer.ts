@@ -16,7 +16,7 @@ export const PAYMENT_STATUS_PAGE = '/konto/platnosc/';
 export const SALES_TERMS_PAGE = '/regulamin-sprzedazy/';
 
 /** Kolumny produktu na stronach publicznych (RLS: tylko aktywne). */
-export const OFFER_COLUMNS = 'id, kind, name, description, price, entries, days, day_type, is_active, position';
+export const OFFER_COLUMNS = 'id, kind, name, description, price, entries, day_type, is_active, position';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -46,10 +46,9 @@ export function buyHref(productId: string, signedIn: boolean): string {
   return signedIn ? orderPath(productId) : withNext(LOGIN_PAGE, orderPath(productId));
 }
 
-/** Informacje pod opisem produktu (AC-5) i w podsumowaniu (AC-7): ważność, aktywacja, dni tygodnia. */
+/** Informacje pod opisem produktu (AC-5) i w podsumowaniu (AC-7): ważność, dni tygodnia. */
 export function productNotes(product: Pick<Product, 'kind' | 'day_type'>): MessageKey[] {
   const notes: MessageKey[] = ['offer.validity'];
-  if (product.kind === 'days') notes.push('offer.daysNote');
   if (product.kind === 'single_entry') {
     notes.push(product.day_type === 'weekday' ? 'offer.weekdayNote' : 'offer.weekendNote');
   }
@@ -123,7 +122,7 @@ export function paymentView(status: string, elapsedMs: number): PaymentView {
 
 // ===== Karnety (AC-12, AC-15) =====
 
-export type PassKind = 'entries' | 'days' | 'single_entry' | 'event_ticket';
+export type PassKind = 'entries' | 'single_entry' | 'event_ticket';
 
 /** Wiersz `user_passes` z nazwą z zamówienia i zużyciami (RLS: własne). */
 export interface UserPass {
@@ -132,7 +131,6 @@ export interface UserPass {
   status: 'active' | 'used_up' | 'cancelled';
   entries_total: number | null;
   entries_left: number | null;
-  first_used_on: string | null;
   valid_until: string | null;
   expires_on: string;
   created_at: string;
@@ -141,21 +139,18 @@ export interface UserPass {
 }
 
 export const PASS_COLUMNS =
-  'id, kind, status, entries_total, entries_left, first_used_on, valid_until, expires_on, created_at, ' +
+  'id, kind, status, entries_total, entries_left, valid_until, expires_on, created_at, ' +
   'orders(item_name), pass_usages(id, used_on, created_at, reverted_at)';
 
-/** Data pierwszego użycia: aktywacja karnetu czasowego albo najwcześniejsze niecofnięte zużycie. */
+/** Data pierwszego użycia: najwcześniejsze niecofnięte zużycie. */
 export function firstUsedOn(pass: UserPass): string | null {
-  if (pass.first_used_on) return pass.first_used_on;
   const days = pass.pass_usages.filter((usage) => !usage.reverted_at).map((usage) => usage.used_on).sort();
   return days[0] ?? null;
 }
 
-/** „Ważny do” (AC-12): czasowy aktywowany i wejściówka — `valid_until`; pozostałe — `expires_on`. */
+/** „Ważny do” (AC-12): wejściówka — `valid_until`; pozostałe — `expires_on`. */
 export function passValidTo(pass: UserPass): string {
-  return (pass.kind === 'days' && pass.first_used_on) || pass.kind === 'event_ticket'
-    ? (pass.valid_until ?? pass.expires_on)
-    : pass.expires_on;
+  return pass.kind === 'event_ticket' ? (pass.valid_until ?? pass.expires_on) : pass.expires_on;
 }
 
 /** Aktywne dnia `today` (AC-12) — w przeciwnym razie wykorzystane, wygasłe albo anulowane (AC-15). */

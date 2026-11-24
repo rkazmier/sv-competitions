@@ -50,11 +50,11 @@ więc powód nie może być kolumną `orders` (5-A: klient nie widzi treści pow
   Obsługa nie widzi przycisków, a wejście na adres kończy się bramką panelu (brak dostępu).
 - **AC-2**: Given formularz When wybieram „Osoba”* Then mogę wyszukać osobę z kontem po imieniu i nazwisku lub e-mailu (jak w sprzedaży na miejscu, SPEC-003 AC-21)
   albo zeskanować kod QR; nie ma opcji „Osoba bez konta” (2-A).
-- **AC-3**: Given formularz When rozwijam „Co przyznać”* Then widzę grupy „Karnety ilościowe”, „Karnety czasowe”, „Wejścia jednorazowe” ze wszystkimi produktami
+- **AC-3**: Given formularz When rozwijam „Co przyznać”* Then widzę grupy „Karnety ilościowe”, „Wejścia jednorazowe” ze wszystkimi produktami
   (także ukrytymi — z dopiskiem „(ukryty w Ofercie)”) oraz „Wejściówki” — opublikowane płatne wydarzenia, których ostatni dzień (Europe/Warsaw) jeszcze nie minął,
   z datą i — przy limicie — „wolne: 12” albo „wyprzedane” (pozycja nieaktywna). Cena produktu jest widoczna jako informacja („cena w Ofercie: 120,00 zł”).
 - **AC-4**: Given wybrany produkt When patrzę na „Ważny do”* Then pole daty ma wartość domyślną = dziś + 1 rok (`pass_expires_on(dziś)`, jak przy zakupie)
-  i mogę ją zmienić na dowolny dzień od dziś do dziś + 5 lat (8-B); podpowiedź pod polem dla karnetu czasowego: „Do tego dnia trzeba zacząć korzystać z karnetu — dni liczą się od pierwszego wejścia.”.
+  i mogę ją zmienić na dowolny dzień od dziś do dziś + 5 lat (8-B).
 - **AC-5**: Given wybrana wejściówka When patrzę na formularz Then pola „Ważny do” nie ma, jest tekst „Wejściówka ważna w dniach wydarzenia.” (ważność jak przy zakupie).
 - **AC-6**: Given formularz When wpisuję „Powód”* (3–300 znaków po obcięciu spacji, np. „Nagroda — zawody X”) Then pod polem widzę licznik znaków i podpowiedź
   „Widoczny tylko dla admina. Nie wpisuj danych osobowych — osoba jest już wskazana.”; za krótki / za długi → „Powód musi mieć od 3 do 300 znaków.”.
@@ -155,7 +155,7 @@ Na telefonie formularz w jednej kolumnie, przyciski ≥ 44 px. Teksty w `web/src
 - Produkt ukryty → można przyznać (cel funkcji); w „Twoje karnety” klient widzi jego nazwę jak każdego karnetu.
 - Pierwsze zamówienie produktu to prezent → blokuje zmianę rodzaju / liczby wejść / dni produktu (SPEC-003 AC-3, `product_order_exists`) — jak zakup.
 - Wejściówka-prezent jest „sprzedaną” wejściówką dla blokady zmiany trybu i ceny wydarzenia (SPEC-003 AC-20, wyzwalacz liczy `paid`) — także gdy to jedyne wejściówki.
-- „Ważny do” = dziś → karnet ważny tylko dziś. Karnet czasowy z „Ważny do” = dziś aktywowany dziś → ważny `days_total` dni od dziś (`expires_on` ogranicza tylko aktywację, SPEC-003 §7).
+- „Ważny do” = dziś → karnet ważny tylko dziś.
 - „Ważny do” 29.02 → dozwolone, gdy taki dzień istnieje w danym roku (kontrolka daty).
 - Anulowanie w dniu, w którym osoba już weszła na karnet → wpis w książce i zużycie zostają; od kolejnego wpisu karnet niedostępny.
 - Cofnięcie zużycia (SPEC-005 AC-23) na anulowanym karnecie → licznik +1, ale karnet nadal `cancelled` (status nie wraca do `active`).

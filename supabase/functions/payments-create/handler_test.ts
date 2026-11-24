@@ -190,8 +190,8 @@ Deno.test('SPEC-012 AC-3: niepoprawna wersja lub zgoda — 400 bez wywołań', a
   }
 });
 
-Deno.test('SPEC-012 AC-3, AC-54: regulamin się zmienił, produkt wycofany — 409 bez transakcji Tpay', async () => {
-  for (const code of ['terms_changed', 'product_discontinued']) {
+Deno.test('SPEC-012 AC-3: regulamin się zmienił — 409 bez transakcji Tpay', async () => {
+  for (const code of ['terms_changed']) {
     const { calls, fetch } = mockFetch({ order: { status: 400, body: { code: 'P0001', message: code } } });
     const response = await handle(post({ product_id: PRODUCT, request_key: KEY, consent: true }), { fetch, config: CONFIG });
     assert(response.status === 409, `status ${response.status}`);

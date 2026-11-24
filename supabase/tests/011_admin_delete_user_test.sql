@@ -11,8 +11,8 @@ insert into auth.users (id, email) values
 update public.profiles set role = 'admin', full_name = 'Anna Admin' where id = '00000000-0000-0000-0000-0000000000a2';
 update public.profiles set role = 'staff' where id = '00000000-0000-0000-0000-0000000000b2';
 update public.profiles set full_name = 'Jan Usuwany', phone = '600100200' where id = '00000000-0000-0000-0000-0000000000c2';
-insert into public.products (id, kind, name, price, entries, days, day_type) values
-  ('00000000-0000-0000-0000-00000000f101', 'entries', 'Karnet 10 wejść', 120000, 10, null, null);
+insert into public.products (id, kind, name, price, entries, day_type) values
+  ('00000000-0000-0000-0000-00000000f101', 'entries', 'Karnet 10 wejść', 120000, 10, null);
 insert into public.orders (id, user_id, product_id, item_name, amount, payment_method, created_by) values
   ('00000000-0000-0000-0000-00000000d001', '00000000-0000-0000-0000-0000000000c2',
    '00000000-0000-0000-0000-00000000f101', 'Karnet 10 wejść', 120000, 'tpay', '00000000-0000-0000-0000-0000000000c2');

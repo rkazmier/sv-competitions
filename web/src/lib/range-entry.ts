@@ -19,11 +19,9 @@ export interface PersonSummary {
 export interface EntryPass {
   priority: number;
   id: string;
-  kind: 'entries' | 'days' | 'single_entry' | 'event_ticket';
+  kind: 'entries' | 'single_entry' | 'event_ticket';
   item_name: string;
   entries_left: number | null;
-  days_total: number | null;
-  first_used_on: string | null;
   valid_until: string | null;
   expires_on: string;
 }
@@ -61,16 +59,10 @@ export function entryReturnUrl(search: string): string | null {
 }
 
 const timeFormat = new Intl.DateTimeFormat('pl-PL', { timeZone: 'Europe/Warsaw', hour: '2-digit', minute: '2-digit' });
-const dayMonthFormat = new Intl.DateTimeFormat('pl-PL', { timeZone: 'UTC', day: '2-digit', month: '2-digit' });
 
 /** Godzina w Europe/Warsaw, np. „10:32” (AC-9). */
 export function entryTime(timestamp: string): string {
   return timeFormat.format(new Date(timestamp));
-}
-
-/** `2027-03-12` → „12.03” (AC-11). */
-export function shortDate(date: string): string {
-  return dayMonthFormat.format(new Date(`${date}T00:00:00Z`));
 }
 
 /** Dzień `YYYY-MM-DD` przesunięty o `days`. */
@@ -80,16 +72,10 @@ export function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
-/** AC-11: opis skutku wyboru uprawnienia dziś (`today` — dzień Europe/Warsaw). */
-export function passEffect(pass: EntryPass, today: string): { key: MessageKey; params: Record<string, string | number> } {
+/** AC-11: opis skutku wyboru uprawnienia dziś. */
+export function passEffect(pass: EntryPass): { key: MessageKey; params: Record<string, string | number> } {
   const name = pass.item_name;
   switch (pass.kind) {
-    case 'days':
-      if (pass.first_used_on === null) {
-        // Aktywacja dziś: `valid_until` = pierwszy dzień + liczba dni − 1 (jak wyzwalacz w bazie).
-        return { key: 'rangeEntry.effectActivate', params: { name, date: shortDate(addDays(today, (pass.days_total ?? 1) - 1)) } };
-      }
-      return { key: 'rangeEntry.effectCovered', params: { name, date: shortDate(pass.valid_until ?? pass.expires_on) } };
     case 'event_ticket':
       return { key: 'rangeEntry.effectTicket', params: { name } };
     case 'entries':

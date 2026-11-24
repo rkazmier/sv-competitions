@@ -1,15 +1,8 @@
-// SPEC-012 US-1, US-2, US-10: wersja regulaminu i zgoda w zamówieniu, karnety czasowe wycofane.
+// SPEC-012 US-1, US-2: wersja regulaminu i zgoda w zamówieniu.
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
 import { ORDER_COLUMNS, canOrder, needsConsent, orderTermsLines, shortDateTime, termsVersionSuffix } from './offer';
-import {
-  DAYS_PASS_SALES_END,
-  NBSP,
-  formatPrice,
-  isKindDiscontinued,
-  isProductDiscontinued,
-  isProductKindDiscontinuedError,
-} from './products';
+import { NBSP, formatPrice } from './products';
 import { salesTermsVersions, shortDay } from './sales-terms';
 
 describe('SPEC-012 US-1: wersja regulaminu', () => {
@@ -70,24 +63,5 @@ describe('SPEC-012 US-2: zgoda na korzystanie przed upływem 14 dni', () => {
 
   it('AC-7: komunikat consent_required', () => {
     expect(t('offer.consentRequired')).toBe('Zaznacz zgodę na korzystanie przed upływem 14 dni.');
-  });
-});
-
-describe('SPEC-012 US-10: karnety czasowe wycofane', () => {
-  it('AC-53: „Karnet czasowy” niewybieralny przy dodawaniu; błąd wyzwalacza → komunikat', () => {
-    expect(isKindDiscontinued('days')).toBe(true);
-    expect(isKindDiscontinued('entries')).toBe(false);
-    expect(isProductKindDiscontinuedError({ code: '23514', message: 'product_kind_discontinued' })).toBe(true);
-    expect(isProductKindDiscontinuedError({ code: '23514', message: 'product_has_orders' })).toBe(false);
-    expect(t('products.kindDiscontinued')).toBe('Karnety czasowe zostały wycofane z Oferty.');
-  });
-
-  it('AC-54: od 1.01.2027 karnet czasowy wycofany (stała jak w bazie), inne rodzaje bez zmian', () => {
-    expect(DAYS_PASS_SALES_END).toBe('2027-01-01');
-    expect(isProductDiscontinued({ kind: 'days' }, '2026-12-31')).toBe(false);
-    expect(isProductDiscontinued({ kind: 'days' }, '2027-01-01')).toBe(true);
-    expect(isProductDiscontinued({ kind: 'entries' }, '2027-06-01')).toBe(false);
-    expect(t('products.discontinued')).toBe('Wycofany');
-    expect(t('offer.discontinued')).toBe('Ten produkt nie jest już w ofercie.');
   });
 });
