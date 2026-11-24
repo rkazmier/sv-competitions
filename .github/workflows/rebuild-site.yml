@@ -145,6 +145,19 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
+      # Chwilowy błąd API GitHuba „No artifacts named github-pages” tuż po wgraniu artefaktu (#184):
+      # pierwsza próba nie przerywa joba, po 30 s druga — już bez continue-on-error, więc jej porażka
+      # kończy job błędem. Gdy pierwsza próba się uda, kolejne kroki są pomijane.
       - id: deployment
         if: steps.release.outputs.sha != ''
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Odczekaj przed ponowieniem wdrożenia
+        if: steps.release.outputs.sha != '' && steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - id: deployment-retry
+        if: steps.release.outputs.sha != '' && steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+      - name: Wdrożenie dopiero przy ponowieniu
+        if: steps.release.outputs.sha != '' && steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'success'
+        run: echo "::warning::Wdrożenie na GitHub Pages powiodło się dopiero przy ponowieniu (pierwsza próba deploy-pages zakończyła się błędem)."
