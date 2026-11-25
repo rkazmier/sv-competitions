@@ -4,7 +4,7 @@ import { t, type MessageKey } from './index';
 describe('t()', () => {
   it('AC-3: zwraca tekst z pliku i18n pl', () => {
     expect(t('nav.calendar')).toBe('Kalendarz');
-    expect(t('site.name')).toBe('Steel Valley Competitions');
+    expect(t('site.name')).toBe('Steel Valley Long Range');
   });
 
   it('podstawia parametry', () => {

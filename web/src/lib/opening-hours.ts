@@ -81,7 +81,10 @@ export function exceptionText(exception: HoursException): string {
 
 /** AC-37: „Nazwa — 14–15 czerwca 2027”. */
 export const blockedText = (entry: BlockedEntry): string =>
-  `${entry.name} — ${formatDateRange(entry.starts_on, entry.ends_on)}`;
+  `${entry.name} — ${blockedDates(entry)}`;
+
+/** AC-37: sam zakres dat wpisu blokady, np. „14–15 czerwca 2027”. */
+export const blockedDates = (entry: BlockedEntry): string => formatDateRange(entry.starts_on, entry.ends_on);
 
 /** AC-37: link do miesiąca w kalendarzu (kotwica jak na stronie głównej — trwający wpis w bieżącym miesiącu). */
 export function blockedHref(entry: BlockedEntry, today: string): string {

@@ -11,7 +11,7 @@ for (const width of WIDTHS) {
       await page.goto('/');
 
       const header = page.getByRole('banner');
-      await expect(header.getByRole('link', { name: 'Steel Valley Competitions' })).toBeVisible();
+      await expect(header.getByRole('link', { name: 'Steel Valley Long Range' })).toBeVisible();
       await expect(header.getByRole('link', { name: 'Kalendarz' })).toHaveAttribute('href', '/');
       await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Kalendarz strzelnicy');
       await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Strzelnica Steel Valley' })).toHaveAttribute(
@@ -53,7 +53,7 @@ test('AC-2: widoczny focus i link „Przejdź do treści”', async ({ page }) =
 
   await page.keyboard.press('Tab');
   const focused = page.locator(':focus');
-  await expect(focused).toHaveText('Steel Valley Competitions');
+  await expect(focused).toHaveText('Steel Valley Long Range');
   const outline = await focused.evaluate((el) => getComputedStyle(el).outlineStyle);
   expect(outline).not.toBe('none');
 });
