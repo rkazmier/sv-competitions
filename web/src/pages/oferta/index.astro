@@ -9,21 +9,23 @@ import { PRODUCT_KINDS } from '../../lib/products';
 ---
 <BaseLayout title={t('offer.title')}>
   <section class="section">
-    <div class="container offer" data-offer>
-      <h1>{t('offer.title')}</h1>
-      <p>{t('offer.intro')}</p>
-      <p role="status" data-loading>{t('offer.loading')}</p>
-      <p class="message-error" role="alert" data-load-error hidden>{t('offer.loadError')}</p>
-      <div class="offer-groups" data-groups hidden>
-        {
-          PRODUCT_KINDS.map((kind) => (
-            <section aria-labelledby={`offer-${kind}`}>
-              <h2 id={`offer-${kind}`}>{t(`products.groups.${kind}`)}</h2>
-              <p class="hint" data-empty={kind}>{t('offer.empty')}</p>
-              <ul class="offer-list" data-group={kind}></ul>
-            </section>
-          ))
-        }
+    <div class="container offer-layout">
+      <div class="offer" data-offer>
+        <h1>{t('offer.title')}</h1>
+        <p>{t('offer.intro')}</p>
+        <p role="status" data-loading>{t('offer.loading')}</p>
+        <p class="message-error" role="alert" data-load-error hidden>{t('offer.loadError')}</p>
+        <div class="offer-groups" data-groups hidden>
+          {
+            PRODUCT_KINDS.map((kind) => (
+              <section aria-labelledby={`offer-${kind}`}>
+                <h2 id={`offer-${kind}`}>{t(`products.groups.${kind}`)}</h2>
+                <p class="hint" data-empty={kind}>{t('offer.empty')}</p>
+                <ul class="offer-list" data-group={kind}></ul>
+              </section>
+            ))
+          }
+      </div>
       </div>
       <!-- SPEC-012 AC-37, AC-38: godziny otwarcia i dni blokady — pobierane w przeglądarce (lib/opening-hours-ui.ts). -->
       <section class="opening-hours-public" id="godziny" aria-labelledby="godziny-heading" data-opening-hours>
@@ -51,6 +53,39 @@ import { PRODUCT_KINDS } from '../../lib/products';
   .offer-groups {
     display: grid;
     gap: var(--space-4);
+  }
+
+  /* Wąskie ekrany: godziny otwarcia pod ofertą; szerokie: panel z prawej (przyklejony przy przewijaniu). */
+  .offer-layout {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  @media (min-width: 64rem) {
+    .offer-layout {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: var(--space-6);
+      align-items: start;
+    }
+
+    .opening-hours-public {
+      position: sticky;
+      top: calc(var(--header-height) + var(--space-4));
+      padding: var(--space-4);
+      background: var(--color-surface);
+      border: var(--border-width) solid var(--color-border);
+      border-radius: var(--radius-lg);
+      max-height: calc(100vh - var(--header-height) - 2 * var(--space-4));
+      overflow-y: auto;
+    }
+
+    .opening-hours-public h2 {
+      font-size: var(--text-h3);
+    }
+
+    .opening-hours-public h3 {
+      font-size: var(--text-lg);
+    }
   }
 
   .offer > *,
@@ -117,7 +152,8 @@ import { PRODUCT_KINDS } from '../../lib/products';
   }
 
   .offer .hint,
-  .offer-item .hint {
+  .offer-item .hint,
+  .opening-hours-public .hint {
     color: var(--color-text-muted);
     font-size: var(--text-sm);
   }
