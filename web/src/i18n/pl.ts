@@ -6,12 +6,15 @@
  */
 export const pl = {
   site: {
-    name: 'Steel Valley Competitions',
+    name: 'Steel Valley Long Range',
+    /** Logotyp w nagłówku — jak na stronie głównej steel-valley.pl */
+    wordmarkPrimary: 'Steel Valley',
+    wordmarkSecondary: 'Long Range',
     description: 'Kalendarz zawodów i wydarzeń na strzelnicy Steel Valley.',
   },
   layout: {
     skipLink: 'Przejdź do treści',
-    homeLabel: 'Steel Valley Competitions — strona główna',
+    homeLabel: 'Steel Valley Long Range — strona główna',
     navLabel: 'Nawigacja główna',
     panelMenuLabel: 'Menu panelu',
   },
@@ -1431,7 +1434,6 @@ Ja/My (\*) niniejszym informuję/informujemy (\*) o moim/naszym (\*) odstąpieni
     exceptionsHeading: 'Wyjątki',
     blockedHeading: 'Dni wydarzeń i zawodów — karnety i wejścia jednorazowe nie obowiązują:',
     blockedEmpty: 'Brak w najbliższych 30 dniach.',
-    calendarLink: 'Zobacz w kalendarzu',
     // Panel
     intro: 'Godziny są informacją dla klientów (strona „Oferta”) i nie blokują wpisów do książki. Zmiany widać od razu.',
     weekHeading: 'Tydzień',

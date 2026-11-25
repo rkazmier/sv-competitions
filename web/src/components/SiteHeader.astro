@@ -1,9 +1,10 @@
 ---
 /**
- * Nagłówek: logotyp tekstowy + nawigacja (SPEC-001 §6.1).
+ * Nagłówek: logo jak na stronie głównej steel-valley.pl (znak + logotyp) + nawigacja (SPEC-001 §6.1).
  * Strony publiczne: link „Kalendarz”. Panel podaje własne menu w slocie (PanelLayout).
  */
 import { t } from '../i18n';
+import mark from '../assets/logo/steel-valley-znak-jasne-tlo.svg';
 
 interface Props {
   /** Etykieta landmarku nawigacji */
@@ -14,7 +15,14 @@ const { navLabel } = Astro.props;
 ---
 <header class="site-header">
   <div class="container header-inner">
-    <a class="brand" href="/" aria-label={t('layout.homeLabel')}>{t('site.name')}</a>
+    <a class="brand" href="/" aria-label={t('layout.homeLabel')}>
+      <img class="brand-mark" src={mark.src} width={mark.width} height={mark.height} alt="" />
+      <span class="wordmark">
+        <span class="wordmark-primary">{t('site.wordmarkPrimary')}</span>
+        {' '}
+        <span class="wordmark-secondary">{t('site.wordmarkSecondary')}</span>
+      </span>
+    </a>
     <nav class="site-nav" aria-label={navLabel}>
       <slot />
     </nav>
@@ -43,16 +51,41 @@ const { navLabel } = Astro.props;
   .brand {
     display: inline-flex;
     align-items: center;
+    gap: var(--space-3);
     min-height: var(--tap-target);
     color: var(--color-text);
-    font-family: var(--font-heading);
-    font-size: var(--text-lg);
-    font-weight: var(--font-weight-strong);
-    letter-spacing: -0.015em;
     text-decoration: none;
   }
 
-  .brand:hover {
+  .brand-mark {
+    display: block;
+    height: 2.5rem;
+    width: auto;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+
+  .wordmark-primary {
+    font-family: var(--font-heading);
+    font-weight: var(--font-weight-strong);
+    font-size: 1.1875rem;
+    letter-spacing: -0.01em;
+  }
+
+  .wordmark-secondary {
+    margin-top: 2px;
+    font-size: 0.6875rem;
+    font-weight: var(--font-weight-strong);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .brand:hover .wordmark-primary {
     color: var(--color-accent);
   }
 

@@ -86,7 +86,7 @@ test.describe('kalendarz /', () => {
 
   test('AC-41: meta i Open Graph kalendarza', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle('Steel Valley Competitions');
+    await expect(page).toHaveTitle('Steel Valley Long Range');
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Kalendarz zawodów i wydarzeń na strzelnicy Steel Valley.');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${PRODUCTION}/`);
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', `${PRODUCTION}/`);
@@ -132,7 +132,7 @@ test.describe('strona zawodów', () => {
   test('AC-41: title, description (początek opisu ≤ 160 znaków), Open Graph, canonical na produkcję', async ({ page }) => {
     const a = await competition(SEED.competitionA);
     await page.goto(`/zawody/${a.slug}/`);
-    await expect(page).toHaveTitle(`${a.name} — Steel Valley Competitions`);
+    await expect(page).toHaveTitle(`${a.name} — Steel Valley Long Range`);
     const description = await page.locator('meta[name="description"]').getAttribute('content');
     expect(description!.startsWith('Pierwszy akapit opisu zawodów przykładowych.')).toBe(true);
     expect([...description!].length).toBeLessThanOrEqual(160);

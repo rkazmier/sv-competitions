@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
 import {
   addDays,
+  blockedDates,
   blockedHref,
-  blockedText,
   exceptionText,
   hoursError,
   hoursText,
@@ -59,9 +59,9 @@ describe('godziny otwarcia (SPEC-012 US-7)', () => {
     expect(addDays(today, 29)).toBe('2027-01-18');
   });
 
-  it('AC-37: dni blokady — nazwa, data, link do miesiąca w kalendarzu', () => {
+  it('AC-37: dni blokady — data, link do miesiąca w kalendarzu', () => {
     const entry = { kind: 'competition' as const, id: 'c1', name: 'Puchar SV', starts_on: '2027-01-02', ends_on: '2027-01-03' };
-    expect(blockedText(entry)).toBe('Puchar SV — 2–3 stycznia 2027');
+    expect(blockedDates(entry)).toBe('2–3 stycznia 2027');
     expect(blockedHref(entry, '2026-12-20')).toBe('/#miesiac-2027-01');
     expect(blockedHref({ ...entry, starts_on: '2026-11-28', ends_on: '2026-12-21' }, '2026-12-20')).toBe('/#miesiac-2026-12');
   });

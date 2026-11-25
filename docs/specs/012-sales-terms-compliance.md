@@ -155,7 +155,7 @@ Okno odstąpienia: od dnia opłacenia do dnia `paid_at` (data w Europe/Warsaw) +
 - **AC-35**: Given `/panel/godziny/` When dla każdego dnia tygodnia (pn–nd) ustawiam „Otwarte od–do” albo „Zamknięte” Then zapis od razu obowiązuje na stronie (dane pobierane w przeglądarce).
 - **AC-36**: Given `/panel/godziny/` When dodaję wyjątek: data*, „Otwarte od–do” albo „Zamknięte”, opis (do 100 znaków, publiczny, np. „Wigilia”) Then wyjątek zastępuje godziny dnia tygodnia; wyjątki z przeszłości znikają z listy po 30 dniach (zadanie nocne).
 - **AC-37**: Given `/oferta/` When otwieram stronę Then sekcja „Godziny otwarcia” (kotwica `#godziny`) pokazuje tydzień, wyjątki na najbliższe 30 dni oraz
-  „Dni wydarzeń i zawodów — karnety i wejścia jednorazowe nie obowiązują:” z listą dni na najbliższe 30 dni (nazwa, data, link do kalendarza).
+  „Dni wydarzeń i zawodów — karnety i wejścia jednorazowe nie obowiązują:” z listą dni na najbliższe 30 dni (nazwa wydarzenia jako link do kalendarza, data).
 - **AC-38**: Given dowolna strona When patrzę na stopkę Then widzę link „Godziny otwarcia” → `/oferta/#godziny`. Brak ustawionych godzin → sekcja „Godziny otwarcia wkrótce.”.
 - **AC-39**: Godzina „Do” musi być późniejsza niż „Od” („Godzina zamknięcia musi być późniejsza niż otwarcia.”); jeden przedział na dzień; godziny są informacją — nie blokują wpisów do książki.
 

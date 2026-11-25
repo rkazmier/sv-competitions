@@ -27,9 +27,9 @@ test('AC-35…AC-39: panel godzin, wyjątek, sekcja w Ofercie i link w stopce', 
   const section = page.locator('#godziny');
   await expect(section.getByText('Godziny otwarcia wkrótce.')).toBeVisible();
 
-  // AC-37: dni blokady na 30 dni z linkiem do kalendarza.
+  // AC-37: dni blokady na 30 dni; nazwa wydarzenia jest linkiem do kalendarza.
   await expect(section.getByText('Dni wydarzeń i zawodów — karnety i wejścia jednorazowe nie obowiązują:')).toBeVisible();
-  await expect(section.getByRole('link', { name: 'Zobacz w kalendarzu: Piknik E2E' }))
+  await expect(section.getByRole('link', { name: 'Piknik E2E', exact: true }))
     .toHaveAttribute('href', `/#miesiac-${warsawDay(5).slice(0, 7)}`);
 
   // AC-35, AC-39: tydzień w panelu; „Do” nie wcześniej niż „Od”.

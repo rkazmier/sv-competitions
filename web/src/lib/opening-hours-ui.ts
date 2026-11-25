@@ -12,7 +12,7 @@ import {
   WEEKDAYS,
   addDays,
   blockedHref,
-  blockedText,
+  blockedDates,
   exceptionText,
   hoursError,
   hoursText,
@@ -205,11 +205,11 @@ export async function mountOpeningHours(root: HTMLElement): Promise<void> {
   query<HTMLElement>(root, '[data-blocked-empty]').hidden = entries.length > 0;
   query<HTMLElement>(root, '[data-blocked]').replaceChildren(
     ...entries.map((entry) => {
-      const item = node('li', `${blockedText(entry)} `);
-      const link = node('a', t('openingHours.calendarLink'));
+      // Nazwa wydarzenia jest linkiem do jego miesiąca w kalendarzu.
+      const link = node('a', entry.name);
       link.href = blockedHref(entry, today);
-      link.setAttribute('aria-label', `${t('openingHours.calendarLink')}: ${entry.name}`);
-      item.append(link);
+      const item = node('li');
+      item.append(link, ` — ${blockedDates(entry)}`);
       return item;
     }),
   );

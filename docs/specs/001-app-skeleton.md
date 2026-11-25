@@ -249,7 +249,8 @@ Różnica — paleta jaśniejszej stali zamiast ciepłego beżu. Propozycja star
 | `--color-dark` | `#1b2329` | `#252d34` |
 | `--color-highlight` | `#a57a2c` | `#a57a2c` (wspólny akcent marki; wyróżnienie kart zawodów) |
 
-Nagłówek: logotyp tekstowy „Steel Valley Competitions”, link „Kalendarz” (`/`). Stopka: link do https://steel-valley.pl.
+Nagłówek: logo jak na stronie głównej steel-valley.pl — znak graficzny + logotyp „Steel Valley Long Range”, link „Kalendarz” (`/`). Stopka: link do https://steel-valley.pl.
+Nazwa serwisu (tytuły kart przeglądarki, `og:site_name`): „Steel Valley Long Range” — jak na stronie głównej.
 Panel ma ten sam układ, z menu panelu zamiast nawigacji publicznej.
 
 ### 6.2 Ekrany
