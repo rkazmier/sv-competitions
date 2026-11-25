@@ -12,6 +12,7 @@ for (const width of WIDTHS) {
 
       const header = page.getByRole('banner');
       await expect(header.getByRole('link', { name: 'Steel Valley Long Range' })).toBeVisible();
+      await expect(header.getByRole('link', { name: 'Strzelnica', exact: true })).toHaveAttribute('href', 'https://steel-valley.pl');
       await expect(header.getByRole('link', { name: 'Kalendarz' })).toHaveAttribute('href', '/');
       await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText('Kalendarz strzelnicy');
       await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Strzelnica Steel Valley' })).toHaveAttribute(

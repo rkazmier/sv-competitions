@@ -66,6 +66,7 @@ const isCurrent = (href: string) => (Astro.url.pathname === href ? 'page' : unde
     <SiteHeader navLabel={navLabel}>
       <slot name="nav">
         <ul>
+          <li><a href="https://steel-valley.pl">{t('nav.range')}</a></li>
           <li><a href="/" aria-current={isCurrent('/')}>{t('nav.calendar')}</a></li>
           <li><a href="/oferta/" aria-current={isCurrent('/oferta/')}>{t('nav.offer')}</a></li>
           <HeaderAuthLinks />
