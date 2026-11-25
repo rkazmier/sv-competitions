@@ -19,6 +19,7 @@ export const pl = {
     panelMenuLabel: 'Menu panelu',
   },
   nav: {
+    range: 'Strzelnica',
     calendar: 'Kalendarz',
     offer: 'Oferta',
     signIn: 'Zaloguj się',
